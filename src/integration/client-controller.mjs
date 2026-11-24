@@ -39,7 +39,7 @@ function readEffect(result){
  }
  if(result.kind==='open_native_guide'){
   const ref=result.reference;
-  if(!opaque(result.launchRef)||!opaque(ref?.guideId)||!opaque(ref.nativeServiceId)||!opaque(ref.catalogRevision)||!bounded(ref.sourceRevision,160)||!bounded(ref.nativeGuideFingerprint,64)||ref.guideId!==result.issue?.decision?.guideId)fail('INVALID_NATIVE_REFERENCE');
+  if(!opaque(result.launchRef)||!opaque(ref?.guideId)||!opaque(ref.nativeServiceId)||!opaque(ref.catalogRevision)||!bounded(ref.sourceRevision,160)||!bounded(ref.nativeGuideFingerprint,64)||!['resolution','diagnostic'].includes(ref.entryMode)||ref.guideId!==result.issue?.decision?.guideId)fail('INVALID_NATIVE_REFERENCE');
   return {kind:result.kind,reference:copy(ref),launchRef:result.launchRef,issueId:result.issue.issueId};
  }
  if(['open_native_draft','existing_native_request','native_request_unconfirmed'].includes(result.kind)){

@@ -2,13 +2,15 @@ import {createHash} from 'node:crypto';
 import {createEngine} from '../engine.mjs';
 import {SERVICE_IDS,isServiceId} from '../service-taxonomy.mjs';
 import {validateReviewedContexts} from '../reviewed-context.mjs';
+import {knownGuidePurpose} from '../guide-purposes.mjs';
 const clone=x=>JSON.parse(JSON.stringify(x));
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const bilingual=x=>x&&typeof x.en==='string'&&x.en.trim()&&x.en.length<=500&&typeof x.ar==='string'&&x.ar.trim()&&x.ar.length<=500;
 const list=x=>Array.isArray(x)&&x.length<=5000;
 const fail=x=>{throw Error(x);};
 const stable=x=>Array.isArray(x)?x.map(stable):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,stable(x[k])])):x;
-const digest=x=>createHash('sha256').update(JSON.stringify(stable(x))).digest('hex');
+export const nativeRecordFingerprint=x=>createHash('sha256').update(JSON.stringify(stable(x))).digest('hex');
+const digest=nativeRecordFingerprint;
 const unique=(xs,get)=>new Set(xs.map(get)).size===xs.length;
 const boundedTerms=x=>Array.isArray(x)?x.filter(v=>typeof v==='string'&&v.trim()&&v.length<=500).slice(0,100):[];
 /**
@@ -29,7 +31,12 @@ export function projectNativeCatalog({
  if(!unique(configuration.services,s=>s.id)||!unique(configuration.guides,g=>g.id)||
  !unique(mapping.services,s=>s.nativeId)||!unique(mapping.guides,g=>g.guideId))fail('AMBIGUOUS_NATIVE_MAPPING');
  for(const s of mapping.services)if(!s||!id(s.nativeId)||!isServiceId(s.serviceId))fail('INVALID_SERVICE_MAPPING');
- for(const g of mapping.guides)if(!g||!id(g.guideId)||!id(g.nativeServiceId)||!id(g.purpose))fail('INVALID_GUIDE_MAPPING');
+ for(const g of mapping.guides)if(!g||!id(g.guideId)||!id(g.nativeServiceId)||!id(g.purpose)||
+  (g.entryMode!==undefined&&!['diagnostic','resolution'].includes(g.entryMode))||
+  (g.expectedFingerprint!==undefined&&(typeof g.expectedFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(g.expectedFingerprint))))fail('INVALID_GUIDE_MAPPING');
+ const sourceRevision=String(configuration.gatewayRevision??configuration.revision);
+ if(mapping.sourceRevision!==undefined&&mapping.sourceRevision!==sourceRevision)fail('MAPPING_SOURCE_REVISION_CHANGED');
+ if(mapping.sourceCatalogFingerprint!==undefined&&mapping.sourceCatalogFingerprint!==digest(configuration))fail('MAPPING_SOURCE_CONTENT_CHANGED');
  const services=new Map(configuration.services.map(s=>[s.id,s]));
  const guides=new Map(configuration.guides.map(g=>[g.id,g]));
  const mappedServices=new Map(mapping.services.map(s=>[s.nativeId,s]));
@@ -46,24 +53,30 @@ export function projectNativeCatalog({
  for(const m of mapping.guides){
   const owner=available.get(m.nativeServiceId),g=guides.get(m.guideId),s=services.get(m.nativeServiceId);
   if(!mappedServices.has(m.nativeServiceId))fail('GUIDE_OWNER_NOT_MAPPED');
+  if(!knownGuidePurpose(mappedServices.get(m.nativeServiceId).serviceId,m.purpose)){withheld.push({guideId:m.guideId,reason:'UNKNOWN_GUIDE_PURPOSE'});continue;}
   if(!owner||!g){withheld.push({guideId:m.guideId,reason:'UNAVAILABLE_OR_OUT_OF_SCOPE'});continue;}
   if((g.serviceId&&g.serviceId!==m.nativeServiceId)||ownsGuide(g,s,configuration)!==true){withheld.push({guideId:m.guideId,reason:'OWNERSHIP_UNCONFIRMED'});continue;}
   // Entry menus and procedures for privileged personnel stay in the native router.
   if(g.isEnabled!==true||!['Student','All'].includes(g.audience)||g.permissionLevel!=='SELF SERVICE'||
+  g.riskLevel==='High'||['DRAFT / NEEDS REVIEW','REQUIRES IT VALIDATION'].includes(g.sourceType)||
   isGuideAvailable(g,configuration)!==true||isReviewedGuide(g,configuration)!==true||
   isEntryMenu(g,configuration)!==false){withheld.push({guideId:m.guideId,reason:'NOT_APPROVED_FOR_SUPPLEMENTAL_ROUTING'});continue;}
+  const fingerprint=digest(g);
+  if(m.expectedFingerprint!==undefined&&m.expectedFingerprint!==fingerprint){withheld.push({guideId:m.guideId,reason:'MAPPED_GUIDE_CHANGED'});continue;}
+  const hasQuestions=Array.isArray(g.diagnosticQuestions)&&g.diagnosticQuestions.length>0;
+  const entryMode=m.entryMode??'resolution';
+  if(hasQuestions&&entryMode!=='diagnostic'||!hasQuestions&&entryMode==='diagnostic'){withheld.push({guideId:m.guideId,reason:'NATIVE_QUESTION_FLOW_REQUIRED'});continue;}
   const title={en:g.title,ar:g.titleAr};
   if(!bilingual(title)){withheld.push({guideId:m.guideId,reason:'INCOMPLETE_BILINGUAL_METADATA'});continue;}
   projected.push({
    id:g.id,serviceId:owner.serviceId,nativeServiceId:owner.nativeId,purpose:m.purpose,title,
    // Hash the private native procedure, not just its title or aliases. The
    // original guide body remains in the host and is never returned here.
-   nativeGuideFingerprint:digest(g),reviewed:true,enabled:true,audience:'student',
+   nativeGuideFingerprint:fingerprint,entryMode,reviewed:true,enabled:true,audience:'student',
    aliases:boundedTerms(g.aliases),keywords:boundedTerms(g.keywords),
    requires:clone(m.requires||{}),errorSignatures:boundedTerms(m.errorSignatures)
   });
  }
- const sourceRevision=String(configuration.gatewayRevision??configuration.revision);
  const serviceAvailability=Object.fromEntries(SERVICE_IDS.map(id=>[id,[...available.values()].some(s=>s.serviceId===id)]));
  const contextRows=mapping.reviewedContexts??[];
  validateReviewedContexts(contextRows);
@@ -88,5 +101,5 @@ export function nativeGuideReference(projection,decision){
  if(!g||!projection.availableNativeServices.some(s=>s.nativeId===g.nativeServiceId))fail('NATIVE_GUIDE_UNAVAILABLE');
  // The native application must revalidate and open the complete existing guide.
  // Never reconstruct its actions, warnings, prerequisites, or screenshots here.
- return {guideId:g.id,nativeServiceId:g.nativeServiceId,catalogRevision:projection.catalog.revision,sourceRevision:projection.catalog.sourceRevision,nativeGuideFingerprint:g.nativeGuideFingerprint};
+ return {guideId:g.id,nativeServiceId:g.nativeServiceId,catalogRevision:projection.catalog.revision,sourceRevision:projection.catalog.sourceRevision,nativeGuideFingerprint:g.nativeGuideFingerprint,entryMode:g.entryMode};
 }

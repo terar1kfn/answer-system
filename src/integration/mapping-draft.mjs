@@ -1,4 +1,4 @@
-import {projectNativeCatalog} from './native-catalog.mjs';
+import {projectNativeCatalog,nativeRecordFingerprint} from './native-catalog.mjs';
 import {knownGuidePurpose} from '../guide-purposes.mjs';
 import {QUESTIONS} from '../questions.mjs';
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -21,7 +21,7 @@ export function prepareMappingDraft({input,expectedCatalogRevision,nextMappingRe
  const mapping=copy(input.mapping),owners=new Map(mapping.services.map(s=>[s.nativeId,s.serviceId])),changed=new Set();
  for(const row of changes){
   if(!row||!['add','replace','remove'].includes(row.action)||!id(row.guideId)||changed.has(row.guideId)||
-   Object.keys(row).some(k=>!['action','guideId','nativeServiceId','purpose','requires'].includes(k)))fail('INVALID_MAPPING_CHANGE');
+   Object.keys(row).some(k=>!['action','guideId','nativeServiceId','purpose','requires','entryMode'].includes(k)))fail('INVALID_MAPPING_CHANGE');
   changed.add(row.guideId);
   const previous=mapping.guides.find(g=>g.guideId===row.guideId);
   if(row.action==='remove'){
@@ -30,7 +30,11 @@ export function prepareMappingDraft({input,expectedCatalogRevision,nextMappingRe
   }
   if((row.action==='add'&&previous)||(row.action==='replace'&&!previous)||!id(row.nativeServiceId)||!id(row.purpose)||
    !owners.has(row.nativeServiceId)||!knownGuidePurpose(owners.get(row.nativeServiceId),row.purpose))fail('INVALID_MAPPING_CHANGE');
-  const candidate={guideId:row.guideId,nativeServiceId:row.nativeServiceId,purpose:row.purpose,requires:checkedPrerequisites(row.requires??{})};
+  const guide=input.configuration.guides.find(g=>g.id===row.guideId);
+  if(!guide)fail('MAPPING_GUIDE_NOT_ELIGIBLE');
+  const entryMode=row.entryMode??'resolution';
+  if(!['diagnostic','resolution'].includes(entryMode)||Boolean(guide.diagnosticQuestions?.length)!==(entryMode==='diagnostic'))fail('NATIVE_QUESTION_FLOW_REQUIRED');
+  const candidate={guideId:row.guideId,nativeServiceId:row.nativeServiceId,purpose:row.purpose,requires:checkedPrerequisites(row.requires??{}),entryMode,expectedFingerprint:nativeRecordFingerprint(guide)};
   mapping.guides=mapping.guides.filter(g=>g.guideId!==row.guideId);mapping.guides.push(candidate);
  }
  mapping.revision=nextMappingRevision;

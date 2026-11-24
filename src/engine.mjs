@@ -3,6 +3,7 @@ import {classify,normalize} from './classify.mjs';
 import {eligible,resolveReviewedFact,createKnowledgeRetriever} from './knowledge.mjs';
 import {reconcileInitialContext} from './initial-context.mjs';
 import {chooseGuidePrerequisite} from './question-priority.mjs';
+import {decideNetwork} from './network-flow.mjs';
 import {planCompositeFacts,buildReviewedAnswer,verifyReviewedAnswer,answerOutcomeQuestion} from './reviewed-answer.mjs';
 import {proposeCurrentError,currentErrorQuestion,stageCurrentError,completeCurrentError} from './error-confirmation.mjs';
 import {validateReviewedContexts,disambiguateReviewedContext} from './reviewed-context.mjs';
@@ -17,7 +18,7 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.19.0';
+export const RULE_VERSION='0.20.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -153,21 +154,7 @@ function decide(s,c,records,now){
   }
   return support('MAIL_TASK_UNCLEAR');
  }
- if(s.domain==='network'){
-  if(!k('connection'))return ask('connection');
-  if(v('connection')==='yes'){
-   if(!k('network_issue'))return ask('network_issue');
-   return v('network_issue')==='slow'?g('network','network_slow'):support('SPECIFIC_SERVICE_FAILURE');
-  }
-  if(!k('peers'))return ask('peers');
-  if(v('peers')==='yes')return support('POSSIBLE_SHARED_NETWORK_INCIDENT');
-  if(v('peers')==='unknown')return support('NETWORK_SCOPE_UNCLEAR');
-  if(v('connection')!=='no')return support('NETWORK_EVIDENCE_INCOMPLETE');
-  if(!k('network_issue'))return ask('network_issue');
-  if(v('network_issue')==='only_service')return support('NETWORK_OBSERVATIONS_CONFLICT');
-  const purpose={ssid_missing:'network_ssid',auth:'network_auth',slow:'network_slow'}[v('network_issue')];
-  return g('network',purpose||'individual_connectivity');
- }
+ if(s.domain==='network')return decideNetwork(s,{ask,guide:g,support});
  if(s.domain==='identity'){
   const result=decideIdentity(s,{ask,guide:g,support,safety,errorHint});
   if(result)return result;

@@ -1,5 +1,12 @@
 # Change log
 
+## 0.20.0 — native catalog mapping alignment (validation deferred)
+
+- Added exact network operation routing, campus student-network scope and device-specific setup/no-internet guide purposes. Distinguish Wi-Fi sign-in from account MFA; avoid assuming general connectivity implies a connected device.
+- Added location-specific attendance permission context and native diagnostic-entry preservation for mapped branched procedures.
+- Added optional source and per-guide fingerprint pins, known-purpose checks, additional protected guide exclusions and mapping draft entry-mode metadata. Private institution mapping data remains outside this public repository.
+- No tests, builds, deployment, live imports or changes to the original host repository. CI remains manual-only.
+
 ## 0.19.0 — source-bound answer composition (validation deferred)
 
 - Added extractive composition of up to three independently phrased, uniquely matched reviewed information questions, exact answer/source packets and consumption-time source consistency verification.

@@ -65,7 +65,7 @@ export function decideAfterFailedGuide(s,c,{ask,guide,support}){
    return support('MAIL_DELIVERY_REVIEW');
   }
  }
- if(service==='network'&&purpose==='individual_connectivity'){
+ if(service==='network'&&['individual_connectivity','network_connected_no_internet'].includes(purpose)){
   if(!has(s,'retry_network_scope'))return ask('retry_network_scope');
   const detail=val(s,'retry_network_scope');
   const target={ssid_missing:'network_ssid',auth:'network_auth',slow:'network_slow'}[detail];

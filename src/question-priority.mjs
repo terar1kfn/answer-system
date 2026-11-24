@@ -4,7 +4,7 @@
  * not a learned probability. Hard safety/identity prerequisites are never
  * reordered by this module.
  */
-const permitted=['device_os','phone','browser_scope'];
+const permitted=['network_scope','attendance_permission_kind','device_os','phone','browser_scope'];
 export function chooseGuidePrerequisite(viable,state,{minimumSpecificity=-1}={}){
  if(!Array.isArray(viable)||!state?.evidence)return null;
  const relevant=viable.filter(g=>Object.keys(g.requires||{}).length>minimumSpecificity);
@@ -17,5 +17,9 @@ export function chooseGuidePrerequisite(viable,state,{minimumSpecificity=-1}={})
   // Ask about the highest-value missing prerequisite; a tie retains fixed order.
   return constrained.length*2+distinguish*3+options.length;
  };
+ // Confirm that a location-specific network procedure applies before asking
+ // platform questions. This scope is a fixed choice, not location tracking.
+ if(candidates.includes('network_scope'))return 'network_scope';
+ if(candidates.includes('attendance_permission_kind'))return 'attendance_permission_kind';
  return candidates.sort((a,b)=>score(b)-score(a)||permitted.indexOf(a)-permitted.indexOf(b))[0]||null;
 }

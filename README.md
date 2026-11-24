@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.19 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.20 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -91,3 +91,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Source-bound reviewed answer composition](docs/reviewed-answer-composition.md) combines uniquely matched approved informational facts with exact source references and consumption-time packet verification. The generic lab can display multiple answer sections; native informational routing remains authoritative.
+
+
+[Private native mapping snapshot contract](docs/native-mapping-snapshot.md) supports pinned source and procedure fingerprints, explicit diagnostic-entry preservation, and more precise network and attendance mapping prerequisites. Institution-specific mapping files stay private and require independent review and live catalog reconciliation before activation.

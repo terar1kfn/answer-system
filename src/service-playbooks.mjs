@@ -68,7 +68,9 @@ const extras={
  browser_scope:q('Does the same page work in another supported browser or on another device?','هل تعمل الصفحة نفسها في متصفح مدعوم آخر أو على جهاز آخر؟',rows([['works','Yes, elsewhere it works','نعم، تعمل في مكان آخر'],['fails','No, the same issue occurs','لا، تحدث المشكلة نفسها'],['not_tried','I have not tried that','لم أجرب']])),
  service_access:q('After sign-in, are other university services accessible?','بعد تسجيل الدخول، هل يمكنك الوصول إلى خدمات جامعية أخرى؟',rows([['one_service','Only this service fails','هذه الخدمة فقط لا تعمل'],['multiple','Several services fail','عدة خدمات لا تعمل'],['not_tried','I have not checked','لم أتحقق']])),
  exam_issue:q('What needs attention before the exam?','ما الذي يحتاج إلى معالجة قبل الاختبار؟',rows([['install','Installation or update','التثبيت أو التحديث'],['launch','App does not open','التطبيق لا يفتح'],['camera','Camera or recording check','فحص الكاميرا أو التسجيل'],['audio','Microphone or sound check','فحص الميكروفون أو الصوت'],['download','Exam download or availability','تنزيل الاختبار أو توفره'],['other','Other preparation issue','مشكلة تحضير أخرى']])),
- network_issue:q('What does the network connection show?','ماذا يظهر اتصال الشبكة؟',rows([['ssid_missing','Network name is missing','اسم الشبكة غير ظاهر'],['auth','Network sign-in fails','تسجيل الدخول إلى الشبكة يفشل'],['no_internet','Connected but no internet','متصل ولكن لا يوجد إنترنت'],['slow','Connection is slow or intermittent','الاتصال بطيء أو متقطع'],['only_service','Internet works; only a particular service fails','الإنترنت يعمل لكن خدمة معينة لا تعمل']]))
+ network_scope:q('Is this the university student Wi-Fi on campus, or a different network?','هل هذه شبكة الطلاب داخل الحرم الجامعي أم شبكة أخرى؟',rows([['campus_student','University student Wi-Fi on campus','شبكة الطلاب داخل الحرم الجامعي'],['other_network','Home, mobile data, guest, staff or another network','شبكة منزلية أو بيانات الهاتف أو الضيوف أو الموظفين أو شبكة أخرى']])),
+ attendance_permission_kind:q('Which permission is actually reported missing?','ما الإذن الذي تظهر رسالة بأنه مفقود؟',rows([['location','Location or precise location','الموقع أو الموقع الدقيق'],['camera','Camera','الكاميرا'],['bluetooth','Bluetooth','البلوتوث'],['other','Other permission','إذن آخر']])),
+ network_issue:q('What does the network connection show?','ماذا يظهر اتصال الشبكة؟',rows([['setup','I want to connect to the network for the first time or on a new device','أريد الاتصال بالشبكة لأول مرة أو على جهاز جديد'],['ssid_missing','Network name is missing','اسم الشبكة غير ظاهر'],['auth','Network sign-in fails','تسجيل الدخول إلى الشبكة يفشل'],['no_internet','Connected but no internet','متصل ولكن لا يوجد إنترنت'],['slow','Connection is slow or intermittent','الاتصال بطيء أو متقطع'],['only_service','Internet works; only a particular service fails','الإنترنت يعمل لكن خدمة معينة لا تعمل']]))
 };
 for(const d of Object.values(definitions))extras[d.questionId]=q(...d.title,rows(d.choices.map(x=>x.slice(0,3))));
 export const EXTRA_QUESTIONS=extras;
@@ -84,7 +86,7 @@ const patterns={
  storage:{sync:['not syncing','sync error','file sync','مزامنه الملفات'],access:['shared file access','permission denied','access denied','اذن الوصول'],missing:['deleted file','missing file','file disappeared','ملف مفقود','ملف محذوف'],space:['storage full','storage quota','مساحه التخزين']},
  mail:{attachment:['attachment','file too large','message too large','مرفق','المرفقات'],sync:['not syncing','sync error','مزامنه البريد'],calendar:['calendar','meeting invite','التقويم'],rules:['forwarding rule','mailbox rule','اعاده التوجيه']},
  exam:{install:['install','installation','update','تثبيت','تحديث'],launch:['not opening','does not open','crash','لا يفتح'],camera:['camera','webcam','recording check','كاميرا'],audio:['microphone','audio','ميكروفون'],download:['download exam','exam download','تنزيل الاختبار']},
- network:{ssid_missing:['network name missing','ssid missing','wifi not showing','الواي فاي لا يظهر'],auth:['wifi password','network sign in','network authentication','كلمه مرور الشبكه'],no_internet:['connected no internet','connected but no internet','متصل بدون انترنت'],slow:['slow internet','slow wifi','intermittent connection','النت بطيء']}
+ network:{setup:['how to connect to wifi','how do i connect to wifi','connect to campus wifi','how to connect to campus wifi','wifi setup','كيف اتصل بالواي فاي','كيف اتصل بشبكه الجامعه','اعداد الواي فاي'],ssid_missing:['network name missing','ssid missing','wifi not showing','الواي فاي لا يظهر'],auth:['wifi password','wifi password rejected','network sign in','network authentication','password rejected by wifi','كلمه مرور الشبكه','كلمه مرور الواي فاي مرفوضه'],no_internet:['connected no internet','connected but no internet','متصل بدون انترنت'],slow:['slow internet','slow wifi','intermittent connection','النت بطيء']}
 };
 export function inferServiceIssue(service,text,normalize){
  const entries=patterns[service];if(!entries)return null;
@@ -103,6 +105,10 @@ export function nextServiceDecision(state,{ask,guide,support}){
  if(!row||!row[3])return support(choice==='unknown'?'SERVICE_TASK_UNCLEAR':'SERVICE_PERMISSION_OR_OWNER_REVIEW');
  if((service==='software'||service==='printing')&&!val('device_os'))return ask('device_os');
  if((service==='software'||service==='printing')&&['unknown','other'].includes(val('device_os')))return support('DEVICE_PLATFORM_UNCLEAR');
+ if(service==='attendance'&&choice==='permission'){
+  if(!val('attendance_permission_kind'))return ask('attendance_permission_kind');
+  if(val('attendance_permission_kind')!=='location')return support('ATTENDANCE_PERMISSION_SPECIFIC_REVIEW');
+ }
  if(service==='portal'&&choice==='loading'){
   if(!val('browser_scope'))return ask('browser_scope');
   if(val('browser_scope')==='fails')return support('PORTAL_FAILURE_ACROSS_CLIENTS');
@@ -111,6 +117,8 @@ export function nextServiceDecision(state,{ask,guide,support}){
 }
 export const PLAYBOOK_GUIDES=Object.freeze(Object.entries(definitions).flatMap(([service,d])=>d.choices.filter(row=>row[3]).map(row=>Object.freeze({serviceId:service,purpose:row[3],title:{en:row[1],ar:row[2]},aliases:patterns[service]?.[row[0]]||[]}))).concat([
  ...['examplify','lockdown'].flatMap(app=>['install','launch','camera','audio','download'].map(issue=>({serviceId:'exam',purpose:app+'_'+issue,title:{en:app+' pre-exam '+issue,ar:'التحضير للاختبار: '+app+' / '+issue},aliases:[]}))),
+ {serviceId:'network',purpose:'network_setup',title:{en:'Connect a new device to student Wi-Fi',ar:'توصيل جهاز بشبكة الطلاب'},aliases:patterns.network.setup},
+ {serviceId:'network',purpose:'network_connected_no_internet',title:{en:'Connected to Wi-Fi but no internet',ar:'متصل بشبكة الواي فاي دون إنترنت'},aliases:patterns.network.no_internet},
  {serviceId:'network',purpose:'network_ssid',title:{en:'Network name missing',ar:'اسم الشبكة غير ظاهر'},aliases:patterns.network.ssid_missing},
  {serviceId:'network',purpose:'network_auth',title:{en:'Network sign-in check',ar:'فحص تسجيل الدخول للشبكة'},aliases:patterns.network.auth},
  {serviceId:'network',purpose:'network_slow',title:{en:'Intermittent connectivity check',ar:'فحص الاتصال المتقطع'},aliases:patterns.network.slow}

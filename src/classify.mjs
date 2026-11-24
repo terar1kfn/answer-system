@@ -104,6 +104,12 @@ export function classify(raw){
  if(named.length&&services.includes('identity')&&base.domain==='identity')services=services.filter(s=>s!=='identity');
  const facts={...base.facts};
  if(signals.facts.mfa_setup||signals.facts.verification_context==='conflicting_screen')delete facts.setup_requested;
+ // Network credentials are not automatically an MFA problem. Preserve
+ // explicitly recognized network-only operations unless identity risk is present.
+ if(services.length===1&&services[0]==='network'&&!facts.recovery_context&&!facts.setup_requested&&facts.credentials!=='locked'&&!signals.facts.mfa_prompt&&!signals.facts.verification_context){
+  const n=inferServiceIssue('network',t,normalize);
+  if(n){delete facts.task;delete facts.credentials;facts[n.questionId]=n.optionId;return out('network',services,facts);}
+ }
  if(signals.explicitLogin){
   if(signals.explicitMailFault&&base.domain==='mail')return out('task',['mail'],{});
   Object.assign(facts,signals.facts);
@@ -125,6 +131,10 @@ export function classify(raw){
  if(services.length===1){
   const service=services[0],specific=inferServiceIssue(service,t,normalize);
   if(specific)facts[specific.questionId]=specific.optionId;
+  if(service==='attendance'&&facts.attendance_issue==='permission'){
+   const kinds=[['location',['location permission','precise location','اذن الموقع']],['camera',['camera permission','اذن الكاميرا']],['bluetooth',['bluetooth permission','اذن البلوتوث']]].filter(([,forms])=>has(t,forms));
+   if(kinds.length===1)facts.attendance_permission_kind=kinds[0][0];
+  }
   if(service==='network')return out('network',services,facts);
   if(hasServicePlaybook(service)&&(named.includes(service)||service==='device'||specific))return out('specific',services,{...facts,task:'app'});
  }

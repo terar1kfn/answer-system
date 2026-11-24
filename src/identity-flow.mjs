@@ -1,4 +1,5 @@
 import {afterSuccessfulVerification} from './shared-access.mjs';
+import {decideNetwork} from './network-flow.mjs';
 // Pure adaptive sign-in policy. It requests approved guide purposes or staff
 // support; it never sends a reset, changes a credential, or issues a login code.
 const get=(s,k)=>s.evidence[k]?.value;
@@ -67,7 +68,7 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
  if(v('connection')==='no'){
   if(!k('peers'))return ask('peers');
   if(v('peers')==='yes')return support('POSSIBLE_SHARED_NETWORK_INCIDENT');
-  return v('peers')==='no'?guide('network','individual_connectivity'):support('NETWORK_SCOPE_UNCLEAR');
+  return v('peers')==='no'?decideNetwork(s,{ask,guide,support,fromIdentity:true}):support('NETWORK_SCOPE_UNCLEAR');
  }
  if(v('mfa_prompt')==='missing')return support('MFA_PROMPT_MISSING');
  if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length>1)return afterSuccessfulVerification(s,{ask,support});
