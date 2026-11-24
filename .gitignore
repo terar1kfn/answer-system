@@ -11,3 +11,7 @@ local/
 *.log
 coverage/
 dist/
+
+# Never track private native catalog snapshots, reconciliation or review packs.
+*.private.json
+*.private.md

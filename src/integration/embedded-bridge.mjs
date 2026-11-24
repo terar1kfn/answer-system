@@ -266,6 +266,13 @@ export function createEmbeddedAnswerBridge({
    fail('INVALID_EMBEDDED_COMMAND');
   }catch(e){
    if(lock.cancelled||['VISIT_ENDED','UNAUTHENTICATED'].includes(e?.message)){rows.delete(key);throw e;}
+   if(['MAPPING_SOURCE_REVISION_CHANGED','MAPPING_SOURCE_CONTENT_CHANGED'].includes(e?.message)){
+    // A publication changed while the private supplemental mapping is stale.
+    // Recheck the actor before returning to the existing native workflow.
+    const fresh=await authenticateStudent(credential);
+    if(lock.cancelled||!sameActor(actor,fresh)){rows.delete(key);fail('VISIT_ENDED');}
+    return clear(key,rows.get(key),'CATALOG_CHANGED');
+   }
    if(['CATALOG_CHANGED','FEATURE_DISABLED'].includes(e?.message))return clear(key,rows.get(key),e.message);
    throw e;
   }finally{if(locks.get(key)===lock)locks.delete(key);}

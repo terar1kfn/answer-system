@@ -31,6 +31,7 @@ function candidateRows(input,projection){
  const result=[];
  for(const g of configuration.guides){
   if(!g||!id(g.id)||mapped.has(g.id)||g.isEnabled!==true||!['Student','All'].includes(g.audience)||g.permissionLevel!=='SELF SERVICE'||
+   g.riskLevel==='High'||['DRAFT / NEEDS REVIEW','REQUIRES IT VALIDATION'].includes(g.sourceType)||
    !title(g)||isGuideAvailable(g,configuration)!==true||isReviewedGuide(g,configuration)!==true||isEntryMenu(g,configuration)!==false)continue;
   const eligibleOwners=owners.filter(o=>(!g.serviceId||g.serviceId===o.nativeId)&&isServiceAvailable(o.native,configuration)===true&&ownsGuide(g,o.native,configuration)===true);
   if(eligibleOwners.length!==1)continue;

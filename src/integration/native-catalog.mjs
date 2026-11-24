@@ -66,6 +66,11 @@ export function projectNativeCatalog({
   const hasQuestions=Array.isArray(g.diagnosticQuestions)&&g.diagnosticQuestions.length>0;
   const entryMode=m.entryMode??'resolution';
   if(hasQuestions&&entryMode!=='diagnostic'||!hasQuestions&&entryMode==='diagnostic'){withheld.push({guideId:m.guideId,reason:'NATIVE_QUESTION_FLOW_REQUIRED'});continue;}
+  if(!Array.isArray(g.resolutionSteps)||!Array.isArray(g.resolutionStepsAr)||!g.resolutionSteps.length||
+   g.resolutionSteps.length!==g.resolutionStepsAr.length||
+   [...g.resolutionSteps,...g.resolutionStepsAr].some(x=>typeof x!=='string'||!x.trim())){
+   withheld.push({guideId:m.guideId,reason:'INCOMPLETE_BILINGUAL_PROCEDURE'});continue;
+  }
   const title={en:g.title,ar:g.titleAr};
   if(!bilingual(title)){withheld.push({guideId:m.guideId,reason:'INCOMPLETE_BILINGUAL_METADATA'});continue;}
   projected.push({

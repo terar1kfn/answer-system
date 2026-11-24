@@ -1,5 +1,11 @@
 # Change log
 
+## 0.21.0 — private live-catalog reconciliation foundation (validation deferred)
+
+- Added pinned row and full-snapshot comparison, inventory differences where a matching baseline exists, explicit review holds, conservative offline policy and an authorized reviewer wrapper.
+- New candidate mappings cannot silently repin changed guides or inherit reviewed case context; rollback/same-revision drift blocks candidate creation. Require independent review and exact live revision activation.
+- Added bilingual procedure completeness checks, private report CLI, private-file ignore patterns and safe native fallback when a mapping becomes stale. No live catalog import, tests, builds or deployment; no private host repository changes.
+
 ## 0.20.0 — native catalog mapping alignment (validation deferred)
 
 - Added exact network operation routing, campus student-network scope and device-specific setup/no-internet guide purposes. Distinguish Wi-Fi sign-in from account MFA; avoid assuming general connectivity implies a connected device.

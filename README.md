@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.20 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.21 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -94,3 +94,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Private native mapping snapshot contract](docs/native-mapping-snapshot.md) supports pinned source and procedure fingerprints, explicit diagnostic-entry preservation, and more precise network and attendance mapping prerequisites. Institution-specific mapping files stay private and require independent review and live catalog reconciliation before activation.
+
+
+[Private catalog reconciliation](docs/catalog-reconciliation.md) compares exact publication/guide fingerprints, ownership and availability, withholds changed or held mappings, and prepares a new private review candidate without activation. The local report utility requires explicit host-policy evidence and authorized snapshots.
