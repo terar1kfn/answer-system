@@ -1,19 +1,21 @@
 {
   "name": "answer-system",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/engine.mjs",
     "./runtime": "./src/runtime.mjs",
     "./incidents": "./src/incidents.mjs",
-    "./review": "./src/review-queue.mjs"
+    "./review": "./src/review-queue.mjs",
+    "./host": "./src/host-service.mjs",
+    "./advisor": "./src/model-advisor.mjs"
   },
   "scripts": {
     "test": "node --test tests/engine.test.mjs",
     "demo": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
-    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs"
+    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs && node --check src/host-service.mjs && node --check src/model-advisor.mjs"
   },
   "engines": {
     "node": ">=22"

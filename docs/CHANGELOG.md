@@ -1,5 +1,12 @@
 # Change log
 
+## 0.4.0 — 2026-11-24
+
+- Added strict host-command authorization façade, server-derived visit/policy/scope and scoped staff permission callbacks.
+- Require host-confirmed revocation and recovery verification; keep delivery callbacks separate from public commands.
+- Added optional, disabled-by-default bounded model advisor: one allowlisted option ID, explicit student confirmation, timeout/single-flight and best-effort privacy screening.
+- Added authorization and advisor regression scenarios. No real AI provider, account action, deployment or private repository changes.
+
 ## 0.3.0 — 2026-11-24
 
 - Trusted in-process visit lifecycle, version checks, cleanup and generic host-authorized persistent policy.

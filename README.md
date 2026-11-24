@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.3 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.4 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Run the diagnostic lab
 
@@ -39,3 +39,6 @@ Additional host reference modules: in-process visit coordinator, explicit idempo
 Not implemented: private application adapter, authenticated durable visit persistence, real tickets or recovery, incident ingestion, semantic retrieval or AI, real staff authorization, production persistent-session integration and deployment. Do not use the browser lab as a production API.
 
 The host must keep issue state on the trusted side, authenticate visits, atomically enforce expected turns, revalidate published guides, authorize staff actions and deduplicate effects. The pure library is not an authorization boundary. See docs/contract.md.
+
+
+The optional host authorization façade and advisory inference adapter are documented in [docs/host-integration.md](docs/host-integration.md). The advisor is disabled unless a trusted host explicitly injects a provider. Production authentication, durable storage and actual AI integration remain separate.
