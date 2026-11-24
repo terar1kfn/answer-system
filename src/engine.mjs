@@ -4,6 +4,7 @@ import {eligible,resolveReviewedFact,createKnowledgeRetriever} from './knowledge
 import {reconcileInitialContext} from './initial-context.mjs';
 import {chooseGuidePrerequisite} from './question-priority.mjs';
 import {decideNetwork} from './network-flow.mjs';
+import {collectOperationContext,reportedAcademicSystems,applyPostSignInAnswer} from './operation-context.mjs';
 import {planCompositeFacts,buildReviewedAnswer,verifyReviewedAnswer,answerOutcomeQuestion} from './reviewed-answer.mjs';
 import {proposeCurrentError,currentErrorQuestion,stageCurrentError,completeCurrentError} from './error-confirmation.mjs';
 import {validateReviewedContexts,disambiguateReviewedContext} from './reviewed-context.mjs';
@@ -18,7 +19,7 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.22.0';
+export const RULE_VERSION='0.23.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -169,6 +170,7 @@ function finish(s,c,records,now){
   if(d.questionId!=='confirm_current_error')s.askedQuestionIds.push(d.questionId);
   let question=d.questionId==='confirm_current_error'?currentErrorQuestion(s.pendingError.signatureId):d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):QUESTIONS[d.questionId];
   if(d.questionId==='task'&&!s.services.includes('mail'))question={...question,options:question.options.filter(o=>!['send','receive'].includes(o.id))};
+  if(d.questionId==='portal_system'&&s.reportedAcademicSystems?.length)question={...question,options:question.options.filter(o=>s.reportedAcademicSystems.includes(o.id)||o.id==='unknown')};
   if(d.questionId==='service'&&s.services.length>1)question={...question,options:question.options.filter(o=>s.services.includes(o.id)||o.id==='other')};
   if(d.questionId==='service'&&c.diagnosticServices)question={...question,options:question.options.filter(o=>c.diagnosticServices.includes(o.id))};
   if(!question.options.length)d=support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');else d={...d,question};
@@ -193,6 +195,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const clean=sanitizeText(text);
   const classified=classify(clean.text||'redacted');
   const r=reconcileInitialContext({text:clean.text,classification:classified,classify});
+  if(!clean.categories.length)Object.assign(r.facts,collectOperationContext(clean.text,r));
   text=clean.text;
   const isHowTo=/^(?:how (?:do|can|to)|what is|where (?:is|can)|كيف|ما هو|ما هي|اين)\b/i.test(normalize(text))||/^(?:كيف|ما هو|ما هي|اين)(?: |$)/.test(normalize(text));
   const composite=!clean.categories.length&&!['safety','exam'].includes(r.domain)&&!r.facts.error_signature&&!r.facts.error_conflict?planCompositeFacts(c,text):{status:'none'};
@@ -201,6 +204,8 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const s={ruleVersion:RULE_VERSION,catalogRevision:c.revision,turn:0,language,domain:r.domain,services:r.services,evidence:{},askedQuestionIds:[],offeredGuideIds:[],status:'new'};
   for(const [key,v] of Object.entries(r.facts))fact(s,key,v,'student_text_signal');
   s.conflictingObservations=r.conflicts||[];
+  const academic=reportedAcademicSystems(text);
+  if(!['safety','exam'].includes(r.domain)&&r.services.includes('portal')&&academic.length>1)s.reportedAcademicSystems=academic;
   if(factResolution.status==='conflict'||composite.status==='conflict')s.reviewedFactConflict=true;
   if(composite.status==='incomplete')s.compositeAnswerGap=composite.reason;
   s.requestKind=['safety','exam'].includes(r.domain)?'protected':isHowTo?'how_to':r.domain==='unknown'?'unclear':'fault';
@@ -225,6 +230,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   else recordResolutionAnswer(s,questionId,optionId);
   applyIdentityAnswer(s,questionId,optionId);
   applySharedAnswer(s,questionId,optionId);
+  applyPostSignInAnswer(s,questionId,optionId);
   if(questionId==='reviewed_topic'&&optionId!=='none'){
    const choice=s.knowledgeChoices?.find(x=>x.optionId===optionId);
    const f=(c.facts||[]).find(x=>x.id===choice?.factId&&eligible(x,{catalog:c,services:s.services}));

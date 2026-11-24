@@ -17,9 +17,10 @@ const rules=[
  row('message_size',['mail'],[e('send_error','size',5),e('mail_feature','attachment',2),e('retry_mail_detail','size',5)],[]),
  row('mailbox_delivery',['mail'],[e('receive_scope',['all','some'],2),e('mail_client_scope','both',3),e('retry_mail_scope','both',3)],[e('mail_client_scope','app_only',3),e('retry_mail_scope','app_only',3)]),
  row('local_client_failure',['mail','specific','task','identity'],[e('browser_scope','works',4),e('mail_client_scope','app_only',5),e('retry_mail_scope','app_only',5)],[e('browser_scope','fails',3),e('mail_client_scope','both',4),e('retry_mail_scope','both',4)]),
+ row('service_signin_block',['identity'],[e('post_signin_stage','still_blocked',5)],[e('post_signin_stage',['original_works','feature_fails'],5)]),
  row('service_specific_failure',['identity','mail','task','shared','specific'],[e('service_access','one_service',4),e('browser_scope','fails',2),e('shared_access_pattern','some_recovered',2)],[e('service_access','multiple',3),e('connection','no',3)]),
  row('identity_or_access',['task','shared','identity'],[e('shared_operation','login',3),e('shared_access_pattern','same',3),e('task','login',2)],[e('shared_operation','different',3)]),
- row('permission_or_configuration',['specific'],[e('portal_issue','access',4),e('attendance_issue','permission',4),e('retry_attendance_detail','permission',4),e('software_issue',['license','permission'],4),e('storage_issue','access',4)],[]),
+ row('permission_or_configuration',['specific'],[e('portal_issue','access',4),e('attendance_issue','permission',4),e('retry_attendance_detail',['location','camera','bluetooth'],4),e('software_issue',['license','permission'],4),e('storage_issue','access',4)],[]),
  row('device_media_failure',['specific'],[e('retry_meeting_scope','other_apps',4),e('device_issue','audio',2)],[e('retry_meeting_scope','only_meeting',4)]),
  row('service_disruption',['specific'],[e('browser_scope','fails',2)],[e('browser_scope','works',3)]),
  row('exam_application_failure',['exam'],[],[])

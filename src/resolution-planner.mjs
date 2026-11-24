@@ -6,7 +6,7 @@
 const val=(s,key)=>s.evidence[key]?.value;
 const has=(s,key)=>Object.hasOwn(s.evidence,key);
 const copy=x=>JSON.parse(JSON.stringify(x));
-const QUESTIONS=new Set(['guide_result','retry_mail_scope','retry_mail_detail','retry_network_scope','retry_attendance_detail','retry_meeting_scope','retry_software_detail','retry_storage_detail','retry_printer_detail']);
+const QUESTIONS=new Set(['guide_result','retry_mail_scope','retry_mail_detail','retry_network_scope','retry_attendance_detail','retry_meeting_scope','retry_software_detail','retry_storage_detail','retry_printer_detail','retry_portal_scope']);
 const MAX_FAILED_ATTEMPTS=3;
 const SETUP=new Set(['setup_ios','setup_android']);
 export function recordGuideOutcome(s,previous,optionId){
@@ -81,6 +81,13 @@ export function decideAfterFailedGuide(s,c,{ask,guide,support}){
   if(!has(s,'retry_meeting_scope'))return ask('retry_meeting_scope');
   if(val(s,'retry_meeting_scope')==='other_apps'&&purpose==='meeting_audio')return alt('device','device_audio','retry_meeting_scope');
   return support('MEETING_MEDIA_REVIEW');
+ }
+ if(service==='portal'&&['portal_browser','portal_mobile_setup','portal_submission_standard','portal_submission_turnitin','portal_submission_link'].includes(purpose)){
+  if(!has(s,'retry_portal_scope'))return ask('retry_portal_scope');
+  const stage=val(s,'retry_portal_scope');
+  if(stage==='works')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
+  if(stage==='blocked')return support('SERVICE_SIGNIN_STILL_BLOCKED');
+  return support('ACADEMIC_FEATURE_REVIEW');
  }
  if(service==='software'&&purpose==='software_launch'){
   if(!has(s,'retry_software_detail'))return ask('retry_software_detail');

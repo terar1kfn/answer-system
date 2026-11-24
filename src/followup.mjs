@@ -11,6 +11,9 @@ const aliases={
  unknown:['not sure','i dont know','i don t know','unknown','غير متاكد','ما ادري','لا اعرف','مش عارف','مو متاكد'],
 };
 const contextual={
+ post_signin_stage:{original_works:['original task works now','everything works now','المهمه الاصليه تعمل الان'],still_blocked:['still cannot enter','still cannot sign in','لا استطيع الدخول بعد'],feature_fails:['i can enter but the feature fails','i can sign in but the feature fails','استطيع الدخول لكن الميزه لا تعمل']},
+ academic_failure_scope:{login:['both sign in fails','cannot sign in to both','لا استطيع الدخول للنظامين'],one:['only one','نظام واحد فقط'],different:['different problems','مشاكل مختلفه']},
+ retry_portal_scope:{signed_in:['i can enter but it still fails','استطيع الدخول لكن المشكله مستمره'],blocked:['still cannot enter','لا استطيع الدخول بعد'],works:['original task works now','المهمه الاصليه تعمل الان']},
  portal_system:{moodle:['moodle','مودل'],banner:['banner','بانر'],ors:['ors','online request system','نظام الطلبات']},
  assignment_kind:{standard:['standard','standard assignment','واجب عادي'],turnitin:['turnitin','turnitin assignment','تيرنتن'],approved_link:['instructor approved a link','المدرس سمح بالرابط']},
  mail_client:{new_windows:['new outlook','new outlook for windows','اوتلوك الجديد'],classic_windows:['classic outlook','old outlook','اوتلوك الكلاسيكي'],mac:['outlook for mac','mac outlook'],ios:['iphone','ipad','ios'],android:['android'],web:['webmail','outlook web','browser']},

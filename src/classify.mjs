@@ -6,6 +6,7 @@ import {sanitizeText} from './privacy.mjs';
 import {detectIdentitySignals} from './identity-signals.mjs';
 import {normalizePresentation} from './input-language.mjs';
 import {isSharedServiceSet} from './shared-access.mjs';
+import {reportedAcademicSystems} from './operation-context.mjs';
 export function normalize(text){
  return normalizePresentation(text).toLowerCase().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[^a-z0-9\u0600-\u06ff.]+/g,' ').replace(/(?<!\d)\.|\.(?!\d)/g,' ').replace(/\s+/g,' ').trim();
 }
@@ -103,8 +104,8 @@ export function classify(raw){
  if(named.length&&services.includes('network')&&!/\b(?:wifi|wi fi|internet)\b|واي فاي|النت|انترنت/.test(t))services=services.filter(s=>s!=='network');
  if(named.length&&services.includes('identity')&&base.domain==='identity')services=services.filter(s=>s!=='identity');
  const facts={...base.facts};
- const portalNames=[['moodle',['moodle','مودل','موديل']],['banner',['banner','بانر']],['ors',['ors','online request system','نظام الطلبات الالكترونيه']]].filter(([,words])=>has(t,words));
- if(services.includes('portal')&&portalNames.length===1)facts.portal_system=portalNames[0][0];
+ const portalNames=reportedAcademicSystems(t);
+ if(services.includes('portal')&&portalNames.length===1)facts.portal_system=portalNames[0];
  if(services.length===1&&services[0]==='portal'&&facts.portal_system==='moodle'&&
   has(t,['moodle app','moodle mobile','تطبيق مودل'])&&has(t,['site address','add site','wrong site','invalid site','عنوان الموقع','اضافه موقع','موقع غير صحيح'])&&
   !signals.facts.mfa_prompt&&!signals.facts.verification_context&&!signals.facts.credentials&&!facts.recovery_context&&!facts.setup_requested){
@@ -133,6 +134,7 @@ export function classify(raw){
   return out('identity',affected.length?affected:['identity'],facts);
  }
  if(base.domain==='identity'&&facts.task==='login')return out('identity',services.length?services:['identity'],facts);
+ if(services.length===1&&services[0]==='portal'&&portalNames.length>1)return out('shared',services,{});
  if(base.domain==='mail'&&services.every(s=>s==='mail'||s==='identity'))return out('mail',['mail'],facts);
  if(services.length>1&&base.domain!=='identity'){
   // Multiple named university services are not automatically multiple root

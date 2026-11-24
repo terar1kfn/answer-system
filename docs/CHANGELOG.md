@@ -1,5 +1,10 @@
 # Change log
 
+## 0.23.0 — current-operation diagnostic reasoning (validation deferred)
+
+- Separate authentication success, service access and original-task success; preserve academic-system context, exact device/client observations and clarify unsuccessful academic guides.
+- Require explicit browser comparison before browser guidance. No tests, builds, provider calls, deployments or original application edits.
+
 ## 0.22.0 — source-grounded knowledge gaps (validation deferred)
 
 - Added source-attributed, revision-pinned private knowledge proposals and authorized review intake; institutional claims require institutional source evidence and independent applicability review. No direct publishing path.

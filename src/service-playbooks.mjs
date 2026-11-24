@@ -142,6 +142,7 @@ export function nextServiceDecision(state,{ask,guide,support}){
  if(service==='portal'&&choice==='loading'){
   if(!val('browser_scope'))return ask('browser_scope');
   if(val('browser_scope')==='fails')return support('PORTAL_FAILURE_ACROSS_CLIENTS');
+  if(val('browser_scope')!=='works')return support('PORTAL_CLIENT_COMPARISON_NEEDED');
  }
  return guide(service,row[3]);
 }
