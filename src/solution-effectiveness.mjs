@@ -14,8 +14,17 @@ const provenance=new Set(['student_reported','staff_verified','unverified']);
 const attribution=new Set(['guide_only','multiple_interventions','not_established']);
 const exactFields=(x,keys)=>x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).length===keys.length&&keys.every(k=>Object.hasOwn(x,k));
 const rowFields=['guideId','guideFingerprint','serviceId','purpose','ruleVersion','day','revision','completion','outcome','provenance','attribution'];
+const routeFields=['sourceRevision','routeFingerprint','routeAttribution'];
+const routeKinds=new Set(['single_native_guide','branched_native_route','native_escalation','unverified_route']);
+const hasRoute=r=>routeFields.some(k=>Object.hasOwn(r,k));
+function validRoute(r){
+ if(!hasRoute(r))return true; // Legacy records are retained, but not promoted.
+ return id(r.sourceRevision)&&routeKinds.has(r.routeAttribution)&&
+  (r.routeAttribution==='unverified_route'?r.routeFingerprint===null:hash(r.routeFingerprint))&&
+  (r.attribution!=='guide_only'||r.routeAttribution==='single_native_guide');
+}
 function validRow(r){
- if(!exactFields(r,rowFields)||!id(r.guideId)||!hash(r.guideFingerprint)||!isServiceId(r.serviceId)||
+ if(!r||!exactFields(r,hasRoute(r)?[...rowFields,...routeFields]:rowFields)||!validRoute(r)||!id(r.guideId)||!hash(r.guideFingerprint)||!isServiceId(r.serviceId)||
  !id(r.purpose)||!id(r.ruleVersion)||!day(r.day)||!int(r.revision,1,Number.MAX_SAFE_INTEGER)||
  !completion.has(r.completion)||!outcomes.has(r.outcome)||!provenance.has(r.provenance)||!attribution.has(r.attribution))return false;
  if(r.outcome==='not_attempted'&&r.completion==='attempted')return false;
@@ -28,8 +37,8 @@ export function validateEffectiveness(data){
  return exactFields(data,['rows'])&&data.rows&&typeof data.rows==='object'&&!Array.isArray(data.rows)&&
  Object.keys(data.rows).length<=MAX_ROWS&&Object.entries(data.rows).every(([k,r])=>hash(k)&&validRow(r));
 }
-const immutable=['guideId','guideFingerprint','serviceId','purpose','ruleVersion','day'];
-function same(a,b){return rowFields.every(k=>a[k]===b[k]);}
+const immutable=['guideId','guideFingerprint','serviceId','purpose','ruleVersion','day',...routeFields];
+function same(a,b){return [...rowFields,...routeFields].every(k=>a[k]===b[k]);}
 function emptyCounts(){return {finalizedRecords:0,viewedOnly:0,notViewed:0,attempted:0,attemptUnknown:0,
  studentReported:{resolved:0,unresolved:0},staffVerified:{resolved:0,unresolved:0},
  singleGuideReported:{resolved:0,unresolved:0},singleGuideVerified:{resolved:0,unresolved:0},
@@ -45,7 +54,7 @@ function increment(c,r){
  const target=r.provenance==='staff_verified'?c.staffVerified:c.studentReported;
  target[r.outcome]++;
  if(r.attribution==='multiple_interventions')c.multipleInterventions++;
- else if(r.attribution==='not_established')c.uncertainAttribution++;
+ else if(r.attribution==='not_established'||r.routeAttribution!=='single_native_guide')c.uncertainAttribution++;
  else (r.provenance==='staff_verified'?c.singleGuideVerified:c.singleGuideReported)[r.outcome]++;
 }
 /**
@@ -61,9 +70,10 @@ export function createSolutionEffectiveness({store,receiptKey,now=()=>Date.now()
  const key=Buffer.from(receiptKey,'hex');
  const cutoff=()=>new Date(now()-(retentionDays-1)*DAY).toISOString().slice(0,10);
  function record(observation){
-  if(!exactFields(observation,['receiptRef','occurredAt',...rowFields.filter(k=>k!=='day')])||
+  const fields=observation&&hasRoute(observation)?[...rowFields,...routeFields]:rowFields;
+  if(!exactFields(observation,['receiptRef','occurredAt',...fields.filter(k=>k!=='day')])||
    !id(observation.receiptRef)||!int(observation.occurredAt,0,Number.MAX_SAFE_INTEGER)||observation.occurredAt>now())fail('INVALID_EFFECTIVENESS_OBSERVATION');
-  const row=Object.fromEntries(rowFields.map(k=>[k,k==='day'?new Date(observation.occurredAt).toISOString().slice(0,10):observation[k]]));
+  const row=Object.fromEntries(fields.map(k=>[k,k==='day'?new Date(observation.occurredAt).toISOString().slice(0,10):observation[k]]));
   if(!validRow(row)||!knownGuidePurpose(row.serviceId,row.purpose))fail('INVALID_EFFECTIVENESS_OBSERVATION');
   if(row.day<cutoff())return {status:'outside_retention'};
   const digest=createHmac('sha256',key).update('guide-outcome-v1:'+observation.receiptRef).digest('hex');
@@ -99,8 +109,9 @@ export function createSolutionEffectiveness({store,receiptKey,now=()=>Date.now()
   const since=new Date(now()-(days-1)*DAY).toISOString().slice(0,10),groups=new Map();
   for(const r of Object.values(store.snapshot().data.rows)){
    if(r.day<since||r.day<cutoff()||!allowed.has(r.guideId)||!services.has(r.serviceId))continue;
-   const groupKey=JSON.stringify([r.guideId,r.guideFingerprint,r.serviceId,r.purpose,r.ruleVersion]);
-   if(!groups.has(groupKey))groups.set(groupKey,{guideId:r.guideId,guideFingerprint:r.guideFingerprint,serviceId:r.serviceId,purpose:r.purpose,ruleVersion:r.ruleVersion,counts:emptyCounts()});
+   const routeAttribution=r.routeAttribution??'legacy_unverified';
+   const groupKey=JSON.stringify([r.guideId,r.guideFingerprint,r.serviceId,r.purpose,r.ruleVersion,r.sourceRevision??null,r.routeFingerprint??null,routeAttribution]);
+   if(!groups.has(groupKey))groups.set(groupKey,{guideId:r.guideId,guideFingerprint:r.guideFingerprint,serviceId:r.serviceId,purpose:r.purpose,ruleVersion:r.ruleVersion,sourceRevision:r.sourceRevision??null,routeFingerprint:r.routeFingerprint??null,routeAttribution,counts:emptyCounts()});
    increment(groups.get(groupKey).counts,r);
   }
   return [...groups.values()].filter(g=>g.counts.finalizedRecords>=minimumGroup).map(g=>{

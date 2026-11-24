@@ -1,5 +1,12 @@
 # Change log
 
+## 0.32.0 — route-aware outcome attribution (validation deferred)
+
+- Verify historical native forward traces against exact reviewed route graphs; distinguish single-guide outcomes, branched routes, escalation, and unverified paths.
+- Keep source and route pins in minimal private aggregates; legacy records remain separate and cannot qualify as verified single-guide evidence.
+- Restrict current knowledge-review signals to exact current source and route evidence, not just guide ID or content fingerprint.
+- No tests/builds, real outcome imports, deployment or private host changes.
+
 ## 0.31.0 — native diagnostic route dependency review (validation deferred)
 
 - Inspect reachable question, case, solution and escalation routes with bounded graph traversal, exact guide and owner pins, branch-specific blockers and review notes.

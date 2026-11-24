@@ -1,6 +1,7 @@
 import {auditNativeCoverage} from './catalog-coverage.mjs';
 import {nativeRecordFingerprint,projectNativeCatalog} from './native-catalog.mjs';
 import {inspectSourceKnowledgePack} from './source-knowledge-drafts.mjs';
+import {inspectNativeGuideRoute} from './native-route-review.mjs';
 import {knownGuidePurpose} from '../guide-purposes.mjs';
 import {KNOWLEDGE_GAP_KINDS} from '../analytics.mjs';
 const fail=x=>{throw Error(x);};
@@ -40,19 +41,26 @@ export function buildKnowledgeBacklog({input,metricRows=[],effectivenessRows=[],
   if(!r||m.count<minimumGroup)continue;
   r.observedGapCounts.push({kind:m.reasonCode,count:m.count});add(r,gapAction(m.reasonCode));
  }
- const current=new Map(projection.catalog.guides.map(g=>[g.id,g])),seenOutcomes=new Set();
+ const current=new Map(projection.catalog.guides.map(g=>[g.id,g])),seenOutcomes=new Set(),routePins=new Map();
  for(const e of effectivenessRows){
   if(!e||!id(e.guideId)||!hash(e.guideFingerprint)||!id(e.ruleVersion)||!knownGuidePurpose(e.serviceId,e.purpose))fail('INVALID_EFFECTIVENESS_SUMMARY');
-  const ek=[e.guideId,e.guideFingerprint,e.ruleVersion].join(':');
+  const ek=JSON.stringify([e.guideId,e.guideFingerprint,e.ruleVersion,e.sourceRevision??null,e.routeFingerprint??null,e.routeAttribution??'legacy_unverified']);
   if(seenOutcomes.has(ek))fail('DUPLICATE_EFFECTIVENESS_SUMMARY');seenOutcomes.add(ek);
   const r=indexed.get(key(e.serviceId,e.purpose)),g=current.get(e.guideId);
   // Do not mix older procedures or scopes into today's knowledge ranking.
-  if(!r||!g||g.nativeGuideFingerprint!==e.guideFingerprint||g.serviceId!==e.serviceId||g.purpose!==e.purpose)continue;
+  if(!r||!g||g.nativeGuideFingerprint!==e.guideFingerprint||g.serviceId!==e.serviceId||g.purpose!==e.purpose||
+   e.sourceRevision!==projection.catalog.sourceRevision||e.routeAttribution!=='single_native_guide'||!hash(e.routeFingerprint))continue;
+  if(!routePins.has(g.id)){
+   const mappingRow=input.mapping.guides.find(m=>m.guideId===g.id);
+   const review=mappingRow?inspectNativeGuideRoute({...input,mappingRow}):null;
+   routePins.set(g.id,review&&!review.blockers.length&&!review.truncated?review.routeFingerprint:null);
+  }
+  if(routePins.get(g.id)!==e.routeFingerprint)continue;
   const c=e.counts?.singleGuideVerified;
   if(!c||!count(c.resolved)||!count(c.unresolved))fail('INVALID_EFFECTIVENESS_SUMMARY');
   const n=c.resolved+c.unresolved;
   if(n>=Math.max(10,minimumGroup)&&c.unresolved>=3&&c.unresolved/n>=0.35){
-   r.effectivenessReview.push({guideId:e.guideId,guideFingerprint:e.guideFingerprint,ruleVersion:e.ruleVersion,verifiedKnownOutcomes:n,verifiedUnresolved:c.unresolved});
+   r.effectivenessReview.push({guideId:e.guideId,guideFingerprint:e.guideFingerprint,sourceRevision:e.sourceRevision,routeFingerprint:e.routeFingerprint,ruleVersion:e.ruleVersion,verifiedKnownOutcomes:n,verifiedUnresolved:c.unresolved});
    add(r,'review_repeated_verified_unresolved_outcomes');
   }
  }

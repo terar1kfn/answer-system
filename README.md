@@ -125,3 +125,5 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 Version 0.30 separates changed-phone verification transfer from the original sign-in task, confirms contradictory screens before using recovery logic, and clears stale observations before a new applicable guide. Reviewed informational answers cannot supersede explicit credential, verification or recovery evidence.
 
 [Native route dependency review (0.31)](docs/native-route-dependency-review.md) adds branch-aware review to the release boundary. Every reachable dependency must be independently confirmed against the exact catalog; legacy release formats fail closed until renewed review. Original native navigation remains authoritative.
+
+[Route-aware outcomes (0.32)](docs/route-aware-outcomes.md) extends private verified outcome attribution with exact historical route and source pins. Branched and unverified paths cannot count as root-guide-only evidence. No automatic guide ranking changes.
