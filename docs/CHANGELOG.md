@@ -1,5 +1,12 @@
 # Change log
 
+## 0.9.0 — native-first integration alignment (validation deferred)
+
+- Added read-only live catalog projection with explicit original guide IDs, native service ownership, separate diagnostic and guide scope, reviewed/permission checks and metadata revision fingerprints.
+- Added feature-disabled-by-default embedded bridge, native-first admission, protected routing fallback, authenticated visit versioning, native guide references, native draft intents and verified recovery continuation. No duplicate ticket system or independent session timer.
+- Added supplemental journey deltas, native home-search lifecycle controller and server-authorized persistent session policy resolver.
+- Existing standalone workbench remains synthetic. No private source, private mapping, live application changes, automated tests, builds, benchmarks or provider calls. CI remains manual-only.
+
 ## 0.8.0 — feature-building phase (validation deferred)
 
 - Added reviewed fact-topic clarification, safe missing-prerequisite questions and documented error intake for pasted text.

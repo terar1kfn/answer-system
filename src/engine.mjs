@@ -8,7 +8,7 @@ import {hasServicePlaybook,nextServiceDecision} from './service-playbooks.mjs';
 import {getErrorSignature} from './error-intelligence.mjs';
 import {sanitizeText} from './privacy.mjs';
 import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from './answer-planner.mjs';
-export const RULE_VERSION='0.8.0';
+export const RULE_VERSION='0.9.0';
 export const MAX_TURNS=7;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -34,6 +34,7 @@ function checkedCatalog(input){
   ids.add(f.id);
  }
  if(input.serviceAvailability!==undefined&&(!input.serviceAvailability||typeof input.serviceAvailability!=='object'||Array.isArray(input.serviceAvailability)||Object.entries(input.serviceAvailability).some(([id,flag])=>!SVC.has(id)||typeof flag!=='boolean')))throw new TypeError('Invalid service availability');
+ if(input.diagnosticServices!==undefined&&(!Array.isArray(input.diagnosticServices)||!input.diagnosticServices.length||input.diagnosticServices.some(s=>!SVC.has(s))||new Set(input.diagnosticServices).size!==input.diagnosticServices.length))throw new TypeError('Invalid diagnostic scope');
  return copy(input);
 }
 function guide(s,c,service,purpose){
@@ -72,6 +73,7 @@ function decide(s,c,records,now){
   if(k('exam_issue')&&['install','launch','camera','audio','download'].includes(v('exam_issue')))return g('exam',v('exam_app')+'_'+v('exam_issue'));
   return g('exam',v('exam_app'));
  }
+ if(c.diagnosticServices&&s.services.some(id=>!c.diagnosticServices.includes(id)))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
  if(k('outcome'))return support(v('outcome')==='no'?'GUIDE_DID_NOT_WORK':'OUTCOME_UNCONFIRMED');
  if(s.knowledgeChoices?.length&&!k('reviewed_topic'))return ask('reviewed_topic');
@@ -160,7 +162,8 @@ function finish(s,c,records,now){
   let question=d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):QUESTIONS[d.questionId];
   if(d.questionId==='task'&&!s.services.includes('mail'))question={...question,options:question.options.filter(o=>!['send','receive'].includes(o.id))};
   if(d.questionId==='service'&&s.services.length>1)question={...question,options:question.options.filter(o=>s.services.includes(o.id)||o.id==='other')};
-  d={...d,question};
+  if(d.questionId==='service'&&c.diagnosticServices)question={...question,options:question.options.filter(o=>c.diagnosticServices.includes(o.id))};
+  if(!question.options.length)d=support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');else d={...d,question};
  }
  if(d.kind==='open_guide')s.offeredGuideIds.push(d.guideId);
  if(d.kind==='open_guide'||d.kind==='answer')d={...d,followUp:{questionId:'outcome',question:QUESTIONS.outcome}};

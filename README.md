@@ -1,8 +1,12 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.8 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.9 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
-## Run the diagnostic lab
+## Development status
+
+Feature-building phase: validation deferred. Do not run or deploy an intermediate version. Existing regression commands are retained for the later explicitly authorized validation phase.
+
+## Diagnostic lab (later validation only)
 
 Requires Node.js 22+. No dependencies or AI keys.
 
@@ -36,7 +40,7 @@ Implemented: conservative free-text follow-ups, reviewed exact fact answers, lex
 
 Additional host reference modules: in-process visit coordinator, explicit idempotent handoffs, scoped incident registry, and reviewed knowledge proposal queue. These are not authenticated production endpoints.
 
-Not implemented: private application adapter, authenticated durable visit persistence, real tickets or recovery, incident ingestion, semantic retrieval or AI, real staff authorization, production persistent-session integration and deployment. Do not use the browser lab as a production API.
+Not implemented: actual private application wiring and reviewed native guide mapping, production multi-worker visit persistence, real tickets/recovery callbacks, enabled local inference, production persistent-session integration and deployment. The embedded integration layer is written but unvalidated. Do not use the browser lab as a production API.
 
 The host must keep issue state on the trusted side, authenticate visits, atomically enforce expected turns, revalidate published guides, authorize staff actions and deduplicate effects. The pure library is not an authorization boundary. See docs/contract.md.
 
@@ -54,3 +58,6 @@ The new unified [development workbench](docs/workbench.md) connects fictional st
 
 
 The [host assembly](docs/assembly.md) composes optional model/retrieval, guide resolution, diagnostics, durable handoff reconciliation, metrics, monitoring and a host-authorized OCR boundary behind explicit private integration callbacks. Informational paraphrases can ask the student to confirm a reviewed fact topic; pasted-error intake retains only documented signals. Feature code is unvalidated and no real host is connected.
+
+
+For an existing support application, use the [embedded integration contract](docs/embedded-integration.md) rather than replacing its workflows with the standalone workbench. The new bridge preserves native authentication, routing, published guide ownership, support and recovery queues, and cleanup. A separate search controller and server-side session policy resolver are provided. No private integration has been enabled.

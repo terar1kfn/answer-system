@@ -1,0 +1,79 @@
+import {createHash} from 'node:crypto';
+import {createEngine} from '../engine.mjs';
+import {SERVICE_IDS,isServiceId} from '../service-taxonomy.mjs';
+const clone=x=>JSON.parse(JSON.stringify(x));
+const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
+const bilingual=x=>x&&typeof x.en==='string'&&x.en.trim()&&x.en.length<=500&&typeof x.ar==='string'&&x.ar.trim()&&x.ar.length<=500;
+const list=x=>Array.isArray(x)&&x.length<=5000;
+const fail=x=>{throw Error(x);};
+const stable=x=>Array.isArray(x)?x.map(stable):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,stable(x[k])])):x;
+const digest=x=>createHash('sha256').update(JSON.stringify(stable(x))).digest('hex');
+const unique=(xs,get)=>new Set(xs.map(get)).size===xs.length;
+const boundedTerms=x=>Array.isArray(x)?x.filter(v=>typeof v==='string'&&v.trim()&&v.length<=500).slice(0,100):[];
+/**
+ * Read-only projection of a native application's published configuration.
+ * Mapping, scope and policy callbacks are trusted server inputs. No institutional
+ * IDs, current availability or guide text are bundled in the public repository.
+ * Generic service categories are not interchangeable native card identities.
+ */
+export function projectNativeCatalog({
+ configuration, mapping, allowedNativeServiceIds, diagnosticServices,
+ isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu
+}={}){
+ if(!configuration||!Number.isSafeInteger(configuration.revision)||configuration.revision<0||
+ !list(configuration.services)||!list(configuration.guides)||!mapping||!id(mapping.revision)||
+ !list(mapping.services)||!list(mapping.guides)||!list(allowedNativeServiceIds)||!allowedNativeServiceIds.every(id)||
+ !list(diagnosticServices)||!diagnosticServices.length||!diagnosticServices.every(isServiceId)||
+ ![isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu].every(f=>typeof f==='function'))fail('NATIVE_CATALOG_CONFIGURATION_REQUIRED');
+ if(!unique(configuration.services,s=>s.id)||!unique(configuration.guides,g=>g.id)||
+ !unique(mapping.services,s=>s.nativeId)||!unique(mapping.guides,g=>g.guideId))fail('AMBIGUOUS_NATIVE_MAPPING');
+ for(const s of mapping.services)if(!s||!id(s.nativeId)||!isServiceId(s.serviceId))fail('INVALID_SERVICE_MAPPING');
+ for(const g of mapping.guides)if(!g||!id(g.guideId)||!id(g.nativeServiceId)||!id(g.purpose))fail('INVALID_GUIDE_MAPPING');
+ const services=new Map(configuration.services.map(s=>[s.id,s]));
+ const guides=new Map(configuration.guides.map(g=>[g.id,g]));
+ const mappedServices=new Map(mapping.services.map(s=>[s.nativeId,s]));
+ const allowed=new Set(allowedNativeServiceIds),diagnostic=[...new Set(diagnosticServices)].sort();
+ const available=new Map(),withheld=[];
+ for(const m of mapping.services){
+  const s=services.get(m.nativeId);
+  if(!s||!allowed.has(m.nativeId)||!diagnostic.includes(m.serviceId)||s.active!==true||
+  ['hidden','unavailable'].includes(s.availability)||s.directSupport===true||
+  isServiceAvailable(s,configuration)!==true)continue;
+  available.set(m.nativeId,{nativeId:m.nativeId,serviceId:m.serviceId,category:typeof s.category==='string'?s.category.slice(0,60):null});
+ }
+ const projected=[];
+ for(const m of mapping.guides){
+  const owner=available.get(m.nativeServiceId),g=guides.get(m.guideId),s=services.get(m.nativeServiceId);
+  if(!mappedServices.has(m.nativeServiceId))fail('GUIDE_OWNER_NOT_MAPPED');
+  if(!owner||!g){withheld.push({guideId:m.guideId,reason:'UNAVAILABLE_OR_OUT_OF_SCOPE'});continue;}
+  if((g.serviceId&&g.serviceId!==m.nativeServiceId)||ownsGuide(g,s,configuration)!==true){withheld.push({guideId:m.guideId,reason:'OWNERSHIP_UNCONFIRMED'});continue;}
+  // Entry menus and procedures for privileged personnel stay in the native router.
+  if(g.isEnabled!==true||!['Student','All'].includes(g.audience)||g.permissionLevel!=='SELF SERVICE'||
+  isGuideAvailable(g,configuration)!==true||isReviewedGuide(g,configuration)!==true||
+  isEntryMenu(g,configuration)!==false){withheld.push({guideId:m.guideId,reason:'NOT_APPROVED_FOR_SUPPLEMENTAL_ROUTING'});continue;}
+  const title={en:g.title,ar:g.titleAr};
+  if(!bilingual(title)){withheld.push({guideId:m.guideId,reason:'INCOMPLETE_BILINGUAL_METADATA'});continue;}
+  projected.push({
+   id:g.id,serviceId:owner.serviceId,nativeServiceId:owner.nativeId,purpose:m.purpose,title,
+   reviewed:true,enabled:true,audience:'student',
+   aliases:boundedTerms(g.aliases),keywords:boundedTerms(g.keywords),
+   requires:clone(m.requires||{}),errorSignatures:boundedTerms(m.errorSignatures)
+  });
+ }
+ const sourceRevision=String(configuration.gatewayRevision??configuration.revision);
+ const serviceAvailability=Object.fromEntries(SERVICE_IDS.map(id=>[id,[...available.values()].some(s=>s.serviceId===id)]));
+ const body={sourceRevision,mappingRevision:mapping.revision,guides:projected.sort((a,b)=>a.id.localeCompare(b.id)),facts:[],serviceAvailability,diagnosticServices:diagnostic};
+ // Availability, exact ownership and metadata changes invalidate old choices even
+ // if an external publication revision is accidentally reused.
+ const catalog={...body,revision:'native-'+digest(body)};
+ createEngine({catalog});
+ return {catalog,availableNativeServices:[...available.values()].sort((a,b)=>a.nativeId.localeCompare(b.nativeId)),withheld};
+}
+export function nativeGuideReference(projection,decision){
+ if(!projection||decision?.kind!=='open_guide'||projection.catalog.revision!==decision.catalogRevision)fail('NATIVE_GUIDE_STALE');
+ const g=projection.catalog.guides.find(x=>x.id===decision.guideId&&x.serviceId===decision.serviceId);
+ if(!g||!projection.availableNativeServices.some(s=>s.nativeId===g.nativeServiceId))fail('NATIVE_GUIDE_UNAVAILABLE');
+ // The native application must revalidate and open the complete existing guide.
+ // Never reconstruct its actions, warnings, prerequisites, or screenshots here.
+ return {guideId:g.id,nativeServiceId:g.nativeServiceId,catalogRevision:projection.catalog.revision,sourceRevision:projection.catalog.sourceRevision};
+}

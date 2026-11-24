@@ -1,6 +1,6 @@
 {
   "name": "answer-system",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -23,13 +23,18 @@
     "./cases": "./src/case-retrieval.mjs",
     "./assembly": "./src/host-assembly.mjs",
     "./error-intake": "./src/error-intake.mjs",
-    "./answer-planner": "./src/answer-planner.mjs"
+    "./answer-planner": "./src/answer-planner.mjs",
+    "./embedded": "./src/integration/embedded-bridge.mjs",
+    "./native-catalog": "./src/integration/native-catalog.mjs",
+    "./native-journey": "./src/integration/native-journey.mjs",
+    "./home-search": "./src/integration/search-controller.mjs",
+    "./session-policy": "./src/integration/session-policy.mjs"
   },
   "scripts": {
     "test": "node --test tests/engine.test.mjs",
     "demo": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
-    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs && node --check src/host-service.mjs && node --check src/model-advisor.mjs && node --check src/service-taxonomy.mjs && node --check src/service-playbooks.mjs && node --check src/error-intelligence.mjs && node --check src/privacy.mjs && node --check src/catalog-adapter.mjs && node --check src/providers/ollama.mjs && node --check src/hybrid-retrieval.mjs && node --check src/atomic-store.mjs && node --check src/catalog-workspace.mjs && node --check src/delivery-ledger.mjs && node --check src/analytics.mjs && node --check src/monitor-signals.mjs && node --check src/case-retrieval.mjs && node --check src/development-host.mjs && node --check scripts/workbench.mjs && node --check demo/workbench.mjs && node --check src/answer-planner.mjs && node --check src/error-intake.mjs && node --check src/host-assembly.mjs",
+    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs && node --check src/host-service.mjs && node --check src/model-advisor.mjs && node --check src/service-taxonomy.mjs && node --check src/service-playbooks.mjs && node --check src/error-intelligence.mjs && node --check src/privacy.mjs && node --check src/catalog-adapter.mjs && node --check src/providers/ollama.mjs && node --check src/hybrid-retrieval.mjs && node --check src/atomic-store.mjs && node --check src/catalog-workspace.mjs && node --check src/delivery-ledger.mjs && node --check src/analytics.mjs && node --check src/monitor-signals.mjs && node --check src/case-retrieval.mjs && node --check src/development-host.mjs && node --check scripts/workbench.mjs && node --check demo/workbench.mjs && node --check src/answer-planner.mjs && node --check src/error-intake.mjs && node --check src/host-assembly.mjs && node --check src/integration/native-catalog.mjs && node --check src/integration/native-journey.mjs && node --check src/integration/embedded-bridge.mjs && node --check src/integration/search-controller.mjs && node --check src/integration/session-policy.mjs",
     "workbench": "node scripts/workbench.mjs",
     "workbench:persistent": "node scripts/workbench.mjs --persist-demo"
   },
