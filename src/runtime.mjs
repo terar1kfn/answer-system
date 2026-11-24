@@ -96,7 +96,7 @@ export function createRuntime({getCatalog,getIncidents=()=>[],now=()=>Date.now()
   if(!['offer_support','offer_mfa_recovery'].includes(kind))fail('HANDOFF_NOT_OFFERED');
   if(operations.size>=maxRecords)fail('HANDOFF_CAPACITY');
   const operationId=id();if(operations.has(operationId))fail('OPERATION_ID_COLLISION');
-  const payload=copy({issueId,kind,services:s.services,domain:s.domain,reasonCode:s.decision.reasonCode,evidence:s.evidence,candidates:s.candidates,offeredGuideIds:s.offeredGuideIds,guideProgress:i.guideProgress,askedQuestionIds:s.askedQuestionIds,catalogRevision:s.catalogRevision,ruleVersion:s.ruleVersion});
+  const payload=copy({issueId,kind,services:s.services,domain:s.domain,reasonCode:s.decision.reasonCode,evidence:s.evidence,candidates:s.candidates,diagnosticUncertainty:s.diagnosticUncertainty,offeredGuideIds:s.offeredGuideIds,guideAttempts:s.guideAttempts||[],errorEvidenceHistory:s.errorEvidenceHistory||[],guideProgress:i.guideProgress,askedQuestionIds:s.askedQuestionIds,catalogRevision:s.catalogRevision,ruleVersion:s.ruleVersion});
   const o={operationId,visitRef:ref,issueId,requestKey,kind,status:'prepared',payload,visitClosed:false,createdAt:now(),attempt:1};
   operations.set(operationId,o);i.handoffRef=operationId;i.status='handoff_prepared';
   return copy({operation:o,visit:update(v)});

@@ -21,7 +21,9 @@ function render(){
  const box=el('section',undefined,'result');box.dir=ar?'rtl':'ltr';box.append(el('p',d.kind.replaceAll('_',' ').toUpperCase(),'eyebrow'));
  if(d.kind==='ask')box.append(el('h2',d.question.text[lang]),choices(d.question,d.questionId));
  else if(d.kind==='answer'){
-  box.append(el('h2',d.title[lang]),el('p',d.answer[lang]),el('p','Synthetic reviewed fact — '+d.sourceRef,'sub'),el('h3',d.followUp.question.text[lang]),choices(d.followUp.question,'outcome'));
+  box.append(el('h2',d.title[lang]));
+  for(const part of d.answerParts||[{title:d.title,answer:d.answer,sourceRef:d.sourceRef}])box.append(el('h3',part.title[lang]),el('p',part.answer[lang]),el('p','Synthetic reviewed fact — '+part.sourceRef,'sub'));
+  box.append(el('h3',d.followUp.question.text[lang]),choices(d.followUp.question,'outcome'));
  }else if(d.kind==='open_guide'){
   const g=demoCatalog.guides.find(g=>g.id===d.guideId);
   box.append(el('h2',g.title[lang]),el('p',ar?'إجراء تجريبي وليس دليلاً معتمداً.':'Synthetic guide fixture, not an approved institutional procedure.','sub'));
@@ -30,7 +32,7 @@ function render(){
  if(d.kind==='ask'||d.followUp){
   const form=el('form');const input=el('input');input.type='text';input.maxLength=500;input.placeholder=ar?'اكتب إجابتك':'Type your answer';input.setAttribute('aria-label',input.placeholder);input.required=true;
   const send=el('button',ar?'إرسال':'Send answer');send.type='submit';form.className='free-answer';form.append(input,send);
-  form.onsubmit=e=>{e.preventDefault();try{const prior=state;const r=engine.respond(state,{expectedTurn:state.turn,text:input.value});if(r.kind==='clarify'){form.append(el('p',ar?'اختر الإجابة المناسبة أعلاه.':'Please choose the matching option above.','sub'));return;}state=r.state;const id=prior.decision.questionId||'outcome';const value=state.evidence[id]?.value;const q=prior.decision.question||prior.decision.followUp.question;const matched=q.options.find(o=>o.id===value);history.push([q.text[lang],matched?.label[lang]||(ar?'تمت الإحالة الآمنة':'Safety referral')]);render();}catch(e){form.append(el('p',e.message,'sub'));}};
+  form.onsubmit=e=>{e.preventDefault();try{const prior=state;const r=engine.respond(state,{expectedTurn:state.turn,text:input.value});if(r.kind==='clarify'){form.append(el('p',ar?'اختر الإجابة المناسبة أعلاه.':'Please choose the matching option above.','sub'));return;}state=r.state;const id=prior.decision.questionId||'outcome';const value=id==='confirm_current_error'&&state.lastErrorConfirmation?.turn===state.turn?state.lastErrorConfirmation.choice:state.evidence[id]?.value;const q=prior.decision.question||prior.decision.followUp.question;const matched=q.options.find(o=>o.id===value);if(matched&&state.decision.questionId!=='confirm_current_error')history.push([q.text[lang],matched.label[lang]]);else if(state.decision.kind==='safety_referral')history.push([q.text[lang],ar?'تمت الإحالة الآمنة':'Safety referral']);render();}catch(e){form.append(el('p',e.message,'sub'));}};
   box.append(form);
  }
  $('result').replaceChildren(box);$('summary').replaceChildren();

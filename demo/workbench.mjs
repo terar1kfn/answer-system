@@ -108,7 +108,11 @@ function renderDecision(){
  else if(['handoff_prepared','handoff_unknown'].includes(i.status)){box.append(el('h2','Delivery not confirmed'),muted('An authorized staff member must reconcile the fictional operation. No blind retry.'));}
  else if(d.kind==='ask')box.append(questionBox(d.question,d.questionId));
  else if(d.kind==='open_guide')box.append(renderGuide(d));
- else if(d.kind==='answer')box.append(el('h2',d.title[language]),el('p',d.answer[language]),muted('Source: '+d.sourceRef),questionBox(d.followUp.question,'outcome'));
+ else if(d.kind==='answer'){
+  box.append(el('h2',d.title[language]));
+  for(const part of d.answerParts||[{title:d.title,answer:d.answer,sourceRef:d.sourceRef}])box.append(el('h3',part.title[language]),el('p',part.answer[language]),muted(t('Source: ','المصدر: ')+part.sourceRef));
+  box.append(questionBox(d.followUp.question,'outcome'));
+ }
  else{
   box.append(el('h2',(ar?arLabels:labels)[d.kind]||d.kind));
   if(d.kind==='safety_referral')box.append(muted(t('Do not bypass security or make disruptive changes during an active exam. Contact authorized support.','لا تتجاوز ضوابط الأمان أو تعطل اختباراً جارياً. تواصل مع الدعم المخول.')));

@@ -1,5 +1,12 @@
 # Change log
 
+## 0.19.0 — source-bound answer composition (validation deferred)
+
+- Added extractive composition of up to three independently phrased, uniquely matched reviewed information questions, exact answer/source packets and consumption-time source consistency verification.
+- Refuse missing/conflicting parts and protected/error contexts; distinguish informational feedback from reported technical resolution. Preserve native informational routing.
+- Updated synthetic displays for source-separated answers and fixed typed error-confirmation history; include bounded attempt history and uncertainty in the generic support handoff.
+- No actual private facts, source integration, model calls, tests, builds, browser execution, deployment or private repository changes. CI remains manual-only.
+
 ## 0.18.0 — contextual local reply advice (validation deferred)
 
 - Added optional context-aware, quote-validated local reply interpretation for allowlisted diagnostic questions, abstention and explicit confirmation rather than automatic state mutation.

@@ -67,6 +67,6 @@ export function completeCurrentError(state,optionId){
   if(error)s.evidence.send_error={value:error,origin:'student_confirmed_error'};
  }
  s.askedQuestionIds=[];s.conflictingObservations=[];
- delete s.activeAlternative;delete s.lastGuidePurpose;delete s.reviewedFactId;delete s.reviewedFactConflict;delete s.knowledgeChoices;
+ delete s.activeAlternative;delete s.lastGuidePurpose;delete s.reviewedFactId;delete s.reviewedFactIds;delete s.reviewedFactConflict;delete s.compositeAnswerGap;delete s.knowledgeChoices;
  s.requestKind='fault';return s;
 }
