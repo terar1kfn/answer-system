@@ -1,5 +1,13 @@
 # Change log
 
+## 0.46.0 — adversarial boundary hardening
+
+- Expanded validation by 41 scenarios (262 total), including 1,245 bounded English/Arabic diagnostic transitions. The first isolated run reproduced 28 boundary failures while the original 221 passed; 97/97 syntax checks passed.
+- Guard client/search transport and native effects after synchronous render/activity callbacks, release pending locks on rendering failure, enforce per-visit monotonic authoritative state and action-specific response kinds, reject wrong-issue or wrong-channel effects, and minimize the public response/reference/journey shapes.
+- Validate complete exact guide navigation references with 1–200 resolution steps and label unconfirmed navigation scope; align projection with existing native route step limits.
+- Snapshot approved mapping inputs, recheck the exact active envelope after async authority verification, and require independent complete row approval fields at consumption. Recheck existing native requests before draft/recovery continuation, without treating a missing request as permission to duplicate it.
+- Avoid pre-cancelled local HTTP requests and accepting cancelled output, cancel unused/error/oversize response streams, and reject invalid UTF-8. Tests use synthetic data and mocked transport only. Core diagnostic rule version remains 0.45.2 because deterministic diagnostic decisions did not change. Runtime results are recorded after execution.
+
 ## 0.45.2 — align legacy regression scenarios and specific security referral
 
 - Second CI run: 96/96 syntax checks; 171/221 regression tests passed, 50 failed. Most remaining failures were legacy assertions that skipped the newer symptom, current screen, verification-goal, registered-method and client-comparison questions.

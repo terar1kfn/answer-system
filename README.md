@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.45 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.46 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -160,3 +160,6 @@ The [reviewed-context release coordinator](docs/context-release.md) adds separat
 
 
 Consolidated validation is described in [docs/validation-plan.md](docs/validation-plan.md). All synthetic suites are registered; CI executes syntax and regression checks without deploying or contacting a model.
+
+
+Extended boundary validation and hardening are documented in [docs/extended-validation.md](docs/extended-validation.md). Browser lifecycle, exact native publication and request pins, and mock local-provider cancellation are tested separately from real AU Assist integration.

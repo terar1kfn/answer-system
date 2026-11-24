@@ -1,9 +1,21 @@
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const integer=(v,min,max)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
 const fail=x=>{throw Error(x);};
+/** Shared browser/server exact navigation-reference contract. A fingerprint
+ * is a consistency token, never a grant of native permission. */
+export function isNativeGuideReference(ref){
+ return Boolean(ref&&id(ref.guideId)&&id(ref.nativeServiceId)&&id(ref.catalogRevision)&&id(ref.sourceRevision)&&
+ typeof ref.nativeGuideFingerprint==='string'&&/^[a-f0-9]{64}$/.test(ref.nativeGuideFingerprint)&&
+ integer(ref.resolutionStepCount,1,200)&&['resolution','diagnostic'].includes(ref.entryMode));
+}
+export function publicNativeGuideReference(ref){
+ if(!isNativeGuideReference(ref))fail('INVALID_NATIVE_REFERENCE');
+ const {guideId,nativeServiceId,catalogRevision,sourceRevision,nativeGuideFingerprint,resolutionStepCount,entryMode}=ref;
+ return {guideId,nativeServiceId,catalogRevision,sourceRevision,nativeGuideFingerprint,resolutionStepCount,entryMode};
+}
 export function newGuideLaunch({launchRef,reference}={}){
- if(!id(launchRef)||!reference||!id(reference.guideId)||!id(reference.nativeServiceId)||!id(reference.catalogRevision)||typeof reference.nativeGuideFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(reference.nativeGuideFingerprint))fail('INVALID_GUIDE_LAUNCH');
- return {launchRef,reference:{...reference},status:'awaiting_native_return'};
+ if(!id(launchRef)||!isNativeGuideReference(reference))fail('INVALID_GUIDE_LAUNCH');
+ return {launchRef,reference:publicNativeGuideReference(reference),status:'awaiting_native_return'};
 }
 /**
  * Only the authenticated native visit's navigation recorder may supply this
@@ -11,7 +23,7 @@ export function newGuideLaunch({launchRef,reference}={}){
  * or a catalog fingerprint. A returned guide is NOT a resolved issue.
  */
 export function acceptNativeGuideReturn(launch,receipt){
- if(!launch||!receipt||receipt.status!=='returned'||receipt.verified!==true||
+ if(!launch||!id(launch.launchRef)||!isNativeGuideReference(launch.reference)||!receipt||receipt.status!=='returned'||receipt.verified!==true||
  receipt.launchRef!==launch.launchRef||receipt.guideId!==launch.reference.guideId||
  receipt.nativeGuideFingerprint!==launch.reference.nativeGuideFingerprint||
  receipt.catalogRevision!==launch.reference.catalogRevision||
@@ -33,6 +45,6 @@ export function guideContinuationView(issue){
  const launch=issue.guideLaunch;
  if(!launch)return {status:'offered',guideId:issue.state.decision.guideId};
  const receipt=(issue.guideReturns||[]).find(r=>r.launchRef===launch.launchRef);
- return receipt?{status:'returned',guideId:receipt.guideId,reachedStep:receipt.reachedStep,totalSteps:receipt.totalSteps}:
+ return receipt?{status:'returned',guideId:receipt.guideId,progressScope:receipt.progressScope==='root_resolution'?'root_resolution':'unconfirmed',reachedStep:receipt.reachedStep,totalSteps:receipt.totalSteps}:
  {status:'awaiting_native_return',guideId:launch.reference.guideId};
 }

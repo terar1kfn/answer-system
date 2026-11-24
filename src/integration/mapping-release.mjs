@@ -130,7 +130,9 @@ export async function prepareMappingRelease({
 export function createApprovedMappingProvider({getConfiguration,getActiveRelease,verifyActiveRelease}={}){
  if(![getConfiguration,getActiveRelease,verifyActiveRelease].every(f=>typeof f==='function'))fail('MAPPING_RELEASE_HOST_REQUIRED');
  return async function getMapping(actor){
-  const [configuration,release]=await Promise.all([getConfiguration(actor),getActiveRelease(actor)]);
+  const [rawConfiguration,rawRelease]=await Promise.all([getConfiguration(actor),getActiveRelease(actor)]);
+  // Keep the exact validated snapshot, not references to mutable host state.
+  const configuration=rawConfiguration==null?null:clone(rawConfiguration),release=rawRelease==null?null:clone(rawRelease);
   if(!release||release.kind!=='native_mapping_release'||release.status!=='active'||release.activated!==true||
    release.revoked!==false||!id(release.activationRef)||!release.payload||!hash(release.releaseFingerprint)||
    release.releaseFingerprint!==nativeRecordFingerprint(release.payload)||
@@ -144,12 +146,15 @@ export function createApprovedMappingProvider({getConfiguration,getActiveRelease
    !Array.isArray(p.routeReviews)||p.routeReviews.length!==m.guides.length||!unique(p.routeReviews,'guideId')||
    m.guides.some(g=>{
     const route=p.routeReviews.find(r=>r.guideId===g.guideId),a=p.approvals.find(x=>x.guideId===g.guideId);
-    return !currentGuide(configuration,g)||!a||!route||!routeReviewMatches({review:route,configuration,mappingRow:g})||
+    return !currentGuide(configuration,g)||!a||!route||!id(a.reviewerRef)||a.reviewerRef===p.preparerRef||!id(a.approvalRef)||a.sourceConfirmed!==true||a.applicabilityConfirmed!==true||a.permissionConfirmed!==true||!routeReviewMatches({review:route,configuration,mappingRow:g})||
      a.routeDependenciesConfirmed!==true||a.routeFingerprint!==route.routeFingerprint||a.rowFingerprint!==nativeRecordFingerprint(g)||a.guideFingerprint!==g.expectedFingerprint||a.sourceCatalogFingerprint!==m.sourceCatalogFingerprint;
    })||
    await verifyActiveRelease({actor,activationRef:release.activationRef,releaseId:p.releaseId,releaseFingerprint:release.releaseFingerprint})!==true)fail('APPROVED_MAPPING_UNAVAILABLE');
-  const current=await getConfiguration(actor);
+  const [current,currentRelease]=await Promise.all([getConfiguration(actor),getActiveRelease(actor)]);
   if(!pinned(m,current))fail('MAPPING_SOURCE_REVISION_CHANGED');
+  // Reject revocation, replacement or mutation during async verification.
+  // The host still reauthorizes final native guide consumption.
+  if(!currentRelease||!same(currentRelease,release))fail('APPROVED_MAPPING_UNAVAILABLE');
   return clone(m);
  };
 }

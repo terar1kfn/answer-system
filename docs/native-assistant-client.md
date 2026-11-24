@@ -28,3 +28,7 @@ Recovery continuation requires a recorded native MFA request for the same issue/
 The bridge binds rows to the authenticated actor as well as the opaque visit reference. It still relies on the host for session uniqueness, native authorization, lifecycle cleanup and final consumption-time checks. This is a transient single-process integration contract, not a deployed application.
 
 No runtime, test, build, browser, provider or live integration execution performed in this milestone.
+
+## Boundary hardening (0.46)
+
+Render and activity hooks may synchronously cancel or rebind the UI. Transport and effect callbacks are not started after such invalidation. UI rendering exceptions during requests release the pending lock and require a refresh. Within one bound visit, authoritative versions cannot regress (including reads) or swap an issue at the same version. A mutation cannot consume a different issue or a response effect belonging to another action. Native guide references require exact hashes, valid source and bounded step metadata; unconfirmed navigation counts carry progressScope: unconfirmed. Client snapshots and effect arguments project only the defined public fields. The home-search submitNative hook additionally receives isCurrent() and must check it and the abort signal immediately before any delayed native action. Disposed search controllers cannot be rebound; create a fresh controller. The native host still owns authentication, request deduplication, final effect authorization and actual navigation.

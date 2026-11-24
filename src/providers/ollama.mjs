@@ -11,23 +11,34 @@ function boundedEndpoint({port=11434,fetchImpl=globalThis.fetch,timeoutMs=5000,m
  if(!Number.isSafeInteger(port)||port<1||port>65535||typeof fetchImpl!=='function'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>60000||!Number.isSafeInteger(maxBytes)||maxBytes<1024||maxBytes>16777216)throw Error('INVALID_LOCAL_PROVIDER_CONFIG');
  return async(path,body,outerSignal)=>{
   if(!['/api/chat','/api/embed'].includes(path))throw Error('ENDPOINT_NOT_ALLOWED');
+  if(outerSignal?.aborted)throw Error('LOCAL_PROVIDER_CANCELLED');
   const controller=new AbortController(),abort=()=>controller.abort();
-  if(outerSignal?.aborted)abort();else outerSignal?.addEventListener('abort',abort,{once:true});
+  const cancelled=()=>{if(controller.signal.aborted)throw Error('LOCAL_PROVIDER_CANCELLED');};
+  const closeBody=async response=>{try{await response?.body?.cancel();}catch{/* preserve original error */}};
+  outerSignal?.addEventListener('abort',abort,{once:true});
   const timer=setTimeout(abort,timeoutMs);
   try{
+   cancelled();
    const response=await fetchImpl('http://127.0.0.1:'+port+path,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body),signal:controller.signal,redirect:'error',cache:'no-store',credentials:'omit'});
-   if(!response.ok||!response.body)throw Error('LOCAL_PROVIDER_UNAVAILABLE');
+   if(controller.signal.aborted){await closeBody(response);cancelled();}
+   if(!response?.ok||!response.body){await closeBody(response);throw Error('LOCAL_PROVIDER_UNAVAILABLE');}
    const announced=Number(response.headers.get('content-length'));
-   if(Number.isFinite(announced)&&announced>maxBytes)throw Error('PROVIDER_RESPONSE_TOO_LARGE');
-   const reader=response.body.getReader(),decoder=new TextDecoder();let result='',bytes=0;
+   if(Number.isFinite(announced)&&announced>maxBytes){await closeBody(response);throw Error('PROVIDER_RESPONSE_TOO_LARGE');}
+   const reader=response.body.getReader(),decoder=new TextDecoder('utf-8',{fatal:true});let result='',bytes=0,finished=false;
    try{
     while(true){
-     const {done,value}=await reader.read();if(done)break;
-     bytes+=value.byteLength;if(bytes>maxBytes){await reader.cancel();throw Error('PROVIDER_RESPONSE_TOO_LARGE');}
+     cancelled();
+     const {done,value}=await reader.read();
+     cancelled();
+     if(done){finished=true;break;}
+     bytes+=value.byteLength;if(bytes>maxBytes)throw Error('PROVIDER_RESPONSE_TOO_LARGE');
      result+=decoder.decode(value,{stream:true});
     }
-    result+=decoder.decode();return JSON.parse(result);
-   }finally{reader.releaseLock();}
+    result+=decoder.decode();cancelled();return JSON.parse(result);
+   }finally{
+    if(!finished)try{await reader.cancel();}catch{/* preserve original error */}
+    reader.releaseLock();
+   }
   }finally{clearTimeout(timer);outerSignal?.removeEventListener('abort',abort);}
  };
 }

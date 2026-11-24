@@ -300,10 +300,15 @@ export function createEmbeddedAnswerBridge({
     const channel=d.kind==='offer_mfa_recovery'?'mfa_recovery':'support';
     // Existing request lookup is separate for ordinary tickets and MFA recovery.
     // Never mint a reference or create a second request.
+    const first=await getExistingRequest({actor,channel,issueId:issue.id}),firstStatus=first?.status;
+    await recheck(issue.scopeKey,ctx.pin);
     const existing=await getExistingRequest({actor,channel,issueId:issue.id});
+    const latestStatus=existing?.status,reference=existing?.reference;
     const latest=await recheck(issue.scopeKey,ctx.pin);
-    if(existing?.status==='recorded'&&opaque(existing.reference))return {kind:'existing_native_request',channel,reference:existing.reference,...view(row)};
-    if(existing?.status!=='none')return {kind:'native_request_unconfirmed',channel,...view(row)};
+    if(latestStatus==='recorded'&&opaque(reference))return {kind:'existing_native_request',channel,reference,...view(row)};
+    // An uncertain or disappearing existing request is not permission to
+    // offer a second draft. The host still owns final request deduplication.
+    if(firstStatus!=='none'||latestStatus!=='none')return {kind:'native_request_unconfirmed',channel,...view(row)};
     const journey=buildNativeJourney({state:issue.state,answers:issue.answers,guideReturns:issue.guideReturns,nativeContext:{...latest.policy.journeyContext,examStatus:latest.policy.examStatus}});
     return {kind:'open_native_draft',channel,reasonCode:d.reasonCode,journey,...view(row)};
    }
@@ -315,9 +320,15 @@ export function createEmbeddedAnswerBridge({
     if(existing?.status!=='recorded'||!opaque(existing.reference)){
      await recheck(issue.scopeKey,ctx.pin);return {kind:'recovery_pending',...view(row)};
     }
-    const completion=await verifyRecoveryCompletion({actor,issueId:issue.id,reference:existing.reference});
+    const reference=existing.reference;
+    const completion=await verifyRecoveryCompletion({actor,issueId:issue.id,reference});
+    const confirmed=completion?.status==='completed'&&completion.verified===true&&completion.reference===reference;
+    await recheck(issue.scopeKey,ctx.pin);
+    if(!confirmed)return {kind:'recovery_pending',...view(row)};
+    const currentRequest=await getExistingRequest({actor,channel:'mfa_recovery',issueId:issue.id});
+    const sameRequest=currentRequest?.status==='recorded'&&currentRequest.reference===reference;
     const latest=await recheck(issue.scopeKey,ctx.pin);
-    if(completion?.status!=='completed'||completion.verified!==true||completion.reference!==existing.reference)return {kind:'recovery_pending',...view(row)};
+    if(!sameRequest)return {kind:'recovery_pending',...view(row)};
     const state=latest.engine.resumeRecovery(issue.state,{expectedTurn:issue.state.turn});
     const reason=decisionAllowed(state,latest);if(reason)return clear(key,row,reason);
     row=save(key,row,{...issue,state,history:[],guideLaunch:null,recoveryResumed:true});

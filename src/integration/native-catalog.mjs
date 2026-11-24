@@ -1,6 +1,7 @@
 import {nativeRecordFingerprint} from './native-fingerprint.mjs';
 export {nativeRecordFingerprint} from './native-fingerprint.mjs';
 import {createEngine} from '../engine.mjs';
+import {publicNativeGuideReference} from './guide-continuation.mjs';
 import {validGuidePrerequisites,normalizeGuidePrerequisites} from '../diagnostic-evidence.mjs';
 import {isPermittedNativeRisk,isNativeStudentSelfService,isUnreviewedNativeSource} from './native-guide-policy.mjs';
 import {SERVICE_IDS,isServiceId} from '../service-taxonomy.mjs';
@@ -73,7 +74,7 @@ function projectNativeCatalogCore({
   const entryMode=m.entryMode??'resolution';
   if(hasQuestions&&entryMode!=='diagnostic'||!hasQuestions&&entryMode==='diagnostic'){withheld.push({guideId:m.guideId,reason:'NATIVE_QUESTION_FLOW_REQUIRED'});continue;}
   if(!Array.isArray(g.resolutionSteps)||!Array.isArray(g.resolutionStepsAr)||!g.resolutionSteps.length||
-   g.resolutionSteps.length!==g.resolutionStepsAr.length||
+   g.resolutionSteps.length>200||g.resolutionSteps.length!==g.resolutionStepsAr.length||
    [...g.resolutionSteps,...g.resolutionStepsAr].some(x=>typeof x!=='string'||!x.trim())){
    withheld.push({guideId:m.guideId,reason:'INCOMPLETE_BILINGUAL_PROCEDURE'});continue;
   }
@@ -139,5 +140,5 @@ export function nativeGuideReference(projection,decision){
  if(!g||!projection.availableNativeServices.some(s=>s.nativeId===g.nativeServiceId))fail('NATIVE_GUIDE_UNAVAILABLE');
  // The native application must revalidate and open the complete existing guide.
  // Never reconstruct its actions, warnings, prerequisites, or screenshots here.
- return {guideId:g.id,nativeServiceId:g.nativeServiceId,catalogRevision:projection.catalog.revision,sourceRevision:projection.catalog.sourceRevision,nativeGuideFingerprint:g.nativeGuideFingerprint,resolutionStepCount:g.resolutionStepCount,entryMode:g.entryMode};
+ return publicNativeGuideReference({guideId:g.id,nativeServiceId:g.nativeServiceId,catalogRevision:projection.catalog.revision,sourceRevision:projection.catalog.sourceRevision,nativeGuideFingerprint:g.nativeGuideFingerprint,resolutionStepCount:g.resolutionStepCount,entryMode:g.entryMode});
 }
