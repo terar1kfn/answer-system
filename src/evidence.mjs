@@ -6,6 +6,7 @@ const domainCauses={
  mail:['recipient_restriction','recipient_address','sender_restriction','mailbox_delivery','service_specific_failure'],
  network:['connectivity','shared_network_incident'],
  task:['identity_or_access','service_specific_failure'],
+ shared:['identity_or_access','connectivity','shared_network_incident','service_specific_failure'],
  specific:['service_specific_failure','permission_or_configuration','local_client_failure','service_disruption'],
  exam:['exam_application_failure'],
  unknown:[],safety:[]
@@ -28,6 +29,7 @@ export function summarizeEvidence(state){
  if(v('receive_scope')==='all'||v('receive_scope')==='some')support('mailbox_delivery',['receive_scope']);
  if(v('browser_scope')==='works')support('local_client_failure',['browser_scope']);
  if(v('browser_scope')==='fails')support('service_specific_failure',['browser_scope']);
- if(v('service_access')==='one_service')support('service_specific_failure',['service_access']);
+ if(v('service_access')==='one_service'||v('mail_client_scope')==='app_only')support('service_specific_failure',[v('mail_client_scope')==='app_only'?'mail_client_scope':'service_access']);
+ if(v('shared_access_pattern')==='same')support('identity_or_access',['shared_access_pattern']);
  return candidates;
 }

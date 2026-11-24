@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.10 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.11 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -64,3 +64,6 @@ For an existing support application, use the [embedded integration contract](doc
 
 
 The refined identity flow distinguishes observed sign-in screens, setup knowledge, usable registered methods, initial setup, verified recovery, and the original service outcome. A failed setup guide can lead to a more specific blocker question rather than repeating the guide or treating a lost phone as proof of a required reset. See [docs/identity-diagnostics.md](docs/identity-diagnostics.md).
+
+
+The [conversation and shared-access layer](docs/conversation-and-shared-access.md) supports conservative compound replies, bilingual input forms, cross-service fault clarification and more detailed email-delivery checks. All behavior remains unvalidated in the current build phase.

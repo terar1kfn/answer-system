@@ -4,8 +4,10 @@ import {hasServicePlaybook,inferServiceIssue} from './service-playbooks.mjs';
 import {recognizeErrors} from './error-intelligence.mjs';
 import {sanitizeText} from './privacy.mjs';
 import {detectIdentitySignals} from './identity-signals.mjs';
+import {normalizePresentation} from './input-language.mjs';
+import {isSharedServiceSet} from './shared-access.mjs';
 export function normalize(text){
- return text.normalize('NFKC').toLowerCase().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[^a-z0-9\u0600-\u06ff.]+/g,' ').trim();
+ return normalizePresentation(text).toLowerCase().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[^a-z0-9\u0600-\u06ff.]+/g,' ').trim();
 }
 const has=(t,words)=>words.some(w=>(' '+t+' ').includes(' '+normalize(w)+' '));
 function classifyBase(raw){
@@ -113,7 +115,12 @@ export function classify(raw){
  }
  if(base.domain==='identity'&&facts.task==='login')return out('identity',services.length?services:['identity'],facts);
  if(base.domain==='mail'&&services.every(s=>s==='mail'||s==='identity'))return out('mail',['mail'],facts);
- if(services.length>1&&base.domain!=='identity')return out('unknown',services,{});
+ if(services.length>1&&base.domain!=='identity'){
+  // Multiple named university services are not automatically multiple root
+  // causes, nor is naming them proof of an institution-wide incident.
+  if(isSharedServiceSet(services)&&!facts.error_conflict)return out('shared',services,{});
+  return out('unknown',services,{});
+ }
  if(services.length===1){
   const service=services[0],specific=inferServiceIssue(service,t,normalize);
   if(specific)facts[specific.questionId]=specific.optionId;

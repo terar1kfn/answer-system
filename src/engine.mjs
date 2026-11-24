@@ -9,7 +9,8 @@ import {getErrorSignature} from './error-intelligence.mjs';
 import {sanitizeText} from './privacy.mjs';
 import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from './answer-planner.mjs';
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
-export const RULE_VERSION='0.10.0';
+import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
+export const RULE_VERSION='0.11.0';
 export const MAX_TURNS=10;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -39,6 +40,7 @@ function checkedCatalog(input){
  return copy(input);
 }
 function guide(s,c,service,purpose){
+ if(c.diagnosticServices&&!c.diagnosticServices.includes(service))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
  const eligibleGuides=c.guides.filter(g=>g.serviceId===service&&g.purpose===purpose&&eligible(g,{catalog:c}));
  const matches=eligibleGuides.filter(g=>Object.entries(g.requires||{}).every(([k,values])=>values.includes(value(s,k)))).sort((a,b)=>Object.keys(b.requires||{}).length-Object.keys(a.requires||{}).length);
  // Only safe platform/context fields may be requested as missing prerequisites.
@@ -92,6 +94,7 @@ function decide(s,c,records,now){
  if(s.domain==='mail'&&v('send_error')==='restricted')return support('MAIL_SENDER_RESTRICTED');
  const incident=confirmedIncident(s,records,now);
  if(incident&&['network','identity','task','specific'].includes(s.domain)&&!k('error_signature')&&!k('credentials')&&!k('mfa_access')&&!k('mfa_prompt')&&!k('recovery_context')&&!k('mfa_recovery')&&!k('setup_requested'))return incident;
+ if(s.domain==='shared')return decideSharedAccess(s,{ask,support});
  if(s.domain==='specific')return nextServiceDecision(s,{ask,guide:g,support});
  if(s.domain==='task'){
   if(!k('task'))return ask('task');
@@ -105,9 +108,24 @@ function decide(s,c,records,now){
    if(v('send_error')==='recipients')return g('mail','recipient_limit_check');
    if(v('send_error')==='address')return g('mail','recipient_address_check');
    if(v('send_error')==='size')return g('mail','mail_attachment');
+   if(v('send_error')==='other'||v('send_error')==='unknown'){
+    if(!k('send_scope'))return ask('send_scope');
+    if(v('send_scope')==='one')return g('mail','recipient_address_check');
+    if(v('send_scope')==='many')return support('MAIL_MULTI_RECIPIENT_REVIEW');
+    if(!k('mail_client_scope'))return ask('mail_client_scope');
+    if(v('mail_client_scope')==='app_only')return g('mail','mail_sync');
+   }
    return support(v('send_error')==='restricted'?'MAIL_SENDER_RESTRICTED':'MAIL_ERROR_UNCLEAR');
   }
-  if(v('task')==='receive')return !k('receive_scope')?ask('receive_scope'):v('receive_scope')==='some'?g('mail','missing_messages_check'):support('MAIL_RECEIVE_REQUIRES_REVIEW');
+  if(v('task')==='receive'){
+   if(!k('receive_scope'))return ask('receive_scope');
+   if(v('receive_scope')==='some')return g('mail','missing_messages_check');
+   if(v('receive_scope')==='all'){
+    if(!k('mail_client_scope'))return ask('mail_client_scope');
+    if(v('mail_client_scope')==='app_only')return g('mail','mail_sync');
+   }
+   return support('MAIL_RECEIVE_REQUIRES_REVIEW');
+  }
   return support('MAIL_TASK_UNCLEAR');
  }
  if(s.domain==='network'){
@@ -176,6 +194,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   if(expected!==questionId||!options.some(o=>o.id===optionId))throw Error('INVALID_ANSWER');
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
   applyIdentityAnswer(s,questionId,optionId);
+  applySharedAnswer(s,questionId,optionId);
   if(questionId==='reviewed_topic'&&optionId!=='none'){
    const choice=s.knowledgeChoices?.find(x=>x.optionId===optionId);
    const f=(c.facts||[]).find(x=>x.id===choice?.factId&&eligible(x,{catalog:c,services:s.services}));
@@ -199,14 +218,21 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||expectedTurn!==state.turn)throw Error('STALE_STATE');
   const d=state.decision,q=d.kind==='ask'?d.question:d.followUp?.question,id=d.kind==='ask'?d.questionId:d.followUp?.questionId;
   if(!q)throw Error('TERMINAL_STATE');
-  const result=interpretFollowup(id,text,q.options);
+  const result=interpretFollowup(id,text,q.options,state);
   if(result.kind==='invalid')throw Error('INVALID_ANSWER');
   if(result.kind==='safety'){
    const s=copy(state);s.turn++;s.domain='safety';s.safetyPolicy=result.policy;
    return {kind:'advanced',state:finish(s,c,records,now())};
   }
   if(result.kind==='clarify')return {kind:'clarify',reasonCode:result.reasonCode,state:copy(state)};
-  return {kind:'advanced',state:advance(state,{expectedTurn,questionId:id,optionId:result.optionId})};
+  // Supplementary observations are accepted only from the private interpreter,
+  // not from public command fields. A selected answer always remains explicit.
+  const next=copy(state);
+  for(const observation of result.observations||[]){
+   if(observation.key===id||known(next,observation.key)||!QUESTIONS[observation.key]?.options.some(o=>o.id===observation.value))continue;
+   fact(next,observation.key,observation.value,'student_text_signal');
+  }
+  return {kind:'advanced',state:advance(next,{expectedTurn,questionId:id,optionId:result.optionId})};
  }
  function search({text,services=[],limit=5}={}){try{return searchKnowledge(c,{text:sanitizeText(text).text,services,limit});}catch{return [];}}
  // Trusted host only, after independently verifying its recovery workflow.

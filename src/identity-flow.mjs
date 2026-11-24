@@ -1,9 +1,10 @@
+import {afterSuccessfulVerification} from './shared-access.mjs';
 // Pure adaptive sign-in policy. It requests approved guide purposes or staff
 // support; it never sends a reset, changes a credential, or issues a login code.
 const get=(s,k)=>s.evidence[k]?.value;
 const has=(s,k)=>Object.hasOwn(s.evidence,k);
 export const SETUP_PURPOSES=Object.freeze(['setup_ios','setup_android']);
-const STALE_SIGN_IN=['mfa_prompt','mfa_access','recovery_context','credentials','connection','peers','service_access','verification_context','error_signature','login_screen'];
+const STALE_SIGN_IN=['mfa_prompt','mfa_access','recovery_context','credentials','connection','peers','service_access','verification_context','error_signature','login_screen','shared_access_pattern'];
 function forget(s,keys){for(const k of keys)delete s.evidence[k];s.askedQuestionIds=s.askedQuestionIds.filter(k=>!keys.includes(k));}
 function reported(s,key,value,origin='student_report'){s.evidence[key]={value,origin};}
 export function isFailedSetup(s){
@@ -69,6 +70,7 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
   return v('peers')==='no'?guide('network','individual_connectivity'):support('NETWORK_SCOPE_UNCLEAR');
  }
  if(v('mfa_prompt')==='missing')return support('MFA_PROMPT_MISSING');
+ if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length>1)return afterSuccessfulVerification(s,{ask,support});
  if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length===1&&s.services[0]!=='identity'){
   if(!k('service_access'))return ask('service_access');
   if(v('service_access')==='one_service')return null; // host/core service-specific diagnosis

@@ -1,6 +1,8 @@
 import {normalize,classify} from './classify.mjs';
 import {SERVICES} from './service-taxonomy.mjs';
 import {sanitizeText} from './privacy.mjs';
+import {ANSWER_FORMS} from './input-language.mjs';
+import {observationOptions,readCompoundReply} from './observation-intake.mjs';
 // Free-text follow-ups map only to the current question's allowed options.
 // No inferred answer is accepted on an ambiguous or contradictory utterance.
 const aliases={
@@ -9,6 +11,10 @@ const aliases={
  unknown:['not sure','i dont know','i don t know','unknown','غير متاكد','ما ادري','لا اعرف','مش عارف','مو متاكد'],
 };
 const contextual={
+ shared_operation:{login:['all have sign in problems','cannot sign in to both','لا استطيع تسجيل الدخول الي الخدمتين'],network:['same connection problem','same device cannot connect','مشكله الاتصال نفسها'],one:['only one service','خدمه واحده فقط'],different:['different problems','مشاكل مختلفه']},
+ shared_access_pattern:{same:['same access error','same problem on both','نفس خطا الوصول'],different:['different errors','اخطاء مختلفه'],some_recovered:['one works now','some work now','بعض الخدمات تعمل الان']},
+ mail_client_scope:{app_only:['webmail works','only app fails','بريد الويب يعمل'],both:['both fail','both have the same problem','الاثنان لا يعملان'],not_tried:['not checked webmail','لم اتحقق من بريد الويب']},
+ send_scope:{one:['one recipient','one address','مستلم واحد'],many:['multiple recipients','only groups','عده مستلمين'],all:['every message','every recipient','كل الرسائل']},
  service:{mail:['email','outlook','البريد','ايميل'],portal:['moodle','banner','ors','مودل','بانر'],network:['wifi','wi fi','internet','واي فاي','الواي فاي'],identity:['authenticator','mfa','المصادقه'],attendance:['attendance','au connect','الحضور'],exam:['examplify','lockdown browser','exam','اختبار'],other:['other','something else','شيء اخر']},
  task:{login:['cant log in','can t log in','cannot login','cannot sign in','sign in','login','لا استطيع تسجيل الدخول','ما اقدر ادخل'],send:['cannot send','cant send','can t send','sending email','reply all','لا استطيع الارسال','ما اقدر ارسل'],receive:['cannot receive','cant receive','can t receive','receiving email','لا استطيع استقبال البريد','ما توصلني الرسائل'],app:['feature not working','already signed in','signed in','سجلت الدخول']},
  mfa_setup:{yes:['already set up','i have configured it','configured','تم الاعداد','مفعل'],no:['not set up','not configured','never set it up','not yet','لم اعده','غير مفعل']},
@@ -25,17 +31,27 @@ const contextual={
  exam_app:{lockdown:['lockdown browser','lockdown','لوك داون'],examplify:['examplify','examsoft','اكزامبليفاي']},
  outcome:{yes:['it works','it works now','fixed','solved','اشتغل','تم الحل'],no:['still not working','did not work','didn t work','not fixed','ما اشتغل','ما زالت المشكله']}
 };
-export function interpretFollowup(questionId,text,options){
+export function interpretFollowup(questionId,text,options,state=null){
  if(typeof text!=='string'||!text.trim()||text.length>500)return {kind:'invalid'};
  const clean=sanitizeText(text);
  const signal=classify(clean.text||'redacted');
  if(signal.domain==='safety'||signal.facts.mfa_prompt==='unexpected'||(signal.domain==='exam'&&signal.facts.exam_started==='yes'))return {kind:'safety',policy:signal.domain==='exam'?'EXAM_PROFESSOR_FIRST':signal.facts.mfa_prompt==='unexpected'?'UNEXPECTED_VERIFICATION_REQUEST':'SENSITIVE_OR_DANGEROUS'};
  if(clean.categories.length)return {kind:'clarify',reasonCode:'REMOVE_PRIVATE_INFORMATION'};
- const normalized=normalize(clean.text).replace(/\.+$/,'').trim();
- const matched=options.filter(o=>{
+ const matchCurrent=raw=>{
+ const normalized=normalize(raw).replace(/\.+$/,'').trim();
+ const observed=new Set(observationOptions(questionId,raw));
+ return options.filter(o=>{
   const serviceTerms=questionId==='service'?(SERVICES.find(s=>s.id===o.id)?.aliases||[]):[];
-  const terms=[o.id,o.label.en,o.label.ar,...(aliases[o.id]||[]),...(contextual[questionId]?.[o.id]||[]),...serviceTerms];
-  return terms.some(t=>normalize(t).replace(/\.+$/,'').trim()===normalized);
- });
- return matched.length===1?{kind:'option',optionId:matched[0].id}:{kind:'clarify',reasonCode:'FREE_TEXT_NOT_UNAMBIGUOUS'};
+  const terms=[o.id,o.label.en,o.label.ar,...(aliases[o.id]||[]),...(ANSWER_FORMS[o.id]||[]),...(contextual[questionId]?.[o.id]||[]),...serviceTerms];
+  return observed.has(o.id)||terms.some(t=>normalize(t).replace(/\.+$/,'').trim()===normalized);
+ }).map(o=>o.id);
+ };
+ const matched=matchCurrent(clean.text);
+ if(matched.length===1)return {kind:'option',optionId:matched[0]};
+ if(matched.length>1)return {kind:'clarify',reasonCode:'CONFLICTING_REPLY'};
+ // Do not auto-start a different issue or turn a bare service mention into
+ // the answer to an unrelated pending question.
+ if(questionId!=='service'&&signal.services.length&&state?.services?.length&&signal.services.every(id=>!state.services.includes(id)&&!['identity','network','device'].includes(id)))return {kind:'clarify',reasonCode:'POSSIBLE_NEW_ISSUE'};
+ const compound=readCompoundReply({state,questionId,text:clean.text,matchCurrent});
+ return compound||{kind:'clarify',reasonCode:'FREE_TEXT_NOT_UNAMBIGUOUS'};
 }

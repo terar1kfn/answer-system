@@ -1,5 +1,12 @@
 # Change log
 
+## 0.11.0 — conversation and shared-access intelligence (validation deferred)
+
+- Added bounded conversational input normalization, context-specific compound-reply interpretation, conflict and possible-new-issue clarification, and privacy minimization of standalone possible verification codes.
+- Added multi-service common-operation clarification and post-verification shared-failure review, plus detailed mail recipient/client scope diagnosis.
+- Restricted cross-service guide selection to the admitted diagnostic scope. Preserve native safety and availability boundaries.
+- No tests, builds, browser runs, provider calls or private application changes; automatic CI remains manual-only.
+
 ## 0.10.0 — adaptive identity refinement (validation deferred)
 
 - Added observed sign-in screen signals and a separate adaptive identity decision module. Distinguish MFA knowledge, current prompt, accessible registered methods and mail delivery failures.

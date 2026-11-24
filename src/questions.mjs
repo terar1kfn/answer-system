@@ -7,6 +7,10 @@ const yes=['yes','Yes','نعم'],no=['no','No','لا'];
 export const QUESTIONS={
  ...EXTRA_QUESTIONS,
  service:q('Which service is affected?','ما الخدمة المتأثرة؟',SERVICE_CHOICES),
+ shared_operation:q('You mentioned more than one service. What do these problems have in common?','ذكرت أكثر من خدمة. ما المشكلة المشتركة بينها؟',[
+ ['login','I cannot sign in to these services','لا أستطيع تسجيل الدخول إلى هذه الخدمات'],['network','The connection fails on the same affected device','الاتصال لا يعمل على الجهاز المتأثر نفسه'],['one','Only one service is actually failing','خدمة واحدة فقط لا تعمل'],['different','The services have different problems','لكل خدمة مشكلة مختلفة'],unknown]),
+ shared_access_pattern:q('After the successful verification attempt, how are the original services behaving?','بعد نجاح محاولة التحقق، ماذا يحدث في الخدمات الأصلية؟',[
+ ['same','Several services still show the same access problem','عدة خدمات ما زالت تعرض مشكلة الوصول نفسها'],['different','The services show different errors','تعرض الخدمات أخطاء مختلفة'],['some_recovered','Some services now work, but another still fails','بعض الخدمات تعمل الآن ولكن خدمة أخرى ما زالت لا تعمل'],unknown]),
  task:q('What exactly is not working?','ما الذي لا يعمل بالتحديد؟',[
  ['login','I cannot sign in','لا أستطيع تسجيل الدخول'],['send','I can sign in but cannot send email','أسجل الدخول ولكن لا أستطيع إرسال البريد'],['receive','I can sign in but cannot receive email','أسجل الدخول ولكن لا أستطيع استقبال البريد'],['app','A feature is not working after I sign in','إحدى الميزات لا تعمل بعد تسجيل الدخول'],unknown]),
  mfa_setup:q('Have you already set up Microsoft Authenticator or another verification method?','هل أعددت Microsoft Authenticator أو طريقة تحقق أخرى مسبقاً؟',[
@@ -24,6 +28,10 @@ export const QUESTIONS={
  phone:q('Which phone are you using?','ما نوع هاتفك؟',[['ios','iPhone','آيفون'],['android','Android','أندرويد'],unknown]),
  send_error:q('What happens when you try to send?','ماذا يحدث عند محاولة الإرسال؟',[
  ['recipients','Too many recipients / recipient limit','عدد مستلمين كبير أو حد المستلمين'],['restricted','Sender or account restricted','المرسل أو الحساب مقيد'],['address','Recipient address not found','عنوان المستلم غير موجود'],['size','Message or attachment too large','حجم الرسالة أو المرفق كبير'],['other','Another error','خطأ آخر'],unknown]),
+ mail_client_scope:q('Is the same email problem present in the university-approved webmail as well as the app?','هل تحدث مشكلة البريد نفسها في بريد الويب المعتمد من الجامعة وكذلك التطبيق؟',[
+ ['app_only','Only the app fails; webmail works','التطبيق فقط لا يعمل؛ بريد الويب يعمل'],['both','The same problem occurs in both','المشكلة نفسها تحدث في الاثنين'],['not_tried','I have not checked webmail','لم أتحقق من بريد الويب'],unknown]),
+ send_scope:q('Does sending fail for one address, for several recipients, or for every message?','هل يفشل الإرسال إلى عنوان واحد أم عدة مستلمين أم في كل الرسائل؟',[
+ ['one','One particular recipient','مستلم معين فقط'],['many','Only messages to multiple recipients','الرسائل المرسلة إلى عدة مستلمين فقط'],['all','Every message, even to one recipient','كل الرسائل، حتى إلى مستلم واحد'],unknown]),
  receive_scope:q('Are all incoming messages missing, or only some?','هل جميع الرسائل الواردة مفقودة أم بعضها فقط؟',[
  ['all','All','جميع الرسائل'],['some','Some','بعض الرسائل'],unknown]),
  exam_started:q('Has your exam started?','هل بدأ اختبارك؟',[yes,no,unknown]),

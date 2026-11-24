@@ -1,0 +1,13 @@
+# Conversation and shared-access intelligence — 0.11
+
+A multi-service complaint does not prove an outage or a common cause. The engine can ask whether named non-exam services share a sign-in or connection problem, actually have different problems, or only one is failing. A shared sign-in journey retains the named service set. If verification and credentials are reported successful but several services remain affected, clarify whether the errors are the same or distinct; refer shared access failures rather than invent an account action. The original native scope and guide availability still apply.
+
+For certain identity, connection and mail questions, a typed reply may contain multiple explicit observations (for example "yes, other websites work"). A bounded clause interpreter requires a unique current answer and recognizes only exact, domain-appropriate observation phrases. It rejects contradictory or unrecognized clauses, does not interpret a bare yes/no as a future answer, never overwrites existing contradictory evidence, and does not cross issue, guide, setup-blocker or resolution transitions. Extra observations are reported signals, not verified findings. The engine stores only fixed option IDs and evidence origins. Ambiguous or apparently unrelated replies remain clarification, not automatic issue replacement.
+
+Input normalization supports Arabic digit forms, removes invisible presentation controls, and includes a small set of common conversational Arabic and English replies. Privacy filtering retains a limited natural-language description of credential status while removing declared credential values and standalone possible verification-code numbers. Screening is best effort, not full data loss prevention. No raw text or numeric verification code is needed to answer a pending question.
+
+Email delivery can distinguish a specific recipient, multiple-recipient messages and every message, and app-only symptoms versus the same symptom in approved webmail. A multiple-recipient failure is not proof of a numerical university policy. Existing approved guide purposes are used when eligible; otherwise refer to native support.
+
+The shared-access logic is supplementary, not an identity provider or incident verifier. Protected exam and sensitive paths must still remain native. No private university policy, catalog, IDs, live endpoints or student records are bundled.
+
+Deferred validation: compound/conflicting clauses, Arabic variants, possible-code minimization, same-vs-different service failures, post-verification partial recovery, app-only mail and all-message delivery problems need focused scenarios in the later consolidated validation phase. No tests, builds, syntax checks, providers or browser execution were performed.
