@@ -1,5 +1,12 @@
 # Change log
 
+## 0.39.0 — consented local screenshot diagnostic hints (validation deferred)
+
+- Add bounded host-normalized PNG intake, ordinary current-question visual interpretation and documented mail-error hints with independent exact-ID validation.
+- Add optional loopback-only vision provider, separate native policy and authorization hooks, single-flight/time/budget limits and bilingual confirmation/fallback copy.
+- Bind the transient screenshot reference to an existing visit, issue, version and question; recheck native policy and consent after inference. No automatic evidence, guide selection, raw OCR, uploads or private screenshot storage.
+- Native decoding/redaction, consent UI, authenticated upload/receipt lifecycle, provider configuration and real host wiring remain pending. No tests/builds/model calls/deployments or private host changes.
+
 ## 0.38.0 — bounded local diagnostic intake advisor (validation deferred)
 
 - Add optional multi-question interpretation of ordinary initial descriptions with an explicit current-question confirmation and bounded later fixed-choice suggestions.

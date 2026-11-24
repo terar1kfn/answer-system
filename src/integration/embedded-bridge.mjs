@@ -4,6 +4,7 @@ import {isServiceId} from '../service-taxonomy.mjs';
 import {sanitizeText} from '../privacy.mjs';
 import {prepareReplyAdvice} from '../contextual-reply-advisor.mjs';
 import {prepareIntakeAdvice,acceptIntakeSuggestions,currentIntakeSuggestion,advanceIntakeSuggestions} from '../diagnostic-intake-advisor.mjs';
+import {prepareScreenshotAdvice,acceptScreenshotAdvice,isScreenshotRef,normalizedScreenshotPng} from '../screenshot-advisor.mjs';
 import {projectNativeCatalog,nativeGuideReference} from './native-catalog.mjs';
 import {reportedAnswers,buildNativeJourney} from './native-journey.mjs';
 import {recordKnowledgeGap} from '../analytics.mjs';
@@ -19,7 +20,8 @@ const fields={
  read:[],begin:['expectedVersion','text','language'],respond:['expectedVersion','issueId','questionId','optionId','text'],
  undo:['expectedVersion','issueId'],clear:['expectedVersion','issueId'],set_language:['expectedVersion','issueId','language'],
  open_guide:['expectedVersion','issueId','guideId'],prepare_native_draft:['expectedVersion','issueId'],
- refresh_recovery:['expectedVersion','issueId'],refresh_native_guide:['expectedVersion','issueId']
+ refresh_recovery:['expectedVersion','issueId'],refresh_native_guide:['expectedVersion','issueId'],
+ screenshot_advice:['expectedVersion','issueId','screenshotRef']
 };
 function command(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||!Object.hasOwn(fields,input.action)||
@@ -55,14 +57,16 @@ function publicDecision(d){
 export function createEmbeddedAnswerBridge({
  authenticate,enabled=()=>false,routeInput,resolvePolicy,getConfiguration,getMapping,
  isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,
- getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,replyAdvisor=null,intakeAdvisor=null,knowledgeMetrics=null,authorizeDiagnosticCapture=null,
+ getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,replyAdvisor=null,intakeAdvisor=null,screenshotAdvisor=null,authorizeScreenshot=null,getApprovedScreenshot=null,knowledgeMetrics=null,authorizeDiagnosticCapture=null,
  now=()=>Date.now(),newId=()=>randomUUID(),maxVisits=128
 }={}){
  if(![authenticate,enabled,routeInput,resolvePolicy,getConfiguration,getMapping,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,getIncidents,getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn,now,newId].every(f=>typeof f==='function')||
  (knowledgeMetrics!==null&&typeof knowledgeMetrics?.record!=='function')||
  (authorizeDiagnosticCapture!==null&&typeof authorizeDiagnosticCapture!=='function')||
  (replyAdvisor!==null&&typeof replyAdvisor?.suggest!=='function')||
- (intakeAdvisor!==null&&typeof intakeAdvisor?.suggest!=='function')||!Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000)fail('NATIVE_HOST_HOOKS_REQUIRED');
+ (intakeAdvisor!==null&&typeof intakeAdvisor?.suggest!=='function')||
+ (screenshotAdvisor!==null&&(typeof screenshotAdvisor?.suggest!=='function'||typeof authorizeScreenshot!=='function'||typeof getApprovedScreenshot!=='function'))||
+ (authorizeScreenshot!==null&&typeof authorizeScreenshot!=='function')||(getApprovedScreenshot!==null&&typeof getApprovedScreenshot!=='function')||!Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000)fail('NATIVE_HOST_HOOKS_REQUIRED');
  const rows=new Map(),locks=new Map();
  function newIssueId(){const x=newId();if(!opaque(x)||[...rows.values()].some(r=>r.issue?.id===x))fail('ISSUE_ID_COLLISION');return x;}
  async function authenticateStudent(credential){
@@ -87,7 +91,7 @@ export function createEmbeddedAnswerBridge({
   // Never promote aggregate reports to confirmed incidents here.
   const incidents=Array.isArray(raw)?raw.filter(i=>i?.authority==='authorized_staff'&&i.status==='confirmed'&&policy.diagnosticServices.includes(i.serviceId)&&
    opaque(i.id)&&Number.isFinite(i.updatedAt)&&Number.isFinite(i.expiresAt)&&i.updatedAt<=now()&&i.expiresAt>now()&&now()-i.updatedAt<=900000):[];
-  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true,policy.allowKnowledgeMetrics===true,policy.allowDiagnosticHandoff===true,policy.allowIntakeAdvice===true]);
+  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true,policy.allowKnowledgeMetrics===true,policy.allowDiagnosticHandoff===true,policy.allowIntakeAdvice===true,policy.allowScreenshotAdvice===true]);
   return {policy,projection,incidents,pin,engine:createEngine({catalog:projection.catalog,incidents,now})};
  }
  function view(row){return {version:row?.version??0,issue:row?.issue?{issueId:row.issue.id,language:row.issue.state.language,
@@ -188,6 +192,51 @@ export function createEmbeddedAnswerBridge({
    const blocked=decisionAllowed(issue.state,ctx);if(blocked)return clear(key,row,blocked);
    if(c.action==='read')return {kind:'state',...view(row)};
    if(c.action==='clear'){row=save(key,row,null);return {kind:'state',...view(row)};}
+   if(c.action==='screenshot_advice'){
+    const fallback=(reasonCode='SCREENSHOT_NO_SUGGESTION')=>({kind:'clarify',reasonCode,...view(row)});
+    if(!isScreenshotRef(c.screenshotRef))fail('INVALID_SCREENSHOT_REFERENCE');
+    if(!screenshotAdvisor||ctx.policy.allowModelAdvice!==true||ctx.policy.allowScreenshotAdvice!==true)return fallback('SCREENSHOT_NOT_AVAILABLE');
+    const prepared=prepareScreenshotAdvice(issue.state);
+    if(prepared.status!=='ready')return fallback('SCREENSHOT_NOT_AVAILABLE');
+    if((issue.screenshotCalls||0)>=3)return fallback('SCREENSHOT_LIMIT');
+    // The host owns a one-use, short-lived reference to a decoded, redacted,
+    // consented image screened for private/protected and native exact routing.
+    // No file path, URL, image bytes or user-supplied approval reaches dispatch.
+    const binding={actor,scopeKey:issue.scopeKey,issueId:issue.id,expectedVersion:row.version,questionId:prepared.request.questionId,screenshotRef:c.screenshotRef};
+    // Count all eligible requests, including invalid/rejected references, to
+    // bound expensive host hooks. The native host also rate-limits per visit.
+    issue.screenshotCalls=(issue.screenshotCalls||0)+1;
+    let authorized=false;
+    try{authorized=await authorizeScreenshot({...binding,phase:'before'})===true;}catch{}
+    await recheck(issue.scopeKey,ctx.pin);
+    if(!authorized)return fallback('SCREENSHOT_NOT_AVAILABLE');
+    let png,approved,proposed;
+    try{approved=await getApprovedScreenshot(binding);}catch{}
+    try{
+     if(approved&&approved.screenshotRef===c.screenshotRef&&approved.issueId===issue.id&&approved.expectedVersion===row.version&&
+      approved.questionId===prepared.request.questionId&&approved.consentVerified===true&&approved.privacyReviewed===true&&
+      approved.protectedContext===false&&approved.routeKind==='supplemental'&&approved.normalized===true){
+      try{png=normalizedScreenshotPng(approved.png);}catch{}
+     }
+     approved=null;
+     await recheck(issue.scopeKey,ctx.pin);
+     if(!png)return fallback('SCREENSHOT_NOT_AVAILABLE');
+     let stillAuthorized=false;
+     try{stillAuthorized=await authorizeScreenshot({...binding,phase:'before'})===true;}catch{}
+     await recheck(issue.scopeKey,ctx.pin);
+     if(!stillAuthorized)return fallback('SCREENSHOT_NOT_AVAILABLE');
+     try{proposed=await screenshotAdvisor.suggest({state:copy(issue.state),png});}catch{proposed=null;}
+    }finally{png?.fill(0);png=null;approved=null;}
+    await recheck(issue.scopeKey,ctx.pin);
+    authorized=false;try{authorized=await authorizeScreenshot({...binding,phase:'after'})===true;}catch{}
+    await recheck(issue.scopeKey,ctx.pin);
+    if(!authorized)return fallback('SCREENSHOT_NOT_AVAILABLE');
+    const accepted=acceptScreenshotAdvice(prepared.request,proposed);
+    // Do not retain the image, model response, reference, or suggestion.
+    // A separate explicit fixed choice or typed error reply must use the
+    // unchanged ordinary native routing and deterministic engine.
+    return accepted?{kind:'clarify',reasonCode:accepted.errorSuggestion?'CONFIRM_SCREENSHOT_ERROR':'CONFIRM_SCREENSHOT_OBSERVATION',...accepted,...view(row)}:fallback();
+   }
    if(c.action==='set_language'){
     if(!languageOk(c.language))fail('INVALID_LANGUAGE');
     row=save(key,row,{...issue,state:{...issue.state,language:c.language}});return {kind:'state',...view(row)};

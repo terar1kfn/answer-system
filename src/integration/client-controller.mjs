@@ -1,3 +1,4 @@
+import {getErrorSignature} from '../error-intelligence.mjs';
 // Browser-side native assistant lifecycle. Transport and native navigation
 // are injected by the host. No new endpoint, auth store, timer or framework.
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -35,6 +36,12 @@ function readEffect(result){
   const q=currentQuestion(result.issue),s=result.suggestion;
   if(s&&s.requiresConfirmation===true&&s.questionId===q?.id&&q.question.options.some(o=>o.id===s.optionId))effect.suggestion={questionId:s.questionId,optionId:s.optionId,requiresConfirmation:true};
   else if(effect.reasonCode==='CONFIRM_INTERPRETED_REPLY')effect.reasonCode='FREE_TEXT_NOT_UNAMBIGUOUS';
+  if(effect.reasonCode==='CONFIRM_SCREENSHOT_ERROR'){
+   const hint=result.errorSuggestion,error=getErrorSignature(hint?.signatureId);
+   if(q&&hint?.requiresConfirmation===true&&error?.serviceId==='mail'&&error.code===hint.code)effect.errorSuggestion={signatureId:error.id,code:error.code,requiresConfirmation:true};
+   else effect.reasonCode='SCREENSHOT_NO_SUGGESTION';
+  }
+  if(effect.reasonCode==='CONFIRM_SCREENSHOT_OBSERVATION'&&!effect.suggestion)effect.reasonCode='SCREENSHOT_NO_SUGGESTION';
   return effect;
  }
  if(result.kind==='open_native_guide'){
@@ -129,6 +136,12 @@ export function createEmbeddedAssistantController({request,onChange=()=>{},onEff
   if(!currentQuestion(view.issue))fail('QUESTION_NOT_ACTIVE');
   return mutation('respond',{text:text.trim()});
  }
+ function requestScreenshotAdvice(screenshotRef){
+  if(typeof screenshotRef!=='string'||!/^[A-Za-z0-9_-]{16,160}$/.test(screenshotRef))fail('INVALID_SCREENSHOT_REFERENCE');
+  if(needsRefresh)return Promise.resolve({kind:'refresh_required'});
+  if(view.issue?.decision?.kind!=='ask')fail('QUESTION_NOT_ACTIVE');
+  return mutation('screenshot_advice',{screenshotRef});
+ }
  function openGuide(){
   if(needsRefresh)return Promise.resolve({kind:'refresh_required'});
   const d=view.issue?.decision;
@@ -151,6 +164,6 @@ export function createEmbeddedAssistantController({request,onChange=()=>{},onEff
  }
  function stop(){invalidate();emit();}
  function dispose(){invalidate({clear:true});disposed=true;visitKey=null;emit();}
- return Object.freeze({bindVisit,refresh,begin,choose,reply,openGuide,refreshGuide,requestDraft,refreshRecovery,changeLanguage,
+ return Object.freeze({bindVisit,refresh,begin,choose,reply,requestScreenshotAdvice,openGuide,refreshGuide,requestDraft,refreshRecovery,changeLanguage,
   undo:()=>mutation('undo'),clear:()=>mutation('clear'),stop,dispose,snapshot});
 }
