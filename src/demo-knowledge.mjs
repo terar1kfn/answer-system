@@ -1,11 +1,19 @@
 // Fictional guide references. The host must provide the actual approved content.
 import {PLAYBOOK_GUIDES} from './service-playbooks.mjs';
 const make=(id,serviceId,purpose,en,ar,steps)=>({id:'demo-'+id,serviceId,purpose,title:{en,ar},reviewed:true,enabled:true,audience:'student',synthetic:true,steps:{en:steps,ar:['في التطبيق الفعلي يجب عرض الإجراء المعتمد كاملاً.','اختبر المهمة الأصلية على جهازك.']}});
-export const demoCatalog={revision:'synthetic-3',facts:[
+// Multiple service choices may intentionally route to one purpose. Generate
+// one fictional guide per service/purpose and retain all matching aliases.
+const playbookGuides=new Map();
+for(const row of PLAYBOOK_GUIDES){
+ const key=row.serviceId+':'+row.purpose,prior=playbookGuides.get(key);
+ if(prior)prior.aliases=[...new Set([...prior.aliases,...row.aliases,row.title.en,row.title.ar])];
+ else playbookGuides.set(key,{...row,aliases:[...row.aliases]});
+}
+export const demoCatalog={revision:'synthetic-4',sourceRevision:'synthetic-source-4',facts:[
  {id:'demo-fact-mfa',serviceId:'identity',title:{en:'What is multi-factor authentication?',ar:'ما هي المصادقة متعددة العوامل؟'},aliases:['what is mfa','what is multi factor authentication','ما هي المصادقة متعددة العوامل'],answer:{en:'Multi-factor authentication uses more than one verification factor to help protect a sign-in. Never share a password or approval code.',ar:'تستخدم المصادقة متعددة العوامل أكثر من عامل للتحقق للمساعدة في حماية تسجيل الدخول. لا تشارك كلمة المرور أو رمز الموافقة.'},sourceRef:'synthetic-reviewed-fixture',reviewed:true,enabled:true,audience:'student'},
  {id:'demo-fact-wifi',serviceId:'network',title:{en:'What is a Wi-Fi outage?',ar:'ما هو انقطاع الواي فاي؟'},aliases:['what is a wifi outage','what is a wi fi outage','ما هو انقطاع الواي فاي'],answer:{en:'An outage is a service disruption affecting more than one individual connection. A student report alone does not confirm an outage.',ar:'الانقطاع هو اضطراب في الخدمة يؤثر في أكثر من اتصال فردي. لا يكفي بلاغ طالب واحد لتأكيد الانقطاع.'},sourceRef:'synthetic-reviewed-fixture',reviewed:true,enabled:true,audience:'student'}
  ],guides:[
- ...PLAYBOOK_GUIDES.map(x=>({...make(x.serviceId+'-'+x.purpose,x.serviceId,x.purpose,x.title.en,x.title.ar,['Open the reviewed institutional procedure for this operation.','Verify the original task or request authorized support if it remains unresolved.']),aliases:x.aliases})),
+ ...[...playbookGuides.values()].map(x=>({...make(x.serviceId+'-'+x.purpose,x.serviceId,x.purpose,x.title.en,x.title.ar,['Open the reviewed institutional procedure for this operation.','Verify the original task or request authorized support if it remains unresolved.']),aliases:x.aliases})),
  make('mfa-ios','identity','setup_ios','iPhone verification setup','إعداد التحقق على آيفون',['Open the institution-approved iPhone verification setup guide.','Check the original sign-in afterwards.']),
  make('mfa-android','identity','setup_android','Android verification setup','إعداد التحقق على أندرويد',['Open the institution-approved Android verification setup guide.','Check the original sign-in afterwards.']),
  make('mfa-existing','identity','manage_existing_method','Manage existing verification method','إدارة طريقة التحقق الحالية',['Use the approved method-management procedure.','Do not remove a working method until a replacement is verified.']),

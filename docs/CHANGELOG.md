@@ -1,5 +1,10 @@
 # Change log
 
+## 0.45.1 — synthetic catalog repair
+
+- Initial CI run: 96 syntax checks passed; 84 of 221 tests passed, 137 failed. A duplicate fictional directory guide ID prevented the standalone engine fixture from loading.
+- Deduplicate demo playbook purposes while combining their aliases and pin the fictional source revision. Keep production duplicate-guide validation unchanged. Re-run the full suite before interpreting remaining failures.
+
 ## 0.45.0 — consolidated validation preparation
 
 - Register all synthetic regression suites, including 30 newly authored scenarios for core consistency, session architecture, AI advice boundaries and controlled contextual publication.
