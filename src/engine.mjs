@@ -8,8 +8,9 @@ import {hasServicePlaybook,nextServiceDecision} from './service-playbooks.mjs';
 import {getErrorSignature} from './error-intelligence.mjs';
 import {sanitizeText} from './privacy.mjs';
 import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from './answer-planner.mjs';
-export const RULE_VERSION='0.9.0';
-export const MAX_TURNS=7;
+import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
+export const RULE_VERSION='0.10.0';
+export const MAX_TURNS=10;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
 const support=(reasonCode,priority='normal')=>({kind:'offer_support',reasonCode,priority});
@@ -75,7 +76,7 @@ function decide(s,c,records,now){
  }
  if(c.diagnosticServices&&s.services.some(id=>!c.diagnosticServices.includes(id)))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
- if(k('outcome'))return support(v('outcome')==='no'?'GUIDE_DID_NOT_WORK':'OUTCOME_UNCONFIRMED');
+ if(k('outcome')&&!isFailedSetup(s))return support(v('outcome')==='no'?'GUIDE_DID_NOT_WORK':'OUTCOME_UNCONFIRMED');
  if(s.knowledgeChoices?.length&&!k('reviewed_topic'))return ask('reviewed_topic');
  if(s.domain==='unknown')return !k('service')?ask('service'):support('SERVICE_UNCLEAR');
  if(s.reviewedFactId&&!k('outcome')){
@@ -120,43 +121,15 @@ function decide(s,c,records,now){
   return g('network',purpose||'individual_connectivity');
  }
  if(s.domain==='identity'){
-  if(v('mfa_prompt')==='unexpected')return safety('UNEXPECTED_VERIFICATION_REQUEST');
-  if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
-  if(v('recovery_context')==='phone_change'||v('mfa_prompt')==='blocked'){
-   if(!k('mfa_access'))return ask('mfa_access');
-   if(v('mfa_access')==='no')return {kind:'offer_mfa_recovery',reasonCode:'REGISTERED_METHOD_UNAVAILABLE'};
-   if(v('mfa_access')==='unknown')return support('MFA_ACCESS_UNCONFIRMED');
-   return v('recovery_context')==='phone_change'?g('identity','manage_existing_method'):support('MFA_VERIFICATION_FAILED');
-  }
-  if(v('setup_requested')==='yes'||v('mfa_setup')==='no'||v('mfa_prompt')==='setup_required'){
-   if(!k('phone'))return ask('phone');
-   return v('phone')==='unknown'?support('PHONE_PLATFORM_UNCLEAR'):g('identity','setup_'+v('phone'));
-  }
-  if(errorHint?.stage==='credential_validation'&&!k('credentials'))return ask('credentials');
-  if(errorHint?.stage==='credential_validation'&&v('credentials')==='rejected')return g('identity','credential_check');
-  if(!k('mfa_setup'))return ask('mfa_setup');
-  if(!k('mfa_prompt'))return ask('mfa_prompt');
-  if(!k('credentials'))return ask('credentials');
-  if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
-  if(v('credentials')==='rejected')return g('identity','credential_check');
-  if(!k('connection'))return ask('connection');
-  if(v('connection')==='no'){
-   if(!k('peers'))return ask('peers');
-   if(v('peers')==='yes')return support('POSSIBLE_SHARED_NETWORK_INCIDENT');
-   return v('peers')==='no'?g('network','individual_connectivity'):support('NETWORK_SCOPE_UNCLEAR');
-  }
-  if(v('mfa_prompt')==='missing')return support('MFA_PROMPT_MISSING');
-  if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length===1&&s.services[0]!=='identity'){
-   if(!k('service_access'))return ask('service_access');
-   if(v('service_access')==='one_service'&&hasServicePlaybook(s.services[0]))return nextServiceDecision(s,{ask,guide:g,support});
-  }
-  return support('SIGN_IN_CAUSE_UNCONFIRMED');
+  const result=decideIdentity(s,{ask,guide:g,support,safety,errorHint});
+  if(result)return result;
+  return hasServicePlaybook(s.services[0])?nextServiceDecision(s,{ask,guide:g,support}):support('SERVICE_SPECIFIC_REVIEW');
  }
  return support('NO_MATCH');
 }
 function finish(s,c,records,now){
  let d=decide(s,c,records,now);
- if(d.kind==='ask'&&(s.askedQuestionIds.length>=MAX_TURNS||s.askedQuestionIds.includes(d.questionId)))d=support('QUESTION_BUDGET_OR_REPEAT');
+ if(d.kind==='ask'&&(s.askedQuestionIds.length>=MAX_TURNS||s.turn>=24||s.askedQuestionIds.includes(d.questionId)))d=support('QUESTION_BUDGET_OR_REPEAT');
  if(d.kind==='ask'){
   s.askedQuestionIds.push(d.questionId);
   let question=d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):QUESTIONS[d.questionId];
@@ -165,7 +138,7 @@ function finish(s,c,records,now){
   if(d.questionId==='service'&&c.diagnosticServices)question={...question,options:question.options.filter(o=>c.diagnosticServices.includes(o.id))};
   if(!question.options.length)d=support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');else d={...d,question};
  }
- if(d.kind==='open_guide')s.offeredGuideIds.push(d.guideId);
+ if(d.kind==='open_guide'){s.offeredGuideIds.push(d.guideId);s.lastGuidePurpose=c.guides.find(g=>g.id===d.guideId)?.purpose;}
  if(d.kind==='open_guide'||d.kind==='answer')d={...d,followUp:{questionId:'outcome',question:QUESTIONS.outcome}};
  s.candidates=summarizeEvidence(s);
  const hint=getErrorSignature(value(s,'error_signature'));if(hint)s.errorHint=hint;else delete s.errorHint;
@@ -202,6 +175,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const options=d.kind==='ask'?d.question.options:d.followUp.question.options;
   if(expected!==questionId||!options.some(o=>o.id===optionId))throw Error('INVALID_ANSWER');
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
+  applyIdentityAnswer(s,questionId,optionId);
   if(questionId==='reviewed_topic'&&optionId!=='none'){
    const choice=s.knowledgeChoices?.find(x=>x.optionId===optionId);
    const f=(c.facts||[]).find(x=>x.id===choice?.factId&&eligible(x,{catalog:c,services:s.services}));
@@ -240,9 +214,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||state.turn!==expectedTurn)throw Error('STALE_STATE');
   if(state.decision?.kind!=='offer_mfa_recovery')throw Error('RECOVERY_NOT_OFFERED');
   const s=copy(state);s.turn++;
-  for(const k of ['recovery_context','mfa_access','mfa_prompt','mfa_setup'])delete s.evidence[k];
-  s.askedQuestionIds=s.askedQuestionIds.filter(k=>!['phone','mfa_setup','mfa_access','mfa_prompt'].includes(k));
-  fact(s,'mfa_recovery','completed','staff_verified');fact(s,'setup_requested','yes','staff_verified');
+  prepareVerifiedRecovery(s,c);
   return finish(s,c,records,now());
  }
  // Reevaluate a trusted earlier snapshot against current incident information.

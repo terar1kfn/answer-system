@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.9 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.10 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -61,3 +61,6 @@ The [host assembly](docs/assembly.md) composes optional model/retrieval, guide r
 
 
 For an existing support application, use the [embedded integration contract](docs/embedded-integration.md) rather than replacing its workflows with the standalone workbench. The new bridge preserves native authentication, routing, published guide ownership, support and recovery queues, and cleanup. A separate search controller and server-side session policy resolver are provided. No private integration has been enabled.
+
+
+The refined identity flow distinguishes observed sign-in screens, setup knowledge, usable registered methods, initial setup, verified recovery, and the original service outcome. A failed setup guide can lead to a more specific blocker question rather than repeating the guide or treating a lost phone as proof of a required reset. See [docs/identity-diagnostics.md](docs/identity-diagnostics.md).

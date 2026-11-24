@@ -1,5 +1,12 @@
 # Change log
 
+## 0.10.0 — adaptive identity refinement (validation deferred)
+
+- Added observed sign-in screen signals and a separate adaptive identity decision module. Distinguish MFA knowledge, current prompt, accessible registered methods and mail delivery failures.
+- Added failed-setup blocker diagnosis, rechecking the original task after setup, clearing stale evidence after staff-verified recovery, and avoiding repeated recovery offers after verified completion.
+- Improved bilingual prompts and typed reply handling, especially on shared kiosks where the affected device is separate. No credentials or codes requested.
+- Preserve approved guide IDs, native recovery/authorization, and protected routing. Existing test expectations will need revision in the validation phase; no checks were run.
+
 ## 0.9.0 — native-first integration alignment (validation deferred)
 
 - Added read-only live catalog projection with explicit original guide IDs, native service ownership, separate diagnostic and guide scope, reviewed/permission checks and metadata revision fingerprints.

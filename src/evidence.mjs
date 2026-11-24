@@ -14,9 +14,10 @@ export function summarizeEvidence(state){
  const candidates=(domainCauses[state.domain]||[]).map(causeId=>({causeId,status:'candidate',evidenceKeys:[]}));
  const v=k=>val(state,k);
  const support=(id,keys)=>{const c=candidates.find(x=>x.causeId===id);if(c){c.status='supported';c.evidenceKeys=keys;}};
- if(v('mfa_setup')==='no'||v('mfa_prompt')==='setup_required')support('mfa_setup_required',[v('mfa_prompt')==='setup_required'?'mfa_prompt':'mfa_setup']);
+ if(v('mfa_prompt')==='setup_required')support('mfa_setup_required',['mfa_prompt']);
  if(v('mfa_access')==='no')support('verification_method_unavailable',['mfa_access']);
  if(['blocked','missing'].includes(v('mfa_prompt')))support('verification_failure',['mfa_prompt']);
+ if(v('setup_blocker')==='verification')support('verification_failure',['setup_blocker']);
  if(v('credentials')==='rejected')support('credential_rejection',['credentials']);
  if(v('credentials')==='locked')support('account_restriction',['credentials']);
  if(v('connection')==='no')support('connectivity',['connection']);

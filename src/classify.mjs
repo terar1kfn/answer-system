@@ -3,6 +3,7 @@ import {EXTRA_SERVICE_IDS,matchServices} from './service-taxonomy.mjs';
 import {hasServicePlaybook,inferServiceIssue} from './service-playbooks.mjs';
 import {recognizeErrors} from './error-intelligence.mjs';
 import {sanitizeText} from './privacy.mjs';
+import {detectIdentitySignals} from './identity-signals.mjs';
 export function normalize(text){
  return text.normalize('NFKC').toLowerCase().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[^a-z0-9\u0600-\u06ff.]+/g,' ').trim();
 }
@@ -74,6 +75,8 @@ export function classify(raw){
   if(specific)base.facts[specific.questionId]=specific.optionId;
   return base;
  }
+ const signals=detectIdentitySignals(t);
+ if(signals.facts.mfa_prompt==='unexpected')return out('safety',['other'],{mfa_prompt:'unexpected'});
  const hints=recognizeErrors(t);
  if(hints.length>1)return out('unknown',[...base.services,...hints.map(x=>x.serviceId)],{error_conflict:'yes'});
  if(hints.length===1){
@@ -98,6 +101,16 @@ export function classify(raw){
  if(named.length&&services.includes('network')&&!/\b(?:wifi|wi fi|internet)\b|واي فاي|النت|انترنت/.test(t))services=services.filter(s=>s!=='network');
  if(named.length&&services.includes('identity')&&base.domain==='identity')services=services.filter(s=>s!=='identity');
  const facts={...base.facts};
+ if(signals.explicitLogin){
+  if(signals.explicitMailFault&&base.domain==='mail')return out('task',['mail'],{});
+  Object.assign(facts,signals.facts);
+  delete facts.send_error;delete facts.receive_scope;
+  // A verification code is not necessarily an incoming email. Identify the
+  // sign-in operation without claiming the method is inaccessible.
+  facts.task='login';
+  const affected=services.filter(x=>!['other','device'].includes(x));
+  return out('identity',affected.length?affected:['identity'],facts);
+ }
  if(base.domain==='identity'&&facts.task==='login')return out('identity',services.length?services:['identity'],facts);
  if(base.domain==='mail'&&services.every(s=>s==='mail'||s==='identity'))return out('mail',['mail'],facts);
  if(services.length>1&&base.domain!=='identity')return out('unknown',services,{});
