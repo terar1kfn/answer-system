@@ -1,5 +1,12 @@
 # Change log
 
+## 0.37.0 — authorized intern diagnostic handoff (validation deferred)
+
+- Add private structured support-case diagnostic snapshot and staff-only authorized reviewer with current guide version comparison.
+- Record fixed evidence, uncertainty, attempted procedures, navigation, blockers, original scope and bilingual review recommendations; no raw student text or privileged actions.
+- Add opt-in native host capture after existing case verification. Native storage, authorization hooks and UI integration remain pending.
+- No tests/builds/deployment or private host modifications.
+
 ## 0.36.0 — conditional solution planning (validation deferred)
 
 - Compare guide applicability by strict logical containment; clarify unresolved or incomparable eligible procedures without assuming unknown evidence.

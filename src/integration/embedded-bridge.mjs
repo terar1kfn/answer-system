@@ -6,6 +6,7 @@ import {prepareReplyAdvice} from '../contextual-reply-advisor.mjs';
 import {projectNativeCatalog,nativeGuideReference} from './native-catalog.mjs';
 import {reportedAnswers,buildNativeJourney} from './native-journey.mjs';
 import {recordKnowledgeGap} from '../analytics.mjs';
+import {buildInternDiagnosticSnapshot} from './intern-diagnostic.mjs';
 import {newGuideLaunch,acceptNativeGuideReturn,mergeGuideReturns,guideContinuationView} from './guide-continuation.mjs';
 const copy=x=>JSON.parse(JSON.stringify(x));
 const fail=x=>{throw Error(x);};
@@ -53,11 +54,12 @@ function publicDecision(d){
 export function createEmbeddedAnswerBridge({
  authenticate,enabled=()=>false,routeInput,resolvePolicy,getConfiguration,getMapping,
  isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,
- getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,replyAdvisor=null,knowledgeMetrics=null,
+ getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,replyAdvisor=null,knowledgeMetrics=null,authorizeDiagnosticCapture=null,
  now=()=>Date.now(),newId=()=>randomUUID(),maxVisits=128
 }={}){
  if(![authenticate,enabled,routeInput,resolvePolicy,getConfiguration,getMapping,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,getIncidents,getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn,now,newId].every(f=>typeof f==='function')||
  (knowledgeMetrics!==null&&typeof knowledgeMetrics?.record!=='function')||
+ (authorizeDiagnosticCapture!==null&&typeof authorizeDiagnosticCapture!=='function')||
  (replyAdvisor!==null&&typeof replyAdvisor?.suggest!=='function')||!Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000)fail('NATIVE_HOST_HOOKS_REQUIRED');
  const rows=new Map(),locks=new Map();
  function newIssueId(){const x=newId();if(!opaque(x)||[...rows.values()].some(r=>r.issue?.id===x))fail('ISSUE_ID_COLLISION');return x;}
@@ -83,7 +85,7 @@ export function createEmbeddedAnswerBridge({
   // Never promote aggregate reports to confirmed incidents here.
   const incidents=Array.isArray(raw)?raw.filter(i=>i?.authority==='authorized_staff'&&i.status==='confirmed'&&policy.diagnosticServices.includes(i.serviceId)&&
    opaque(i.id)&&Number.isFinite(i.updatedAt)&&Number.isFinite(i.expiresAt)&&i.updatedAt<=now()&&i.expiresAt>now()&&now()-i.updatedAt<=900000):[];
-  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true,policy.allowKnowledgeMetrics===true]);
+  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true,policy.allowKnowledgeMetrics===true,policy.allowDiagnosticHandoff===true]);
   return {policy,projection,incidents,pin,engine:createEngine({catalog:projection.catalog,incidents,now})};
  }
  function view(row){return {version:row?.version??0,issue:row?.issue?{issueId:row.issue.id,language:row.issue.state.language,
@@ -288,9 +290,35 @@ export function createEmbeddedAnswerBridge({
    throw e;
   }finally{if(locks.get(key)===lock)locks.delete(key);}
  }
+ /** Trusted host callback, NOT a browser command. Capture only after the
+  * native host has verified an actual existing case and permission to attach
+  * this visit's diagnostic metadata. Host owns durable storage and retention. */
+ async function captureDiagnosticSnapshot(credential,{caseRef,issueId,expectedVersion}={}){
+  if(!authorizeDiagnosticCapture||!opaque(caseRef)||!opaque(issueId)||!Number.isSafeInteger(expectedVersion))fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+  const actor=await authenticateStudent(credential),key=actor.visitRef;
+  const row=rows.get(key);
+  if(locks.has(key)||!row||row.actorRef!==actor.actorRef)fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+  const issue=current(row,{issueId,expectedVersion}),d=issue.state.decision;
+  if(!['offer_support','offer_mfa_recovery'].includes(d.kind))fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+  const channel=d.kind==='offer_mfa_recovery'?'mfa_recovery':'support';
+  const checked=async a=>{
+   if(await enabled(a)!==true)fail('FEATURE_DISABLED');
+   const ctx=await context(a,issue.scopeKey);
+   if(!ctx||ctx.pin!==issue.pin||ctx.policy.allowDiagnosticHandoff!==true||decisionAllowed(issue.state,ctx))fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+   const existing=await getExistingRequest({actor:a,channel,issueId});
+   if(existing?.status!=='recorded'||existing.reference!==caseRef||await authorizeDiagnosticCapture({actor:a,caseRef,issueId,channel,expectedVersion})!==true)fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+   if(rows.get(key)!==row||locks.has(key))fail('STALE_VERSION');
+   return ctx;
+  };
+  await checked(actor);
+  const fresh=await authenticateStudent(credential);if(!sameActor(actor,fresh))fail('VISIT_ENDED');
+  const ctx=await checked(fresh);
+  const last=await authenticateStudent(credential);if(!sameActor(actor,last)||rows.get(key)!==row||locks.has(key))fail('STALE_VERSION');
+  return buildInternDiagnosticSnapshot({caseRef,state:issue.state,catalog:ctx.projection.catalog});
+ }
  /** Trusted native lifecycle hook: invoke on expiry, sign-out, staff termination,
   * kiosk cleanup or revocation. Not a student command. Never terminate host auth. */
  function forgetVisit(visitRef){const lock=locks.get(visitRef);if(lock)lock.cancelled=true;return rows.delete(visitRef);}
  function clearAll(){for(const lock of locks.values())lock.cancelled=true;rows.clear();}
- return Object.freeze({dispatch,forgetVisit,clearAll});
+ return Object.freeze({dispatch,captureDiagnosticSnapshot,forgetVisit,clearAll});
 }

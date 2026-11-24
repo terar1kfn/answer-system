@@ -1,0 +1,9 @@
+# Native intern diagnostic handoff (0.37; validation deferred)
+
+Prepare a private, fingerprinted diagnostic snapshot for an actual existing native support/recovery case. Capture is a host-only callback, not a student dispatch action. It requires the active authenticated visit, exact issue/version, same current catalog/policy, explicit allowDiagnosticHandoff, existing native request reference and host authorization to attach the metadata. The host must call it before visit cleanup and own durable storage, case access, retention and consent. No new ticket or recovery request is created. Do not expose the callback or snapshot through a student endpoint.
+
+The snapshot records canonical fixed-option evidence, reported errors, deterministic candidate causes and uncertainty, attempted guide identities/fingerprints, reported blockers and exact step where available, verified navigation (not execution), original/current service scope and bounded transitions. Review recommendations are fixed bilingual review tasks, not instructions to change credentials, permissions or policy. No raw descriptions, transcripts, identities, images, credentials, model output or native procedure text.
+
+The staff-only reviewer requires an authorized active INTERN/MANAGER/SUPER_MANAGER, native case scope check, authoritative stored snapshot verification, current allowed catalog and repeated checks after asynchronous reads. A hash alone does not authenticate a record. It distinguishes exact still-current guide matches from historical, changed or out-of-scope guidance. No automatic remediation, learning, publication or root cause claim. Actual private native persistence, endpoints and intern UI remain integration tasks.
+
+No tests, builds, deployments, model calls or changes to the original host were performed.
