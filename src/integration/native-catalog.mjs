@@ -54,6 +54,8 @@ export function projectNativeCatalog({
   if(!mappedServices.has(m.nativeServiceId))fail('GUIDE_OWNER_NOT_MAPPED');
   if(!knownGuidePurpose(mappedServices.get(m.nativeServiceId).serviceId,m.purpose)){withheld.push({guideId:m.guideId,reason:'UNKNOWN_GUIDE_PURPOSE'});continue;}
   if(!owner||!g){withheld.push({guideId:m.guideId,reason:'UNAVAILABLE_OR_OUT_OF_SCOPE'});continue;}
+  // Broad collaboration taxonomy is not an exact product authorization.
+  if(owner.serviceId==='collaboration'&&(!Array.isArray(m.requires?.meeting_product)||m.requires.meeting_product.length!==1||!['zoom','teams'].includes(m.requires.meeting_product[0]))){withheld.push({guideId:m.guideId,reason:'EXACT_MEETING_PRODUCT_REQUIRED'});continue;}
   if((g.serviceId&&g.serviceId!==m.nativeServiceId)||ownsGuide(g,s,configuration)!==true){withheld.push({guideId:m.guideId,reason:'OWNERSHIP_UNCONFIRMED'});continue;}
   // Entry menus and procedures for privileged personnel stay in the native router.
   if(g.isEnabled!==true||!['Student','All'].includes(g.audience)||g.permissionLevel!=='SELF SERVICE'||

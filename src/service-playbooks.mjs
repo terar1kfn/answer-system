@@ -1,4 +1,5 @@
 // All terminal guide purposes must resolve through the reviewed host catalog.
+import {STAGE_QUESTIONS,serviceStageDecision} from './service-stage.mjs';
 const q=(en,ar,rows)=>({text:{en,ar},options:rows.map(([id,en,ar])=>({id,label:{en,ar}}))});
 const unknown=['unknown','Not sure','غير متأكد'];
 const rows=(items)=>[...items,unknown];
@@ -16,7 +17,9 @@ const definitions={
  attendance:{questionId:'attendance_issue',title:['What is failing in the attendance app?','ما المشكلة في تطبيق الحضور؟'],choices:[
   ['scan','QR code or camera scanning','مسح رمز QR أو الكاميرا','attendance_scan'],
   ['permission','Camera or location permission','إذن الكاميرا أو الموقع','attendance_permissions'],
+  ['mark','Cannot mark physical class attendance','تعذر تسجيل الحضور الفعلي في المحاضرة',null],
   ['record','Attendance record is wrong or missing','سجل الحضور خاطئ أو مفقود',null],
+  ['security_alert','The app displays a device security alert','يعرض التطبيق تنبيه أمان للجهاز',null],
   ['app','App fails to open or update','التطبيق لا يفتح أو لا يتحدث','attendance_app']
  ]},
  collaboration:{questionId:'meeting_issue',title:['Which meeting feature is affected?','ما الميزة المتأثرة في الاجتماع؟'],choices:[
@@ -67,13 +70,14 @@ const definitions={
  ]}
 };
 const extras={
+ ...STAGE_QUESTIONS,
  portal_system:q('Which academic system is affected?','أي نظام أكاديمي تواجه فيه المشكلة؟',rows([['moodle','Moodle learning system','نظام مودل'],['banner','Banner student information system','نظام بانر'],['ors','Online Request System','نظام الطلبات الإلكترونية']])),
  assignment_kind:q('Which assignment activity is shown in the course?','ما نوع نشاط الواجب الظاهر في المقرر؟',rows([['standard','Standard Moodle assignment','واجب مودل عادي'],['turnitin','Turnitin assignment','واجب Turnitin'],['approved_link','The lecturer explicitly permits a large-file link submission','سمح مدرس المقرر صراحة بتسليم رابط ملف كبير'],['other','Another assignment type','نوع آخر']])),
  mail_client:q('Which email client is affected on your device?','أي تطبيق بريد تواجه فيه المشكلة على جهازك؟',rows([['new_windows','New Outlook for Windows','Outlook الجديد لويندوز'],['classic_windows','Classic Outlook for Windows','Outlook الكلاسيكي لويندوز'],['mac','Outlook for Mac','Outlook على ماك'],['ios','Outlook for iPhone or iPad','Outlook على آيفون أو آيباد'],['android','Outlook for Android','Outlook على أندرويد'],['web','Outlook on the web','Outlook عبر الويب'],['other','Another mail app','تطبيق بريد آخر']])),
  meeting_client:q('How are you using the meeting service?','كيف تستخدم خدمة الاجتماعات؟',rows([['desktop','Desktop application','تطبيق الحاسوب'],['mobile','Phone or tablet application','تطبيق الهاتف أو الجهاز اللوحي'],['web','Web browser','متصفح الويب']])),
  attendance_qr_task:q('What are you trying to do with the QR code?','ما الذي تحاول فعله باستخدام رمز QR؟',rows([['gate','Display my campus-entry QR code','عرض رمز دخول الحرم الجامعي'],['class','Use a QR activity that my instructor actually provided','استخدام نشاط QR قدمه مدرس المقرر فعلاً'],['other','Another QR or an unclear purpose','رمز آخر أو غرض غير واضح']])),
  device_os:q('Which operating system is on the affected device?','ما نظام التشغيل على الجهاز المتأثر؟',rows([['windows','Windows','ويندوز'],['macos','macOS','ماك'],['ios','iPhone / iPad','آيفون / آيباد'],['android','Android','أندرويد'],['other','Other','آخر']])),
- browser_scope:q('Does the same page work in another supported browser or on another device?','هل تعمل الصفحة نفسها في متصفح مدعوم آخر أو على جهاز آخر؟',rows([['works','Yes, elsewhere it works','نعم، تعمل في مكان آخر'],['fails','No, the same issue occurs','لا، تحدث المشكلة نفسها'],['not_tried','I have not tried that','لم أجرب']])),
+ browser_scope:q('On the same affected device and connection, does the same task work in another supported browser?','على الجهاز المتأثر والاتصال نفسيهما، هل تعمل المهمة نفسها في متصفح مدعوم آخر؟',rows([['works','Yes, the same task works in another supported browser on this device','نعم، تعمل المهمة نفسها في متصفح مدعوم آخر على هذا الجهاز'],['fails','No, the same issue occurs in another supported browser on this device','لا، تحدث المشكلة نفسها في متصفح مدعوم آخر على هذا الجهاز'],['other_device','I only checked on a different device','تحققت على جهاز مختلف فقط'],['not_tried','I have not compared browsers on this device','لم أقارن المتصفحات على هذا الجهاز']])),
  service_access:q('After sign-in, are other university services accessible?','بعد تسجيل الدخول، هل يمكنك الوصول إلى خدمات جامعية أخرى؟',rows([['one_service','Only this service fails','هذه الخدمة فقط لا تعمل'],['multiple','Several services fail','عدة خدمات لا تعمل'],['not_tried','I have not checked','لم أتحقق']])),
  exam_issue:q('What needs attention before the exam?','ما الذي يحتاج إلى معالجة قبل الاختبار؟',rows([['install','Installation or update','التثبيت أو التحديث'],['launch','App does not open','التطبيق لا يفتح'],['camera','Camera or recording check','فحص الكاميرا أو التسجيل'],['audio','Microphone or sound check','فحص الميكروفون أو الصوت'],['download','Exam download or availability','تنزيل الاختبار أو توفره'],['other','Other preparation issue','مشكلة تحضير أخرى']])),
  network_scope:q('Is this the university student Wi-Fi on campus, or a different network?','هل هذه شبكة الطلاب داخل الحرم الجامعي أم شبكة أخرى؟',rows([['campus_student','University student Wi-Fi on campus','شبكة الطلاب داخل الحرم الجامعي'],['other_network','Home, mobile data, guest, staff or another network','شبكة منزلية أو بيانات الهاتف أو الضيوف أو الموظفين أو شبكة أخرى']])),
@@ -85,7 +89,7 @@ export const EXTRA_QUESTIONS=extras;
 export const hasServicePlaybook=service=>Object.hasOwn(definitions,service);
 const patterns={
  portal:{loading:['page not loading','blank page','white screen','page loading','الصفحه لا تعمل'],assignment:['assignment upload','submit assignment','assignment submission','turnitin assignment','رفع الواجب','تسليم الواجب','واجب تيرنتن'],mobile_setup:['moodle mobile site address','moodle site address','add site','site address','moodle app setup','configure moodle app','عنوان موقع مودل','اضافه موقع مودل'],request_create:['create an online request','submit new request','new e request','انشاء طلب الكتروني'],request_status:['request status','track request','track my request','حاله الطلب','متابعه الطلب'],registration:['course registration','enrollment','add drop','تسجيل المقررات'],access:['access denied','not enrolled','permission denied','الوصول مرفوض'],content:['course missing','missing course','missing content','المقرر غير ظاهر']},
- attendance:{scan:['qr code','scan qr','camera scan','رمز qr','مسح الرمز'],permission:['location permission','camera permission','اذن الموقع','اذن الكاميرا'],record:['attendance missing','absent incorrectly','attendance record','سجل الحضور'],app:['app crashing','app not opening','التطبيق لا يفتح']},
+ attendance:{scan:['qr code','scan qr','camera scan','رمز qr','مسح الرمز'],permission:['location permission','camera permission','اذن الموقع','اذن الكاميرا'],mark:['cannot mark attendance','cannot register attendance','can t mark attendance','لا استطيع تسجيل الحضور'],record:['attendance missing','absent incorrectly','attendance record','سجل الحضور'],security_alert:['device security alert','app security alert','تنبيه امان الجهاز'],app:['app crashing','app not opening','التطبيق لا يفتح']},
  collaboration:{join:['join meeting','cannot join','can t join','joining meeting','الانضمام للاجتماع'],audio:['microphone','speaker','no sound','audio','الميكروفون','الصوت'],video:['camera','video','webcam','الكاميرا','الفيديو'],share:['screen share','screen sharing','share screen','مشاركه الشاشه'],recording:['recording','host permission','التسجيل']},
  directory:{lookup:['find my professor','find your professor','find a professor','professor directory','faculty directory','دليل الاساتذه'],office:['office location','office number','مكتب الدكتور','اين الدكتور'],incorrect:['wrong information','incorrect contact','معلومات خاطئه']},
  printing:{setup:['add printer','install printer','find printer','اعداد الطابعه'],offline:['printer offline','printer unavailable','الطابعه غير متصله'],queued:['print queue','stuck printing','queued print','الطباعه عالقه'],scan:['scan document','scanner','مسح مستند'],access:['print balance','print quota','printing permission','رصيد الطباعه']},
@@ -110,7 +114,10 @@ export function nextServiceDecision(state,{ask,guide,support}){
  const choice=val(d.questionId);
  if(!choice)return ask(d.questionId);
  const row=d.choices.find(x=>x[0]===choice);
- if(!row||!row[3])return support(choice==='unknown'?'SERVICE_TASK_UNCLEAR':'SERVICE_PERMISSION_OR_OWNER_REVIEW');
+ if(!row)return support('SERVICE_TASK_UNCLEAR');
+ const stage=serviceStageDecision(state,service,choice,{ask,support});
+ if(stage)return stage;
+ if(!row[3])return support('SERVICE_PERMISSION_OR_OWNER_REVIEW');
  if((service==='software'||service==='printing')&&!val('device_os'))return ask('device_os');
  if((service==='software'||service==='printing')&&['unknown','other'].includes(val('device_os')))return support('DEVICE_PLATFORM_UNCLEAR');
  if(service==='portal'){

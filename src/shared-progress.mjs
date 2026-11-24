@@ -27,7 +27,9 @@ function enterFocused(s,service,portal=null){
  s.services=[service];
  // Do not transplant an earlier service's credentials, error, device/client
  // or feature observations to a different service. Keep attempt history.
+ const recovery=s.evidence.mfa_recovery?.origin==='staff_verified'?s.evidence.mfa_recovery:null;
  s.evidence=portal?{portal_system:{value:portal,origin:'student_report'}}:{service:{value:service,origin:'student_report'}};
+ if(recovery)s.evidence.mfa_recovery=recovery; // history, never proof of a working method
  s.askedQuestionIds=[];s.conflictingObservations=[];
  delete s.activeAlternative;delete s.lastGuidePurpose;delete s.errorHint;
  delete s.knowledgeChoices;delete s.reviewedFactId;delete s.reviewedFactIds;

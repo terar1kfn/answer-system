@@ -1,4 +1,5 @@
 import {normalize} from './classify.mjs';
+import {resumeServiceStageAfterSignIn} from './service-stage.mjs';
 const v=(s,k)=>s.evidence[k]?.value;
 const portalNames={moodle:['moodle','مودل','موديل'],banner:['banner','بانر'],ors:['ors','online request system','نظام الطلبات الإلكترونية']};
 export function reportedAcademicSystems(text){
@@ -49,5 +50,6 @@ export function applyPostSignInAnswer(s,questionId,optionId){
   else s.evidence.task={value:'app',origin:'student_report'};
   s.askedQuestionIds=s.askedQuestionIds.filter(k=>k!=='task');
   delete s.evidence.outcome;
+  resumeServiceStageAfterSignIn(s);
  }
 }

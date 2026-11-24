@@ -14,6 +14,7 @@ import {summarizeEvidence} from './evidence.mjs';
 import {summarizeDiagnosticUncertainty} from './diagnostic-hypotheses.mjs';
 import {isServiceId} from './service-taxonomy.mjs';
 import {hasServicePlaybook,nextServiceDecision} from './service-playbooks.mjs';
+import {applyServiceStageAnswer} from './service-stage.mjs';
 import {getErrorSignature} from './error-intelligence.mjs';
 import {sanitizeText} from './privacy.mjs';
 import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from './answer-planner.mjs';
@@ -21,7 +22,7 @@ import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {initializeSharedProgress,applySharedProgressAnswer,sharedProgressDecision,applySharedProgressDecision,sharedProgressQuestion} from './shared-progress.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.33.0';
+export const RULE_VERSION='0.34.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -102,13 +103,20 @@ function decide(s,c,records,now){
  if(c.diagnosticServices&&s.services.some(id=>!c.diagnosticServices.includes(id)))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
  if(s.pendingError)return s.turn>=24?support('QUESTION_BUDGET_OR_REPEAT'):{kind:'ask',questionId:'confirm_current_error',reasonCode:'CONFIRM_CURRENT_ERROR'};
  if(s.pendingContext)return s.turn>=24?support('QUESTION_BUDGET_OR_REPEAT'):{kind:'ask',questionId:'confirm_context_update',reasonCode:'CONFIRM_CONTEXT_UPDATE'};
- if(s.sharedProgress&&!k('error_signature')&&v('credentials')!=='locked'&&v('mfa_prompt')!=='unexpected'){
+ const errorHint=getErrorSignature(v('error_signature'));
+ if(v('mfa_prompt')==='unexpected')return safety('UNEXPECTED_VERIFICATION_REQUEST');
+ if(errorHint?.stage==='policy_block')return support('ACCESS_POLICY_REVIEW_REQUIRED');
+ if(errorHint?.stage==='sign_in_block')return support('ACCOUNT_BLOCK_REVIEW_REQUIRED');
+ if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
+ if(errorHint?.stage==='recipient_rate_limit'||errorHint?.stage==='quota_or_rate_review')return support('MAIL_QUOTA_REVIEW');
+ if(s.domain==='mail'&&v('send_error')==='restricted')return support('MAIL_SENDER_RESTRICTED');
+ if(v('error_conflict')==='yes')return support('MULTIPLE_CURRENT_ERRORS');
+ if(s.sharedProgress){
   const progress=sharedProgressDecision(s,{ask,support});if(progress)return progress;
  }
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:s.requestKind==='information'?'STUDENT_CONFIRMED_ANSWER_HELPFUL':'STUDENT_CONFIRMED_ORIGINAL_TASK'};
  if(v('outcome')==='unknown')return support('OUTCOME_UNCONFIRMED');
  if(v('outcome')==='no'&&(s.reviewedFactId||s.reviewedFactIds?.length))return support('REVIEWED_ANSWER_INCOMPLETE');
- if(v('error_conflict')==='yes')return support('MULTIPLE_CURRENT_ERRORS');
  if(s.reviewedFactConflict)return support('REVIEWED_FACT_CONFLICT');
  if(s.compositeAnswerGap)return support(s.compositeAnswerGap);
  if(s.knowledgeChoices?.length&&!k('reviewed_topic'))return ask('reviewed_topic');
@@ -118,13 +126,7 @@ function decide(s,c,records,now){
   if(!packet||!verifyReviewedAnswer(c,packet,{services:s.services}).valid)return support('ANSWER_SOURCE_UNAVAILABLE');
   return packet;
  }
- const errorHint=getErrorSignature(v('error_signature'));
- if(v('mfa_prompt')==='unexpected')return safety('UNEXPECTED_VERIFICATION_REQUEST');
- if(errorHint?.stage==='policy_block')return support('ACCESS_POLICY_REVIEW_REQUIRED');
- if(errorHint?.stage==='sign_in_block')return support('ACCOUNT_BLOCK_REVIEW_REQUIRED');
- if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
- if(errorHint?.stage==='recipient_rate_limit'||errorHint?.stage==='quota_or_rate_review')return support('MAIL_QUOTA_REVIEW');
- if(s.domain==='mail'&&v('send_error')==='restricted')return support('MAIL_SENDER_RESTRICTED');
+
  const conflict=(s.conflictingObservations||[]).find(q=>Object.hasOwn(QUESTIONS,q)&&!k(q));
  if(conflict)return {...ask(conflict),reasonCode:'CONFLICTING_OBSERVATIONS'};
  if(v('outcome')==='no'&&!isFailedSetup(s))return decideAfterFailedGuide(s,c,{ask,guide:g,support});
@@ -259,6 +261,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
    s.domain=['network','identity','exam'].includes(optionId)?optionId:optionId==='other'?'unknown':['mail','portal','attendance'].includes(optionId)?'task':hasServicePlaybook(optionId)?'specific':'task';
   }
   applySharedProgressAnswer(s,questionId,optionId);
+  applyServiceStageAnswer(s,questionId,optionId);
   if(questionId==='task'){
    if(optionId==='login')s.domain='identity';
    if(['send','receive'].includes(optionId)&&s.services.includes('mail'))s.domain='mail';

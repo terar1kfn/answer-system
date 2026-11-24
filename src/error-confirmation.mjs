@@ -16,6 +16,7 @@ export function proposeCurrentError(state,text){
  if(['safety','exam'].includes(intent.domain)||intent.facts.mfa_prompt==='unexpected')return {kind:'none'};
  const hints=recognizeErrors(clean.text);
  if(!hints.length)return {kind:'none'};
+ if(state.sharedProgress&&['select_service','select_portal'].includes(state.sharedProgress.phase))return {kind:'clarify',reasonCode:'SHARED_ERROR_FOCUS_REQUIRED'};
  if(hints.length>1)return {kind:'clarify',reasonCode:'MULTIPLE_CURRENT_ERRORS'};
  const hint=hints[0];
  if(state.evidence.error_signature?.value===hint.id)return {kind:'clarify',reasonCode:'ERROR_ALREADY_RECORDED'};

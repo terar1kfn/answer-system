@@ -1,5 +1,12 @@
 # Change log
 
+## 0.34.0 — operation-specific diagnostic gates (validation deferred)
+
+- Add exact meeting product, join stage, device media comparison and host sharing permission gates; require one exact product prerequisite for native collaboration mappings.
+- Distinguish academic system entry, submission state, request state and owner referrals; separate attendance marking, record review and device security alerts.
+- Tighten browser comparison, prioritize protected error evidence before shared-task confirmation, retain verified recovery history, invalidate stale media context.
+- No project tests, builds, deployments or native host changes.
+
 ## 0.33.0 — multi-stage original-task confirmation (validation deferred)
 
 - Track fixed original service/system scope and bounded focused troubleshooting. Explicitly reconfirm all original affected tasks before reporting resolution; preserve earlier attempts and clear stale current observations when narrowing focus.

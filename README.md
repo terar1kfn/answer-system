@@ -129,3 +129,5 @@ Version 0.30 separates changed-phone verification transfer from the original sig
 [Route-aware outcomes (0.32)](docs/route-aware-outcomes.md) extends private verified outcome attribution with exact historical route and source pins. Branched and unverified paths cannot count as root-guide-only evidence. No automatic guide ranking changes.
 
 [Multi-service original-task diagnosis (0.33)](docs/shared-task-diagnosis.md) adds bounded focus selection and aggregate original-task confirmation. An individual guide result cannot alone resolve a multi-service report.
+
+[Service operation stages (0.34)](docs/service-stage-diagnosis.md) separates meeting product/access and media scope, academic submission/request state, and attendance context before choosing a reviewed guide or referral.

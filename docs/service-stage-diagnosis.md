@@ -1,0 +1,9 @@
+# Service operation stages (0.34; validation deferred)
+
+Require explicit meeting product, technical entry versus sign-in or host access, ordinary media comparison and sharing permission. Native collaboration mapping rows require a single explicit meeting_product prerequisite, subject to the existing exact owner and independent approval. Do not infer a product from broad taxonomy or activate prior drafts. Generic question templates are not institutional procedures.
+
+For academic systems, distinguish course visibility, registration, request access, portal entry, open or already-submitted assignment, existing or new request, and permission restrictions. Route confirmed blocked portal/meeting sign-in back through identity reasoning; only a new explicit feature-access report resumes the feature diagnosis. Browser comparison must concern the same device, same connection and task, not another device. Attendance marking requires context and instructor ownership; record changes and security alerts stay native review. No admission, submission, attendance, payment or permission changes are performed.
+
+Prioritize protected error evidence before aggregate recovery; allow ordinary historical error evidence during original-task confirmation and preserve staff-verified recovery history when narrowing scope. Do not accept a new error while the remaining service is unselected. Discard media comparisons when the device or client changes.
+
+No private catalog content or native institutional identifiers are committed. Prior proposals require current independent review, including meeting product applicability. Project tests, builds, provider calls, deployment and native application modifications were not performed.

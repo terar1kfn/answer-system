@@ -107,6 +107,10 @@ export function classify(raw){
  if(named.length&&services.includes('identity')&&base.domain==='identity')services=services.filter(s=>s!=='identity');
  const facts={...base.facts};
  const portalNames=reportedAcademicSystems(t);
+ if(services.includes('collaboration')){
+  const products=[['zoom',['zoom','زوم','زووم']],['teams',['microsoft teams','teams meeting','مايكروسوفت تيمز','تيمز']]].filter(([,forms])=>has(t,forms));
+  if(products.length===1)facts.meeting_product=products[0][0];
+ }
  if(services.includes('portal')&&portalNames.length===1)facts.portal_system=portalNames[0];
  if(services.length===1&&services[0]==='portal'&&facts.portal_system==='moodle'&&
   has(t,['moodle app','moodle mobile','تطبيق مودل'])&&has(t,['site address','add site','wrong site','invalid site','عنوان الموقع','اضافه موقع','موقع غير صحيح'])&&

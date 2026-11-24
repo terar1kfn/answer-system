@@ -14,10 +14,10 @@ const contextKeys={
 const dependents={
  connection:['peers','service_access','browser_scope','mail_client_scope','post_signin_stage'],
  network_scope:['connection','peers','network_issue','browser_scope','service_access','mail_client_scope','post_signin_stage'],
- device_os:['connection','peers','network_issue','browser_scope','service_access','mail_client_scope','mail_client','meeting_client','post_signin_stage'],
+ device_os:['connection','peers','network_issue','browser_scope','service_access','mail_client_scope','mail_client','meeting_client','meeting_media_scope','meeting_share_scope','post_signin_stage'],
  phone:['device_os','attendance_permission_kind','attendance_issue'],
  mail_client:['mail_client_scope'],
- mail_client_scope:[],meeting_client:[],peers:[],browser_scope:[],service_access:['post_signin_stage']
+ mail_client_scope:[],meeting_client:['meeting_media_scope','meeting_share_scope'],peers:[],browser_scope:[],service_access:['post_signin_stage']
 };
 const option=(key,value)=>QUESTIONS[key]?.options.find(o=>o.id===value);
 const safeOrigin=e=>!e||['student_report','student_text_signal','student_confirmed_context'].includes(e.origin);
