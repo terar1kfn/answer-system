@@ -2,6 +2,7 @@
 // diagnosis from a reason code. The host renders native policy referrals.
 const labels={
  FREE_TEXT_NOT_UNAMBIGUOUS:['I need a little more detail. Choose the option that best matches what you see.','أحتاج إلى مزيد من التفاصيل. اختر الخيار الأقرب إلى ما تراه.'],
+ CONFIRM_INTERPRETED_REPLY:['Does the suggested choice match what you meant? Select the correct option to continue.','هل يطابق الخيار المقترح ما تقصده؟ اختر الإجابة الصحيحة للمتابعة.'],
  CONFIRM_CURRENT_ERROR:['Confirm whether the error belongs to your current problem.','أكد ما إذا كان الخطأ متعلقاً بمشكلتك الحالية.'],
  MULTIPLE_CURRENT_ERRORS:['Several different error codes were reported. Use the single code from the current failed operation, or ask IT to review them.','تم الإبلاغ عن عدة رموز خطأ مختلفة. استخدم رمز العملية الحالية الفاشلة فقط أو اطلب مراجعة الدعم التقني.'],
  ERROR_SCOPE_UNCONFIRMED:['This error may belong to a different service or operation. Start a separate diagnosis if necessary.','قد يتعلق هذا الخطأ بخدمة أو عملية مختلفة. ابدأ تشخيصاً منفصلاً عند الحاجة.'],

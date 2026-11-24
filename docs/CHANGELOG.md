@@ -1,5 +1,11 @@
 # Change log
 
+## 0.18.0 — contextual local reply advice (validation deferred)
+
+- Added optional context-aware, quote-validated local reply interpretation for allowlisted diagnostic questions, abstention and explicit confirmation rather than automatic state mutation.
+- Connected the optional advisor to native bridge clarification and client effect validation; preserve existing question, version, scope, protected routes and privacy screening. Added single-flight timeout and bounded per-issue attempts.
+- Added structured loopback Ollama contextual reply provider and bilingual confirmation copy. No actual provider calls, tests, builds, browser execution, deployment or private repository changes. CI remains manual-only.
+
 ## 0.17.0 — current error evidence (validation deferred)
 
 - Added bounded confirmation of newly pasted known error codes during diagnosis, scope checking, stale-observation cleanup and preservation of verified recovery/guide-attempt provenance.

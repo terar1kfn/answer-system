@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {createEngine} from '../engine.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
 import {sanitizeText} from '../privacy.mjs';
+import {prepareReplyAdvice} from '../contextual-reply-advisor.mjs';
 import {projectNativeCatalog,nativeGuideReference} from './native-catalog.mjs';
 import {reportedAnswers,buildNativeJourney} from './native-journey.mjs';
 import {newGuideLaunch,acceptNativeGuideReturn,mergeGuideReturns,guideContinuationView} from './guide-continuation.mjs';
@@ -49,11 +50,11 @@ function publicDecision(d){
 export function createEmbeddedAnswerBridge({
  authenticate,enabled=()=>false,routeInput,resolvePolicy,getConfiguration,getMapping,
  isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,
- getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,
+ getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,replyAdvisor=null,
  now=()=>Date.now(),newId=()=>randomUUID(),maxVisits=128
 }={}){
  if(![authenticate,enabled,routeInput,resolvePolicy,getConfiguration,getMapping,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,getIncidents,getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn,now,newId].every(f=>typeof f==='function')||
- !Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000)fail('NATIVE_HOST_HOOKS_REQUIRED');
+ (replyAdvisor!==null&&typeof replyAdvisor?.suggest!=='function')||!Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000)fail('NATIVE_HOST_HOOKS_REQUIRED');
  const rows=new Map(),locks=new Map();
  function newIssueId(){const x=newId();if(!opaque(x)||[...rows.values()].some(r=>r.issue?.id===x))fail('ISSUE_ID_COLLISION');return x;}
  async function authenticateStudent(credential){
@@ -78,7 +79,7 @@ export function createEmbeddedAnswerBridge({
   // Never promote aggregate reports to confirmed incidents here.
   const incidents=Array.isArray(raw)?raw.filter(i=>i?.authority==='authorized_staff'&&i.status==='confirmed'&&policy.diagnosticServices.includes(i.serviceId)&&
    opaque(i.id)&&Number.isFinite(i.updatedAt)&&Number.isFinite(i.expiresAt)&&i.updatedAt<=now()&&i.expiresAt>now()&&now()-i.updatedAt<=900000):[];
-  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus]);
+  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true]);
   return {policy,projection,incidents,pin,engine:createEngine({catalog:projection.catalog,incidents,now})};
  }
  function view(row){return {version:row?.version??0,issue:row?.issue?{issueId:row.issue.id,language:row.issue.state.language,
@@ -239,7 +240,21 @@ export function createEmbeddedAnswerBridge({
     let state;
     if(typed){
      const r=latest.engine.respond(issue.state,{expectedTurn:issue.state.turn,text});
-     if(r.kind==='clarify')return {kind:'clarify',reasonCode:r.reasonCode,...view(row)};
+     if(r.kind==='clarify'){
+      // Only ambiguous ordinary replies may get an optional confirmation hint.
+      // Keep the existing question and version. Do not advance engine state.
+      const fallback=()=>({kind:'clarify',reasonCode:r.reasonCode,...view(row)});
+      if(r.reasonCode!=='FREE_TEXT_NOT_UNAMBIGUOUS'||!replyAdvisor||latest.policy.allowModelAdvice!==true||(issue.adviceCalls||0)>=4)return fallback();
+      const prepared=prepareReplyAdvice(issue.state,text);
+      if(prepared.status!=='ready')return fallback();
+      issue.adviceCalls=(issue.adviceCalls||0)+1; // internal bounded per-issue resource counter
+      let proposed;
+      try{proposed=await replyAdvisor.suggest({state:copy(issue.state),text});}catch{proposed=null;}
+      await recheck(issue.scopeKey,ctx.pin);
+      if(proposed?.status!=='suggestion'||proposed.requiresConfirmation!==true||
+       proposed.questionId!==prepared.request.questionId||!prepared.request.options.some(o=>o.id===proposed.optionId))return fallback();
+      return {kind:'clarify',reasonCode:'CONFIRM_INTERPRETED_REPLY',suggestion:{questionId:proposed.questionId,optionId:proposed.optionId,requiresConfirmation:true},...view(row)};
+     }
      state=r.state;
     }else state=latest.engine.advance(issue.state,{expectedTurn:issue.state.turn,questionId:c.questionId,optionId:c.optionId});
     const reason=decisionAllowed(state,latest);if(reason)return clear(key,row,reason);

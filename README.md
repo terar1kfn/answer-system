@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.17 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.18 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -85,3 +85,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Current error evidence](docs/current-error-evidence.md) integrates confirmed newly reported error signatures into ongoing diagnosis, preserving service scope and earlier attempt history without treating a code as a verified root cause.
+
+
+[Optional contextual reply interpretation](docs/contextual-reply-advice.md) adds a native-bridge fallback for unclear ordinary replies, with fixed current-question options, bounded structured context, quote validation, abstention and explicit student confirmation. Local provider and per-policy enablement remain unconfigured.

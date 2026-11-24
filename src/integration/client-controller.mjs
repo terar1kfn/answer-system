@@ -30,7 +30,13 @@ function currentQuestion(issue){
 }
 function readEffect(result){
  if(result.kind==='delegate')return {kind:'delegate',reason:bounded(result.reason,100)?result.reason:'NATIVE_FALLBACK'};
- if(result.kind==='clarify')return {kind:'clarify',reasonCode:bounded(result.reasonCode,100)?result.reasonCode:'FREE_TEXT_NOT_UNAMBIGUOUS'};
+ if(result.kind==='clarify'){
+  const effect={kind:'clarify',reasonCode:bounded(result.reasonCode,100)?result.reasonCode:'FREE_TEXT_NOT_UNAMBIGUOUS'};
+  const q=currentQuestion(result.issue),s=result.suggestion;
+  if(s&&s.requiresConfirmation===true&&s.questionId===q?.id&&q.question.options.some(o=>o.id===s.optionId))effect.suggestion={questionId:s.questionId,optionId:s.optionId,requiresConfirmation:true};
+  else if(effect.reasonCode==='CONFIRM_INTERPRETED_REPLY')effect.reasonCode='FREE_TEXT_NOT_UNAMBIGUOUS';
+  return effect;
+ }
  if(result.kind==='open_native_guide'){
   const ref=result.reference;
   if(!opaque(result.launchRef)||!opaque(ref?.guideId)||!opaque(ref.nativeServiceId)||!opaque(ref.catalogRevision)||!bounded(ref.sourceRevision,160)||!bounded(ref.nativeGuideFingerprint,64)||ref.guideId!==result.issue?.decision?.guideId)fail('INVALID_NATIVE_REFERENCE');
