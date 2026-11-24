@@ -8,7 +8,7 @@ const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const terms=x=>Array.isArray(x)?x.filter(s=>typeof s==='string'&&s.trim()&&s.length<=500).slice(0,100):[];
 const title=g=>typeof g.title==='string'&&g.title.trim()&&g.title.length<=500&&typeof g.titleAr==='string'&&g.titleAr.trim()&&g.titleAr.length<=500;
 const priority=x=>x.priority==='core'?0:1;
-const allowedPrerequisites=new Set(['network_scope','attendance_permission_kind','device_os','phone','browser_scope']);
+const allowedPrerequisites=new Set(['network_scope','attendance_permission_kind','portal_system','assignment_kind','attendance_qr_task','mail_client','meeting_client','device_os','phone','browser_scope']);
 function overlapping(a,b){
  const ra=a.requires||{},rb=b.requires||{};
  if(Object.keys(ra).length!==Object.keys(rb).length)return false;

@@ -6,6 +6,8 @@ const core=[
  purpose('identity','setup_ios','iPhone verification setup','إعداد التحقق على آيفون',['microsoft authenticator iphone','authenticator ios setup','إعداد المصادقة على آيفون'],'core'),
  purpose('identity','setup_android','Android verification setup','إعداد التحقق على أندرويد',['microsoft authenticator android','authenticator android setup','إعداد المصادقة على أندرويد'],'core'),
  purpose('identity','manage_existing_method','Manage an existing verification method','إدارة طريقة التحقق المسجلة',['change authenticator phone','manage verification methods','تغيير جهاز المصادقة'],'core'),
+ purpose('identity','password_change_known','Change a known university password','تغيير كلمة مرور جامعية معروفة',['change known password','تغيير كلمة المرور'],'core'),
+ purpose('identity','mfa_notification_check','Missing notification for a self-initiated sign-in','غياب إشعار طلب تسجيل دخول بدأته بنفسك',['authenticator no notification','لا يصلني اشعار المصادقة'],'core'),
  purpose('identity','credential_check','Check sign-in details','فحص بيانات تسجيل الدخول',['incorrect username or password','sign-in credentials','بيانات تسجيل الدخول'],'core'),
  purpose('network','individual_connectivity','Individual device connectivity','اتصال الجهاز الفردي',['campus wifi','connect to wifi','network connection','الاتصال بالواي فاي'],'core'),
  purpose('mail','recipient_limit_check','Recipient restriction check','فحص قيود المستلمين',['too many recipients','reply all','عدد المستلمين']),

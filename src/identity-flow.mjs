@@ -5,7 +5,7 @@ import {decideNetwork} from './network-flow.mjs';
 const get=(s,k)=>s.evidence[k]?.value;
 const has=(s,k)=>Object.hasOwn(s.evidence,k);
 export const SETUP_PURPOSES=Object.freeze(['setup_ios','setup_android']);
-const STALE_SIGN_IN=['mfa_prompt','mfa_access','recovery_context','credentials','connection','peers','service_access','verification_context','error_signature','login_screen','shared_access_pattern'];
+const STALE_SIGN_IN=['mfa_prompt','mfa_access','recovery_context','credentials','connection','peers','service_access','verification_context','error_signature','login_screen','shared_access_pattern','security_info_access','password_intent','password_knowledge'];
 function forget(s,keys){for(const k of keys)delete s.evidence[k];s.askedQuestionIds=s.askedQuestionIds.filter(k=>!keys.includes(k));}
 function reported(s,key,value,origin='student_report'){s.evidence[key]={value,origin};}
 export function isFailedSetup(s){
@@ -37,7 +37,9 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
   if(!k('mfa_access'))return ask('mfa_access');
   if(v('mfa_access')==='unknown')return support('MFA_ACCESS_UNCONFIRMED');
   if(v('mfa_access')==='no')return v('mfa_recovery')==='completed'?support('RECOVERY_STILL_BLOCKED'):{kind:'offer_mfa_recovery',reasonCode:'REGISTERED_METHOD_UNAVAILABLE'};
-  return v('recovery_context')==='phone_change'?guide('identity','manage_existing_method'):support('MFA_VERIFICATION_FAILED');
+  if(v('recovery_context')!=='phone_change')return support('MFA_VERIFICATION_FAILED');
+  if(!k('security_info_access'))return ask('security_info_access');
+  return v('security_info_access')==='yes'?guide('identity','manage_existing_method'):support('SECURITY_INFO_ACCESS_REVIEW');
  };
  if(v('mfa_prompt')==='unexpected')return safety('UNEXPECTED_VERIFICATION_REQUEST');
  if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
@@ -49,6 +51,14 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
   return support('AUTHENTICATOR_SETUP_UNRESOLVED');
  }
  if(v('recovery_context')==='phone_change'||v('mfa_prompt')==='blocked')return recovery();
+ if(!k('error_signature')&&!k('mfa_prompt')&&!k('verification_context')){
+  if(v('password_intent')==='forgot')return support('STUDENT_PASSWORD_RESET_REVIEW');
+  if(v('password_intent')==='change'){
+   if(!k('password_knowledge'))return ask('password_knowledge');
+   if(v('password_knowledge')==='no')return support('STUDENT_PASSWORD_RESET_REVIEW');
+   return v('password_knowledge')==='yes'?guide('identity','password_change_known'):support('PASSWORD_STATUS_UNCONFIRMED');
+  }
+ }
  if(v('credentials')==='rejected')return guide('identity','credential_check');
  if(errorHint?.stage==='credential_validation'&&!k('credentials'))return ask('credentials');
  // A directly requested how-to or verified reset may open the approved setup
@@ -70,7 +80,7 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
   if(v('peers')==='yes')return support('POSSIBLE_SHARED_NETWORK_INCIDENT');
   return v('peers')==='no'?decideNetwork(s,{ask,guide,support,fromIdentity:true}):support('NETWORK_SCOPE_UNCLEAR');
  }
- if(v('mfa_prompt')==='missing')return support('MFA_PROMPT_MISSING');
+ if(v('mfa_prompt')==='missing')return v('credentials')==='accepted'&&v('connection')==='yes'?guide('identity','mfa_notification_check'):support('MFA_PROMPT_MISSING');
  if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length>1)return afterSuccessfulVerification(s,{ask,support});
  if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length===1&&s.services[0]!=='identity'){
   if(!k('service_access'))return ask('service_access');

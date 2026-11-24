@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.21 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.22 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -97,3 +97,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Private catalog reconciliation](docs/catalog-reconciliation.md) compares exact publication/guide fingerprints, ownership and availability, withholds changed or held mappings, and prepares a new private review candidate without activation. The local report utility requires explicit host-policy evidence and authorized snapshots.
+
+
+[Source-grounded gap review](docs/source-knowledge-review.md) adds private source-attributed bilingual proposal intake, per-source review hooks and independent applicability review. New diagnostic distinctions cover forgotten passwords, MFA notification/method access, mobile learning setup, assignment type, online requests, attendance QR task and client-specific mail/meeting guidance.

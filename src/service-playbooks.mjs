@@ -6,6 +6,9 @@ const definitions={
  portal:{questionId:'portal_issue',title:['What part of the academic portal is failing?','ما الجزء الذي لا يعمل في البوابة الأكاديمية؟'],choices:[
   ['loading','Pages fail to load or display','الصفحات لا تظهر أو لا يتم تحميلها','portal_browser'],
   ['assignment','Assignment upload or submission','رفع الواجب أو تسليمه','portal_submission'],
+  ['mobile_setup','Configure the mobile learning app or its site address','إعداد تطبيق التعلم على الهاتف أو عنوان الموقع','portal_mobile_setup'],
+  ['request_create','Create an online request','إنشاء طلب إلكتروني','portal_request_create'],
+  ['request_status','View the status of an online request','عرض حالة طلب إلكتروني','portal_request_status'],
   ['registration','Course registration or enrollment','التسجيل في المقررات',null],
   ['access','Course or page access denied','الوصول إلى مقرر أو صفحة مرفوض',null],
   ['content','Missing course content','محتوى المقرر غير ظاهر',null]
@@ -64,6 +67,11 @@ const definitions={
  ]}
 };
 const extras={
+ portal_system:q('Which academic system is affected?','أي نظام أكاديمي تواجه فيه المشكلة؟',rows([['moodle','Moodle learning system','نظام مودل'],['banner','Banner student information system','نظام بانر'],['ors','Online Request System','نظام الطلبات الإلكترونية']])),
+ assignment_kind:q('Which assignment activity is shown in the course?','ما نوع نشاط الواجب الظاهر في المقرر؟',rows([['standard','Standard Moodle assignment','واجب مودل عادي'],['turnitin','Turnitin assignment','واجب Turnitin'],['approved_link','The lecturer explicitly permits a large-file link submission','سمح مدرس المقرر صراحة بتسليم رابط ملف كبير'],['other','Another assignment type','نوع آخر']])),
+ mail_client:q('Which email client is affected on your device?','أي تطبيق بريد تواجه فيه المشكلة على جهازك؟',rows([['new_windows','New Outlook for Windows','Outlook الجديد لويندوز'],['classic_windows','Classic Outlook for Windows','Outlook الكلاسيكي لويندوز'],['mac','Outlook for Mac','Outlook على ماك'],['ios','Outlook for iPhone or iPad','Outlook على آيفون أو آيباد'],['android','Outlook for Android','Outlook على أندرويد'],['web','Outlook on the web','Outlook عبر الويب'],['other','Another mail app','تطبيق بريد آخر']])),
+ meeting_client:q('How are you using the meeting service?','كيف تستخدم خدمة الاجتماعات؟',rows([['desktop','Desktop application','تطبيق الحاسوب'],['mobile','Phone or tablet application','تطبيق الهاتف أو الجهاز اللوحي'],['web','Web browser','متصفح الويب']])),
+ attendance_qr_task:q('What are you trying to do with the QR code?','ما الذي تحاول فعله باستخدام رمز QR؟',rows([['gate','Display my campus-entry QR code','عرض رمز دخول الحرم الجامعي'],['class','Use a QR activity that my instructor actually provided','استخدام نشاط QR قدمه مدرس المقرر فعلاً'],['other','Another QR or an unclear purpose','رمز آخر أو غرض غير واضح']])),
  device_os:q('Which operating system is on the affected device?','ما نظام التشغيل على الجهاز المتأثر؟',rows([['windows','Windows','ويندوز'],['macos','macOS','ماك'],['ios','iPhone / iPad','آيفون / آيباد'],['android','Android','أندرويد'],['other','Other','آخر']])),
  browser_scope:q('Does the same page work in another supported browser or on another device?','هل تعمل الصفحة نفسها في متصفح مدعوم آخر أو على جهاز آخر؟',rows([['works','Yes, elsewhere it works','نعم، تعمل في مكان آخر'],['fails','No, the same issue occurs','لا، تحدث المشكلة نفسها'],['not_tried','I have not tried that','لم أجرب']])),
  service_access:q('After sign-in, are other university services accessible?','بعد تسجيل الدخول، هل يمكنك الوصول إلى خدمات جامعية أخرى؟',rows([['one_service','Only this service fails','هذه الخدمة فقط لا تعمل'],['multiple','Several services fail','عدة خدمات لا تعمل'],['not_tried','I have not checked','لم أتحقق']])),
@@ -76,7 +84,7 @@ for(const d of Object.values(definitions))extras[d.questionId]=q(...d.title,rows
 export const EXTRA_QUESTIONS=extras;
 export const hasServicePlaybook=service=>Object.hasOwn(definitions,service);
 const patterns={
- portal:{loading:['page not loading','blank page','white screen','page loading','الصفحه لا تعمل'],assignment:['assignment upload','submit assignment','assignment submission','رفع الواجب','تسليم الواجب'],registration:['course registration','enrollment','add drop','تسجيل المقررات'],access:['access denied','not enrolled','permission denied','الوصول مرفوض'],content:['course missing','missing course','missing content','المقرر غير ظاهر']},
+ portal:{loading:['page not loading','blank page','white screen','page loading','الصفحه لا تعمل'],assignment:['assignment upload','submit assignment','assignment submission','turnitin assignment','رفع الواجب','تسليم الواجب','واجب تيرنتن'],mobile_setup:['moodle mobile site address','moodle site address','add site','site address','moodle app setup','configure moodle app','عنوان موقع مودل','اضافه موقع مودل'],request_create:['create an online request','submit new request','new e request','انشاء طلب الكتروني'],request_status:['request status','track request','track my request','حاله الطلب','متابعه الطلب'],registration:['course registration','enrollment','add drop','تسجيل المقررات'],access:['access denied','not enrolled','permission denied','الوصول مرفوض'],content:['course missing','missing course','missing content','المقرر غير ظاهر']},
  attendance:{scan:['qr code','scan qr','camera scan','رمز qr','مسح الرمز'],permission:['location permission','camera permission','اذن الموقع','اذن الكاميرا'],record:['attendance missing','absent incorrectly','attendance record','سجل الحضور'],app:['app crashing','app not opening','التطبيق لا يفتح']},
  collaboration:{join:['join meeting','cannot join','can t join','joining meeting','الانضمام للاجتماع'],audio:['microphone','speaker','no sound','audio','الميكروفون','الصوت'],video:['camera','video','webcam','الكاميرا','الفيديو'],share:['screen share','screen sharing','share screen','مشاركه الشاشه'],recording:['recording','host permission','التسجيل']},
  directory:{lookup:['find my professor','find your professor','find a professor','professor directory','faculty directory','دليل الاساتذه'],office:['office location','office number','مكتب الدكتور','اين الدكتور'],incorrect:['wrong information','incorrect contact','معلومات خاطئه']},
@@ -105,6 +113,28 @@ export function nextServiceDecision(state,{ask,guide,support}){
  if(!row||!row[3])return support(choice==='unknown'?'SERVICE_TASK_UNCLEAR':'SERVICE_PERMISSION_OR_OWNER_REVIEW');
  if((service==='software'||service==='printing')&&!val('device_os'))return ask('device_os');
  if((service==='software'||service==='printing')&&['unknown','other'].includes(val('device_os')))return support('DEVICE_PLATFORM_UNCLEAR');
+ if(service==='portal'){
+  if(!val('portal_system'))return ask('portal_system');
+  const system=val('portal_system');
+  if(system==='unknown')return support('ACADEMIC_SYSTEM_UNCONFIRMED');
+  if(choice==='mobile_setup')return system==='moodle'?guide('portal','portal_mobile_setup'):support('ACADEMIC_MOBILE_CONFIGURATION_REVIEW');
+  if(choice==='assignment'){
+   if(system!=='moodle')return support('ACADEMIC_SUBMISSION_OWNER_REVIEW');
+   if(!val('assignment_kind'))return ask('assignment_kind');
+   const target={standard:'portal_submission_standard',turnitin:'portal_submission_turnitin',approved_link:'portal_submission_link'}[val('assignment_kind')];
+   return target?guide('portal',target):support('ASSIGNMENT_TYPE_UNCONFIRMED');
+  }
+  if(['request_create','request_status'].includes(choice))return system==='ors'?guide('portal',row[3]):support('ACADEMIC_REQUEST_OWNER_REVIEW');
+ }
+ if(service==='attendance'&&choice==='scan'){
+  if(!val('attendance_qr_task'))return ask('attendance_qr_task');
+  const use=val('attendance_qr_task');
+  return use==='gate'?guide('attendance','attendance_gate_qr'):use==='class'?guide('attendance','attendance_scan'):support('ATTENDANCE_QR_CONTEXT_REVIEW');
+ }
+ if(service==='mail'&&['sync','calendar'].includes(choice)){
+  if(!val('mail_client_scope'))return ask('mail_client_scope');
+  if(val('mail_client_scope')!=='app_only')return support('MAIL_SERVER_OR_CLIENT_REVIEW');
+ }
  if(service==='attendance'&&choice==='permission'){
   if(!val('attendance_permission_kind'))return ask('attendance_permission_kind');
   if(val('attendance_permission_kind')!=='location')return support('ATTENDANCE_PERMISSION_SPECIFIC_REVIEW');
@@ -117,6 +147,10 @@ export function nextServiceDecision(state,{ask,guide,support}){
 }
 export const PLAYBOOK_GUIDES=Object.freeze(Object.entries(definitions).flatMap(([service,d])=>d.choices.filter(row=>row[3]).map(row=>Object.freeze({serviceId:service,purpose:row[3],title:{en:row[1],ar:row[2]},aliases:patterns[service]?.[row[0]]||[]}))).concat([
  ...['examplify','lockdown'].flatMap(app=>['install','launch','camera','audio','download'].map(issue=>({serviceId:'exam',purpose:app+'_'+issue,title:{en:app+' pre-exam '+issue,ar:'التحضير للاختبار: '+app+' / '+issue},aliases:[]}))),
+ {serviceId:'portal',purpose:'portal_submission_standard',title:{en:'Standard Moodle assignment',ar:'واجب مودل عادي'},aliases:['standard assignment','submit assignment']},
+ {serviceId:'portal',purpose:'portal_submission_turnitin',title:{en:'Turnitin assignment',ar:'واجب Turnitin'},aliases:['turnitin assignment','submit turnitin']},
+ {serviceId:'portal',purpose:'portal_submission_link',title:{en:'Approved large-file assignment link',ar:'رابط واجب لملف كبير معتمد'},aliases:['assignment file too large','assignment onedrive link']},
+ {serviceId:'attendance',purpose:'attendance_gate_qr',title:{en:'Campus-entry QR display',ar:'عرض رمز دخول الحرم الجامعي'},aliases:['campus entry qr','gate qr']},
  {serviceId:'network',purpose:'network_setup',title:{en:'Connect a new device to student Wi-Fi',ar:'توصيل جهاز بشبكة الطلاب'},aliases:patterns.network.setup},
  {serviceId:'network',purpose:'network_connected_no_internet',title:{en:'Connected to Wi-Fi but no internet',ar:'متصل بشبكة الواي فاي دون إنترنت'},aliases:patterns.network.no_internet},
  {serviceId:'network',purpose:'network_ssid',title:{en:'Network name missing',ar:'اسم الشبكة غير ظاهر'},aliases:patterns.network.ssid_missing},

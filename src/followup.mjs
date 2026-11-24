@@ -11,6 +11,11 @@ const aliases={
  unknown:['not sure','i dont know','i don t know','unknown','غير متاكد','ما ادري','لا اعرف','مش عارف','مو متاكد'],
 };
 const contextual={
+ portal_system:{moodle:['moodle','مودل'],banner:['banner','بانر'],ors:['ors','online request system','نظام الطلبات']},
+ assignment_kind:{standard:['standard','standard assignment','واجب عادي'],turnitin:['turnitin','turnitin assignment','تيرنتن'],approved_link:['instructor approved a link','المدرس سمح بالرابط']},
+ mail_client:{new_windows:['new outlook','new outlook for windows','اوتلوك الجديد'],classic_windows:['classic outlook','old outlook','اوتلوك الكلاسيكي'],mac:['outlook for mac','mac outlook'],ios:['iphone','ipad','ios'],android:['android'],web:['webmail','outlook web','browser']},
+ meeting_client:{desktop:['desktop app','computer app','تطبيق الكمبيوتر'],mobile:['mobile app','phone app','تطبيق الهاتف'],web:['web browser','browser','المتصفح']},
+ attendance_qr_task:{gate:['gate qr','campus entry','دخول الحرم'],class:['instructor provided qr','class qr','رمز المدرس']},
  shared_operation:{login:['all have sign in problems','cannot sign in to both','لا استطيع تسجيل الدخول الي الخدمتين'],network:['same connection problem','same device cannot connect','مشكله الاتصال نفسها'],one:['only one service','خدمه واحده فقط'],different:['different problems','مشاكل مختلفه']},
  shared_access_pattern:{same:['same access error','same problem on both','نفس خطا الوصول'],different:['different errors','اخطاء مختلفه'],some_recovered:['one works now','some work now','بعض الخدمات تعمل الان']},
  mail_client_scope:{app_only:['webmail works','only app fails','بريد الويب يعمل'],both:['both fail','both have the same problem','الاثنان لا يعملان'],not_tried:['not checked webmail','لم اتحقق من بريد الويب']},
@@ -33,7 +38,7 @@ const contextual={
  retry_mail_scope:{app_only:['webmail works but app does not','only the app fails','بريد الويب يعمل والتطبيق لا يعمل'],both:['both still fail','both fail','الاثنان لا يعملان'],not_tried:['not compared','لم اقارن']},
  retry_mail_detail:{address:['recipient not found','recipient address not found'],size:['message too large','attachment too large'],recipients:['too many recipients','recipient limit'],restricted:['sender restricted','account restricted']},
  retry_network_scope:{ssid_missing:['network name missing','wifi not showing','اسم الشبكه غير ظاهر'],auth:['network sign in rejected','network authentication fails','رفض تسجيل الدخول للشبكه'],slow:['slow wifi','intermittent connection','الاتصال متقطع'],no_internet:['connected but no internet','متصل بدون انترنت']},
- retry_attendance_detail:{permission:['camera permission denied','location permission denied','اذن الكاميرا مرفوض','اذن الموقع مرفوض']},
+ retry_attendance_detail:{location:['location permission denied','اذن الموقع مرفوض'],camera:['camera permission denied','اذن الكاميرا مرفوض'],bluetooth:['bluetooth permission denied','اذن البلوتوث مرفوض']},
  retry_meeting_scope:{other_apps:['same issue in other apps','other apps also fail','نفس المشكله في التطبيقات الاخري'],only_meeting:['only meeting app','فقط تطبيق الاجتماع'],not_tried:['not checked','لم اتحقق']},
  retry_software_detail:{update_required:['update required','needs an update','يحتاج تحديث']},
  retry_storage_detail:{quota:['storage full','quota exceeded','المساحه ممتلئه']},

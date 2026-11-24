@@ -73,7 +73,9 @@ export function decideAfterFailedGuide(s,c,{ask,guide,support}){
  }
  if(service==='attendance'&&['attendance_scan','attendance_app'].includes(purpose)){
   if(!has(s,'retry_attendance_detail'))return ask('retry_attendance_detail');
-  return val(s,'retry_attendance_detail')==='permission'?alt('attendance','attendance_permissions','retry_attendance_detail'):support('ATTENDANCE_REVIEW');
+  if(val(s,'retry_attendance_detail')!=='location')return support('ATTENDANCE_PERMISSION_SPECIFIC_REVIEW');
+  if(has(s,'attendance_permission_kind')&&val(s,'attendance_permission_kind')!=='location')return support('ATTENDANCE_PERMISSION_SPECIFIC_REVIEW');
+  return alt('attendance','attendance_permissions','retry_attendance_detail');
  }
  if(service==='collaboration'&&['meeting_audio','meeting_video'].includes(purpose)){
   if(!has(s,'retry_meeting_scope'))return ask('retry_meeting_scope');

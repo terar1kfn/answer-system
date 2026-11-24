@@ -1,5 +1,11 @@
 # Change log
 
+## 0.22.0 — source-grounded knowledge gaps (validation deferred)
+
+- Added source-attributed, revision-pinned private knowledge proposals and authorized review intake; institutional claims require institutional source evidence and independent applicability review. No direct publishing path.
+- Added student password-intent and Security info access distinctions, missing MFA notification purpose, portal system/mobile setup and assignment-type routes, ORS operations, QR task distinctions and client-specific mail/meeting prerequisites. Keep distinct permission failures separate after a failed attendance guide.
+- No real guide publication, live catalog reconciliation execution, tests, builds, model calls, deployment or original application changes.
+
 ## 0.21.0 — private live-catalog reconciliation foundation (validation deferred)
 
 - Added pinned row and full-snapshot comparison, inventory differences where a matching baseline exists, explicit review holds, conservative offline policy and an authorized reviewer wrapper.

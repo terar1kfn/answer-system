@@ -103,6 +103,18 @@ export function classify(raw){
  if(named.length&&services.includes('network')&&!/\b(?:wifi|wi fi|internet)\b|واي فاي|النت|انترنت/.test(t))services=services.filter(s=>s!=='network');
  if(named.length&&services.includes('identity')&&base.domain==='identity')services=services.filter(s=>s!=='identity');
  const facts={...base.facts};
+ const portalNames=[['moodle',['moodle','مودل','موديل']],['banner',['banner','بانر']],['ors',['ors','online request system','نظام الطلبات الالكترونيه']]].filter(([,words])=>has(t,words));
+ if(services.includes('portal')&&portalNames.length===1)facts.portal_system=portalNames[0][0];
+ if(services.length===1&&services[0]==='portal'&&facts.portal_system==='moodle'&&
+  has(t,['moodle app','moodle mobile','تطبيق مودل'])&&has(t,['site address','add site','wrong site','invalid site','عنوان الموقع','اضافه موقع','موقع غير صحيح'])&&
+  !signals.facts.mfa_prompt&&!signals.facts.verification_context&&!signals.facts.credentials&&!facts.recovery_context&&!facts.setup_requested){
+  return out('specific',services,{...facts,task:'app',portal_issue:'mobile_setup'});
+ }
+ if(base.domain==='identity'&&facts.task==='login'&&!facts.recovery_context&&!facts.setup_requested&&!signals.facts.mfa_prompt&&!signals.facts.verification_context){
+  const forgot=has(t,['forgot my password','forgot password','forgotten password','i don t remember my password','نسيت كلمه المرور','نسيت الباسورد']);
+  const change=has(t,['change my password','change password','update my password','تغيير كلمه المرور','اغير كلمه المرور']);
+  if(forgot!==change)facts.password_intent=forgot?'forgot':'change';
+ }
  if(signals.facts.mfa_setup||signals.facts.verification_context==='conflicting_screen')delete facts.setup_requested;
  // Network credentials are not automatically an MFA problem. Preserve
  // explicitly recognized network-only operations unless identity risk is present.
@@ -131,6 +143,8 @@ export function classify(raw){
  if(services.length===1){
   const service=services[0],specific=inferServiceIssue(service,t,normalize);
   if(specific)facts[specific.questionId]=specific.optionId;
+  if(service==='portal'&&facts.portal_issue==='assignment'&&has(t,['turnitin assignment','submit turnitin','واجب turnitin','واجب تيرنتن']))facts.assignment_kind='turnitin';
+  if(service==='attendance'&&facts.attendance_issue==='scan'&&has(t,['campus entry qr','gate qr','qr code for campus entry','رمز دخول الحرم']))facts.attendance_qr_task='gate';
   if(service==='attendance'&&facts.attendance_issue==='permission'){
    const kinds=[['location',['location permission','precise location','اذن الموقع']],['camera',['camera permission','اذن الكاميرا']],['bluetooth',['bluetooth permission','اذن البلوتوث']]].filter(([,forms])=>has(t,forms));
    if(kinds.length===1)facts.attendance_permission_kind=kinds[0][0];
