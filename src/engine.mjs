@@ -20,7 +20,7 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.29.0';
+export const RULE_VERSION='0.30.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -204,8 +204,10 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   if(!clean.categories.length)Object.assign(r.facts,collectOperationContext(clean.text,r));
   text=clean.text;
   const isHowTo=/^(?:how (?:do|can|to)|what is|where (?:is|can)|كيف|ما هو|ما هي|اين)\b/i.test(normalize(text))||/^(?:كيف|ما هو|ما هي|اين)(?: |$)/.test(normalize(text));
-  const composite=!clean.categories.length&&!['safety','exam'].includes(r.domain)&&!r.facts.error_signature&&!r.facts.error_conflict?planCompositeFacts(c,text):{status:'none'};
-  const factResolution=composite.status==='none'&&!clean.categories.length&&!['safety','exam'].includes(r.domain)&&!r.facts.error_signature&&!r.facts.error_conflict&&(isHowTo||isInformationalQuery(text))?resolveReviewedFact(c,text,r.services):{status:'none'};
+  const factEligible=!clean.categories.length&&!['safety','exam'].includes(r.domain)&&!r.facts.error_signature&&!r.facts.error_conflict&&
+   !r.facts.mfa_prompt&&!r.facts.recovery_context&&!r.facts.verification_context&&!r.facts.credentials&&!r.facts.password_intent&&!r.facts.setup_requested&&!r.conflicts?.length;
+  const composite=factEligible?planCompositeFacts(c,text):{status:'none'};
+  const factResolution=composite.status==='none'&&factEligible&&(isHowTo||isInformationalQuery(text))?resolveReviewedFact(c,text,r.services):{status:'none'};
   const factMatch=factResolution.status==='exact'?factResolution.fact:null;
   const s={ruleVersion:RULE_VERSION,catalogRevision:c.revision,turn:0,language,domain:r.domain,services:r.services,evidence:{},askedQuestionIds:[],offeredGuideIds:[],status:'new'};
   for(const [key,v] of Object.entries(r.facts))fact(s,key,v,'student_text_signal');
@@ -217,7 +219,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   s.requestKind=['safety','exam'].includes(r.domain)?'protected':isHowTo?'how_to':r.domain==='unknown'?'unclear':'fault';
   if(composite.status==='exact'){s.reviewedFactIds=composite.factIds;s.domain='task';s.services=composite.services;s.requestKind='information';}
   else if(factMatch){s.reviewedFactId=factMatch.id;s.domain='task';s.services=[factMatch.serviceId];if(isInformationalQuery(text))s.requestKind='information';}
-  else if(composite.status==='none'&&factResolution.status==='none'&&!clean.categories.length&&!['safety','exam'].includes(r.domain)&&r.facts.mfa_prompt!=='unexpected'&&!r.facts.error_signature&&!r.facts.error_conflict&&isInformationalQuery(text)){
+  else if(composite.status==='none'&&factResolution.status==='none'&&factEligible&&isInformationalQuery(text)){
    const choices=reviewedTopicChoices(c,{text,services:r.services});if(choices.length)s.knowledgeChoices=choices;
   }
   return finish(s,c,records,now());
@@ -242,11 +244,11 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
    const choice=s.knowledgeChoices?.find(x=>x.optionId===optionId);
    const f=(c.facts||[]).find(x=>x.id===choice?.factId&&eligible(x,{catalog:c,services:s.services}));
    if(!f)throw Error('FACT_UNAVAILABLE');
-   s.reviewedFactId=f.id;s.domain='task';s.services=[f.serviceId];s.requestKind='information';
+   s.reviewedFactId=f.id;s.domain='task';s.services=[f.serviceId];delete s.reportedAcademicSystems;s.requestKind='information';
    s.evidence={reviewed_topic:{value:optionId,origin:'student_report'}};
   }
   if(questionId==='service'){
-   s.services=[optionId];delete s.activeAlternative;delete s.lastGuidePurpose;delete s.knowledgeChoices;delete s.reviewedFactId;delete s.reviewedFactIds;delete s.reviewedFactConflict;delete s.compositeAnswerGap;s.conflictingObservations=[];
+   s.services=[optionId];if(optionId!=='portal')delete s.reportedAcademicSystems;delete s.activeAlternative;delete s.lastGuidePurpose;delete s.knowledgeChoices;delete s.reviewedFactId;delete s.reviewedFactIds;delete s.reviewedFactConflict;delete s.compositeAnswerGap;s.conflictingObservations=[];
    for(const key of Object.keys(s.evidence))if(key!=='service')delete s.evidence[key];
    s.domain=['network','identity','exam'].includes(optionId)?optionId:optionId==='other'?'unknown':['mail','portal','attendance'].includes(optionId)?'task':hasServicePlaybook(optionId)?'specific':'task';
   }

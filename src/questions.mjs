@@ -25,6 +25,8 @@ export const QUESTIONS={
  security_info_access:q('Can you open your work or school Security info page using a registered method you can access, on your own device?','هل تستطيع فتح صفحة معلومات الأمان لحسابك الجامعي باستخدام طريقة تحقق مسجلة متاحة لك على جهازك؟',[yes,no,unknown]),
  mfa_setup:q('Have you already set up Microsoft Authenticator or another verification method?','هل أعددت Microsoft Authenticator أو طريقة تحقق أخرى مسبقاً؟',[
  ['yes','Yes, already set up','نعم، تم الإعداد'],['no','No, not yet','لا، ليس بعد'],unknown]),
+ mfa_method_goal:q('What is your current goal with the changed or replacement phone?','ما هدفك الحالي بعد تغيير الهاتف أو استبداله؟',[
+ ['transfer','Move or replace an existing registered verification method','نقل أو استبدال طريقة تحقق مسجلة مسبقاً'],['sign_in','Complete sign-in to the affected university service','إكمال تسجيل الدخول إلى الخدمة الجامعية المتأثرة'],unknown]),
  mfa_access:q('Can you complete sign-in using ANY verification method already registered to your account, on a device you can access? Do not share a code.','هل تستطيع إكمال تسجيل الدخول باستخدام أي طريقة تحقق مسجلة مسبقاً في حسابك على جهاز يمكنك الوصول إليه؟ لا تشارك أي رمز.',[
  ['yes','Yes, at least one registered method is usable','نعم، يمكنني استخدام طريقة مسجلة واحدة على الأقل'],['no','No, none of my registered methods is usable','لا، لا يمكنني استخدام أي طريقة تحقق مسجلة'],unknown]),
  mfa_prompt:q('On your own affected device, what happens when you try to sign in? Do not type your password or verification code here.','ماذا يحدث عند محاولة تسجيل الدخول على جهازك المتأثر؟ لا تكتب كلمة المرور أو رمز التحقق هنا.',[

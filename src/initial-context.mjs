@@ -37,6 +37,12 @@ export function reconcileInitialContext({text,classification,classify}){
   if(values.size>1){delete facts[key];conflicts.push(key);continue;}
   const value=[...values][0];if(value!==undefined)facts[key]=value;
  }
+ if(facts.verification_context==='conflicting_screen'){
+  // Conflicting stage signals require an explicit latest screen even if an
+  // isolated clause resembles a recognized prompt.
+  delete facts.mfa_prompt;delete facts.setup_requested;
+  if(facts.credentials!=='locked')delete facts.credentials;
+ }
  // A current reported screen is more informative than a vague setup request.
  if(conflicts.includes('mfa_prompt')||conflicts.includes('mfa_setup')||Object.hasOwn(facts,'mfa_prompt')||Object.hasOwn(facts,'mfa_setup'))delete facts.setup_requested;
  return {...base,facts,conflicts};

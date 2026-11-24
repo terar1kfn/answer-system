@@ -3,6 +3,10 @@
 const labels={
  FREE_TEXT_NOT_UNAMBIGUOUS:['I need a little more detail. Choose the option that best matches what you see.','أحتاج إلى مزيد من التفاصيل. اختر الخيار الأقرب إلى ما تراه.'],
  CONFIRM_INTERPRETED_REPLY:['Does the suggested choice match what you meant? Select the correct option to continue.','هل يطابق الخيار المقترح ما تقصده؟ اختر الإجابة الصحيحة للمتابعة.'],
+ MFA_METHOD_GOAL_UNCLEAR:['Confirm whether you need to move a registered verification method or sign in to the original service.','أكد ما إذا كنت تحتاج إلى نقل طريقة تحقق مسجلة أو تسجيل الدخول إلى الخدمة الأصلية.'],
+ MFA_ALTERNATE_METHOD_REVIEW:['You reported an accessible registered method. IT can help review how to complete the original sign-in without removing a working method.','أفدت بإمكانية استخدام طريقة تحقق مسجلة. يمكن للدعم التقني مراجعة كيفية إكمال تسجيل الدخول دون إزالة طريقة تعمل.'],
+ SIGN_IN_STAGE_UNCLEAR:['The current sign-in screen and credential status do not agree. IT can review the latest screen.','لا تتطابق شاشة تسجيل الدخول الحالية مع حالة بيانات الدخول. يمكن للدعم التقني مراجعة الشاشة الأخيرة.'],
+ PASSWORD_CHANGE_ENVIRONMENT_REVIEW:['The applicable password-change environment is unavailable or uncertain. Ask authorized IT for the correct procedure.','بيئة تغيير كلمة المرور المطلوبة غير متاحة أو غير مؤكدة. اطلب الإجراء المناسب من الدعم التقني المخول.'],
  PASSWORD_STATUS_UNCONFIRMED:['IT can help verify which password-change or recovery procedure applies. Do not share your password here.','يمكن للدعم التقني المساعدة في تحديد إجراء تغيير أو استعادة كلمة المرور المناسب. لا تشارك كلمة مرورك هنا.'],
  CONFIRM_CONTEXT_UPDATE:['Confirm whether the new detail describes your current problem.','أكد ما إذا كانت المعلومة الجديدة تصف مشكلتك الحالية.'],
  CONTEXT_ALREADY_RECORDED:['This detail is already recorded. Please answer the current question.','هذه المعلومة مسجلة بالفعل. يرجى الإجابة عن السؤال الحالي.'],

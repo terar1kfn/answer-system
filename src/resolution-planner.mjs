@@ -23,6 +23,12 @@ export function recordResolutionAnswer(s,key,value){
  if(!QUESTIONS.has(key)||!s.guideAttempts?.length)return;
  const prior=s.guideAttempts[s.guideAttempts.length-1];
  prior.followUp={...prior.followUp,[key]:value};
+ if(key==='retry_attendance_detail'&&['location','camera','bluetooth'].includes(value)){
+  // Bind the next applicability check to the newly reported permission,
+  // not a contradictory field left over from the failed guide.
+  s.evidence.attendance_permission_kind={value,origin:'student_report'};
+  s.evidence.attendance_issue={value:'permission',origin:'student_report'};
+ }
 }
 function lastFailure(s){
  const x=s.guideAttempts?.at(-1);

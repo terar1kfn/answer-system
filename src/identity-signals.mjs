@@ -4,8 +4,8 @@ const contains=(t,phrases)=>phrases.some(p=>(' '+t+' ').includes(' '+p+' '));
 const patterns={
  signInScreen:['outlook says sign in','outlook shows sign in','outlook asks me to sign in','outlook asks to sign in','email shows sign in','sign in button in outlook','outlook sign in button','اوتلوك يطلب تسجيل الدخول','الاوتلوك يطلب تسجيل الدخول','يظهر تسجيل الدخول في الاوتلوك'],
  setupScreen:['asks me to set up authenticator','asks me to set up microsoft authenticator','asks to set up authenticator','asks to configure authenticator','asks me to register a verification method','asks me to install authenticator','asks me to set up a verification method','يطلب اعداد المصادقه','يطلب مني اعداد المصادقه','يطلب مني تثبيت تطبيق المصادقه','يطلب اعداد طريقه تحقق'],
- blocked:['cannot complete verification','can t complete verification','cannot approve my sign in','can t approve my sign in','cannot enter the verification code','can t enter the verification code','cannot access my authenticator','can t access my authenticator','no access to authenticator','code on my old phone','approval on my old phone','verification on my old phone','لا استطيع اكمال التحقق','ما اقدر اكمل التحقق','لا استطيع الموافقه علي تسجيل الدخول','ما اقدر اوافق علي تسجيل الدخول','رمز التحقق في هاتفي القديم','الكود في تلفوني القديم'],
- challenge:['asks me for a verification code','asks for a verification code','asks me to enter a code','asks me for a code','asks for a code','asks me to approve sign in','asks me to approve the sign in','authenticator code','authenticator approval','number matching','code sent to my old phone','يطلب مني رمز التحقق','يطلب رمز التحقق','يطلب مني كود','يطلب مني رمز','يطلب الموافقه علي تسجيل الدخول','رمز تطبيق المصادقه'],
+ blocked:['cannot complete verification','can t complete verification','cannot approve my sign in','can t approve my sign in','cannot enter the verification code','can t enter the verification code','cannot access my authenticator','can t access my authenticator','no access to authenticator','لا استطيع اكمال التحقق','ما اقدر اكمل التحقق','لا استطيع الموافقه علي تسجيل الدخول','ما اقدر اوافق علي تسجيل الدخول'],
+ challenge:['asks me for a verification code','asks for a verification code','asks me to enter a code','asks me for a code','asks for a code','asks me to approve sign in','asks me to approve the sign in','authenticator code','authenticator approval','number matching','code sent to my old phone','code on my old phone','approval on my old phone','verification on my old phone','رمز التحقق في هاتفي القديم','الكود في تلفوني القديم','يطلب مني رمز التحقق','يطلب رمز التحقق','يطلب مني كود','يطلب مني رمز','يطلب الموافقه علي تسجيل الدخول','رمز تطبيق المصادقه'],
  unexpected:['unexpected sign in request','unexpected approval request','unexpected authenticator request','sign in request i did not initiate','approval request i did not initiate','did not try to sign in','طلب تسجيل دخول لم ابدا','طلب موافقه لم ابدا','طلب تحقق غير متوقع'],
  unknownSetup:['i don t know what authenticator is','i dont know what authenticator is','never heard of authenticator','i don t know if authenticator is set up','ما اعرف وش المصادقه','ما اعرف ما هو تطبيق المصادقه','ما بعرف شو المصادقه','لا اعرف ما هو تطبيق المصادقه'],
  knownSetup:['authenticator is already set up','i have already set up authenticator','i already configured authenticator','تم اعداد تطبيق المصادقه','انا مفعل المصادقه'],
@@ -21,13 +21,13 @@ export function detectIdentitySignals(t){
  const explicitLogin=screen||setup||blocked||challenge||unexpected||credential||unknown||configured||unconfigured;
  const facts={};
  if(unexpected)facts.mfa_prompt='unexpected';
- else if(setup&&blocked)facts.verification_context='conflicting_screen';
+ else if((setup&&(blocked||challenge))||(credential&&(setup||blocked||challenge)))facts.verification_context='conflicting_screen';
  else if(setup)facts.mfa_prompt='setup_required';
  else if(blocked)facts.mfa_prompt='blocked';
  else if(challenge)facts.verification_context='challenge';
  if(screen)facts.login_screen='sign_in_visible';
  if(unknown||configured&&unconfigured)facts.mfa_setup='unknown';
  else if(configured)facts.mfa_setup='yes';else if(unconfigured)facts.mfa_setup='no';
- if(credential)facts.credentials='rejected';
+ if(credential&&facts.verification_context!=='conflicting_screen')facts.credentials='rejected';
  return {explicitLogin,explicitMailFault,facts};
 }

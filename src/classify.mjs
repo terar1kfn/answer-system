@@ -28,7 +28,9 @@ function classifyBase(raw){
  const attendance=has(t,['attendance app','attendance','au connect','تطبيق الحضور','الحضور']);
  const network=has(t,['wi fi','wifi','internet','network','connection','واي فاي','الواي فاي','وايفاي','الوايفاي','النت','انترنت','الانترنت','الشبكه']);
  const mfa=has(t,['authenticator','authintecator','authentcator','mfa','verification','two factor','2fa','المصادقه','التحقق','اوثنتيكيتور']);
- const oldPhone=/\b(?:changed|lost|new|old|replaced|broken) (?:my |the )?(?:old |new )?(?:phone|mobile)\b|\b(?:my )?(?:old|new) phone\b|غيرت (?:تلفوني|هاتفي|جوالي)|هاتف جديد|تلفون جديد|هاتف قديم/.test(t);
+ const phoneMention=/\b(?:changed|lost|new|old|replaced|broken) (?:my |the )?(?:old |new )?(?:phone|mobile)\b|\b(?:my )?(?:old|new) phone\b|غيرت (?:تلفوني|هاتفي|جوالي)|هاتف جديد|تلفون جديد|هاتف قديم/.test(t);
+ // Merely mentioning a different phone is not evidence of an MFA problem.
+ const oldPhone=phoneMention&&mfa;
  const login=has(t,['sign in','signin','login','log in','password','account locked','تسجيل الدخول','الدخول','كلمه المرور','باسورد']);
  const send=has(t,['send','sending','reply all','outgoing','ارسال','ارسل','الرد علي الجميع']);
  const receive=has(t,['receive','receiving','incoming','استقبال','استلم','استقبل']);
@@ -126,6 +128,7 @@ export function classify(raw){
  if(signals.explicitLogin){
   if(signals.explicitMailFault&&base.domain==='mail')return out('task',['mail'],{});
   Object.assign(facts,signals.facts);
+  if(signals.facts.verification_context==='conflicting_screen'){delete facts.mfa_prompt;if(facts.credentials!=='locked')delete facts.credentials;delete facts.setup_requested;}
   delete facts.send_error;delete facts.receive_scope;
   // A verification code is not necessarily an incoming email. Identify the
   // sign-in operation without claiming the method is inaccessible.

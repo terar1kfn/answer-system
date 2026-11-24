@@ -6,13 +6,24 @@ import {decidePostSignIn} from './operation-context.mjs';
 const get=(s,k)=>s.evidence[k]?.value;
 const has=(s,k)=>Object.hasOwn(s.evidence,k);
 export const SETUP_PURPOSES=Object.freeze(['setup_ios','setup_android']);
-const STALE_SIGN_IN=['mfa_prompt','mfa_access','recovery_context','credentials','connection','peers','service_access','verification_context','error_signature','login_screen','shared_access_pattern','security_info_access','password_intent','password_knowledge','password_change_environment','post_signin_stage'];
+const STALE_SIGN_IN=['mfa_prompt','mfa_access','mfa_method_goal','recovery_context','credentials','connection','peers','service_access','verification_context','error_signature','login_screen','shared_access_pattern','security_info_access','password_intent','password_knowledge','password_change_environment','post_signin_stage'];
 function forget(s,keys){for(const k of keys)delete s.evidence[k];s.askedQuestionIds=s.askedQuestionIds.filter(k=>!keys.includes(k));}
 function reported(s,key,value,origin='student_report'){s.evidence[key]={value,origin};}
 export function isFailedSetup(s){
  return get(s,'outcome')==='no'&&SETUP_PURPOSES.includes(s.lastGuidePurpose);
 }
 export function applyIdentityAnswer(s,questionId,optionId){
+ if(questionId==='mfa_prompt'){
+  // A new explicit screen report replaces the earlier ambiguous stage. It
+  // does not prove that the account, credentials or method are usable.
+  const conflicting=get(s,'verification_context')==='conflicting_screen';
+  forget(s,['verification_context','login_screen','mfa_access','security_info_access','setup_requested',...(conflicting&&get(s,'credentials')!=='locked'?['credentials']:[])]);
+ }
+ if(questionId==='setup_blocker'&&optionId==='verification'){
+  // A new blocked setup attempt cannot reuse a pre-attempt access answer.
+  forget(s,['mfa_access','security_info_access','verification_context','mfa_method_goal']);
+  reported(s,'mfa_prompt','blocked');
+ }
  if(questionId==='setup_blocker'&&optionId==='setup_done_service_fails'){
   // Setup completion and successful sign-in are different reported outcomes.
   // Prior failure signals refer to the earlier attempt, not the new one.
@@ -39,6 +50,8 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
   if(v('mfa_access')==='unknown')return support('MFA_ACCESS_UNCONFIRMED');
   if(v('mfa_access')==='no')return v('mfa_recovery')==='completed'?support('RECOVERY_STILL_BLOCKED'):{kind:'offer_mfa_recovery',reasonCode:'REGISTERED_METHOD_UNAVAILABLE'};
   if(v('recovery_context')!=='phone_change')return support('MFA_VERIFICATION_FAILED');
+  if(!k('mfa_method_goal'))return ask('mfa_method_goal');
+  if(v('mfa_method_goal')!=='transfer')return support(v('mfa_method_goal')==='sign_in'?'MFA_ALTERNATE_METHOD_REVIEW':'MFA_METHOD_GOAL_UNCLEAR');
   if(!k('security_info_access'))return ask('security_info_access');
   return v('security_info_access')==='yes'?guide('identity','manage_existing_method'):support('SECURITY_INFO_ACCESS_REVIEW');
  };
@@ -51,16 +64,24 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
   if(v('setup_blocker')==='registration')return support('AUTHENTICATOR_REGISTRATION_FAILED');
   return support('AUTHENTICATOR_SETUP_UNRESOLVED');
  }
- if(v('recovery_context')==='phone_change'||v('mfa_prompt')==='blocked')return recovery();
+ if(v('verification_context')==='conflicting_screen')return ask('mfa_prompt');
+ if(v('credentials')==='rejected')return guide('identity','credential_check');
+ if(v('mfa_prompt')==='blocked')return recovery();
+ if(v('recovery_context')==='phone_change'&&!k('mfa_prompt')){
+  if(!k('mfa_method_goal'))return ask('mfa_method_goal');
+  if(v('mfa_method_goal')==='transfer')return recovery();
+  if(v('mfa_method_goal')!=='sign_in')return support('MFA_METHOD_GOAL_UNCLEAR');
+  return ask('mfa_prompt');
+ }
  if(!k('error_signature')&&!k('mfa_prompt')&&!k('verification_context')){
   if(v('password_intent')==='forgot')return support('STUDENT_PASSWORD_RESET_REVIEW');
   if(v('password_intent')==='change'){
    if(!k('password_knowledge'))return ask('password_knowledge');
    if(v('password_knowledge')==='no')return support('STUDENT_PASSWORD_RESET_REVIEW');
+   if(k('password_change_environment')&&v('password_change_environment')!=='campus_wired_pc')return support('PASSWORD_CHANGE_ENVIRONMENT_REVIEW');
    return v('password_knowledge')==='yes'?guide('identity','password_change_known'):support('PASSWORD_STATUS_UNCONFIRMED');
   }
  }
- if(v('credentials')==='rejected')return guide('identity','credential_check');
  if(errorHint?.stage==='credential_validation'&&!k('credentials'))return ask('credentials');
  // A directly requested how-to or verified reset may open the approved setup
  // path. "I haven't set it up" alone is not proof that the current prompt is setup.
@@ -72,6 +93,7 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
  if(!k('mfa_setup')&&!k('mfa_prompt')&&!k('verification_context'))return ask('mfa_setup');
  if(!k('mfa_prompt'))return ask('mfa_prompt');
  if(v('mfa_prompt')==='not_tried')return support('SIGN_IN_NOT_ATTEMPTED');
+ if(v('mfa_prompt')==='credential_screen'&&v('credentials')==='accepted')return support('SIGN_IN_STAGE_UNCLEAR');
  if(!k('credentials'))return ask('credentials');
  if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
  if(v('credentials')==='rejected')return guide('identity','credential_check');

@@ -1,5 +1,12 @@
 # Change log
 
+## 0.30.0 — current verification stage and recovery context (validation deferred)
+
+- Distinguish a replacement-phone mention from an actual verification problem; distinguish transfer of an existing registered method from completing sign-in.
+- Clarify conflicting screens, discard stale method-access observations on a new stage or blocked setup attempt, and retain protected lockout handling.
+- Prevent ordinary reviewed answers from replacing a reported credential/security/recovery issue; refresh permission applicability after a failed attendance guide and clear old academic-system context on service selection.
+- No project tests, builds, deployments or native host edits.
+
 ## 0.29.0 — current-catalog review and credential prerequisites (validation deferred)
 
 - Report exact changed service fields and distinguish presentation metadata from other changes without auto-approving changed owners.
