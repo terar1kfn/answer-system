@@ -1,14 +1,19 @@
 {
   "name": "answer-system",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "exports": "./src/engine.mjs",
+  "exports": {
+    ".": "./src/engine.mjs",
+    "./runtime": "./src/runtime.mjs",
+    "./incidents": "./src/incidents.mjs",
+    "./review": "./src/review-queue.mjs"
+  },
   "scripts": {
     "test": "node --test tests/engine.test.mjs",
     "demo": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
-    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs"
+    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs"
   },
   "engines": {
     "node": ">=22"

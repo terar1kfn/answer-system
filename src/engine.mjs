@@ -3,7 +3,7 @@ import {classify,normalize} from './classify.mjs';
 import {eligible,exactReviewedFact,searchKnowledge} from './knowledge.mjs';
 import {interpretFollowup} from './followup.mjs';
 import {summarizeEvidence} from './evidence.mjs';
-export const RULE_VERSION='0.2.0';
+export const RULE_VERSION='0.3.0';
 export const MAX_TURNS=7;
 const SVC=new Set(['mail','portal','attendance','identity','network','exam','other']);
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -58,7 +58,7 @@ function decide(s,c,records,now){
   if(f)return {kind:'answer',factId:f.id,sourceRef:f.sourceRef,catalogRevision:c.revision,title:f.title,answer:f.answer,reasonCode:'EXACT_REVIEWED_FACT'};
  }
  const incident=confirmedIncident(s,records,now);
- if(incident&&['network','identity','task'].includes(s.domain)&&!k('mfa_access')&&!k('recovery_context'))return incident;
+ if(incident&&['network','identity','task'].includes(s.domain)&&!k('mfa_access')&&!k('recovery_context')&&!k('mfa_recovery')&&!k('setup_requested'))return incident;
  if(s.domain==='task')return !k('task')?ask('task'):support(v('task')==='app'?'SERVICE_SPECIFIC_FEATURE':'TASK_UNCLEAR');
  if(s.domain==='mail'){
   if(!s.services.includes('mail'))return support('MAIL_SERVICE_UNCONFIRMED');
@@ -171,5 +171,15 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   return {kind:'advanced',state:advance(state,{expectedTurn,questionId:id,optionId:result.optionId})};
  }
  function search({text,services=[],limit=5}={}){return searchKnowledge(c,{text,services,limit});}
- return Object.freeze({begin,advance,respond,search,ruleVersion:RULE_VERSION,catalogRevision:c.revision});
+ // Trusted host only, after independently verifying its recovery workflow.
+ function resumeRecovery(state,{expectedTurn}={}){
+  if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||state.turn!==expectedTurn)throw Error('STALE_STATE');
+  if(state.decision?.kind!=='offer_mfa_recovery')throw Error('RECOVERY_NOT_OFFERED');
+  const s=copy(state);s.turn++;
+  for(const k of ['recovery_context','mfa_access','mfa_prompt','mfa_setup'])delete s.evidence[k];
+  s.askedQuestionIds=s.askedQuestionIds.filter(k=>!['phone','mfa_setup','mfa_access','mfa_prompt'].includes(k));
+  fact(s,'mfa_recovery','completed','staff_verified');fact(s,'setup_requested','yes','staff_verified');
+  return finish(s,c,records,now());
+ }
+ return Object.freeze({begin,advance,respond,search,resumeRecovery,ruleVersion:RULE_VERSION,catalogRevision:c.revision});
 }

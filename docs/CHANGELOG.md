@@ -1,5 +1,13 @@
 # Change log
 
+## 0.3.0 — 2026-11-24
+
+- Trusted in-process visit lifecycle, version checks, cleanup and generic host-authorized persistent policy.
+- Explicit handoff intents, safe retry and reconciliation, same-issue recovery continuation.
+- Scoped incident registry, deduplicated suspected signals, versioned staff-confirmed transitions and freshness checks.
+- Structured review queue with independent reviewer and catalog revision checks; no automatic publication.
+- Regression scenarios and runtime trust-boundary documentation. No live or private application changes.
+
 ## 0.2.0 — 2026-11-24
 
 - Added conservative bilingual free-text follow-up interpretation and protected-topic interruption.

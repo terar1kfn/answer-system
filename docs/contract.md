@@ -51,3 +51,8 @@ No live integration, port changes, credential sharing or publication of private 
 The engine exposes respond(state, {expectedTurn, text}) for conservative, bilingual free-text replies to the pending question. Unrecognized or contradictory replies return a clarification without advancing; a recognized protected safety signal interrupts the normal path. New unrelated issues require an explicit begin. Do not reinterpret arbitrary free text as a valid option.
 
 Search returns ranked, eligible metadata only. Exact reviewed fact aliases can yield a source-bound answer; ambiguous, unreviewed, inaccessible or fuzzy-only matches cannot produce an answer. Catalog facts include id, serviceId, title, aliases, answer in both languages, sourceRef, audience, reviewed and enabled flags. Service availability can be injected as a trusted map of service IDs to booleans. This is a simple lexical index, not a semantic vector model. Candidate causes carry candidate/supported labels with supporting evidence keys. Student answers never become staff-confirmed root causes.
+
+
+## v0.3 runtime
+
+See [runtime.md](runtime.md) for the trusted visit coordinator, explicit handoff/recovery intents, scoped incident registry and reviewed knowledge proposal queue. All real operations and identity checks remain host responsibilities.
