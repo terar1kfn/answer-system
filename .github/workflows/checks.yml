@@ -20,3 +20,24 @@ jobs:
         run: npm run check
       - name: Native Node regression tests
         run: npm test
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser test driver only
+        run: npm install --no-save --no-package-lock --ignore-scripts playwright-core@1.56.1
+      - name: Exercise synthetic desktop and mobile previews
+        run: |
+          browser="$(command -v google-chrome || command -v chromium || true)"
+          if [ -n "$browser" ]; then
+            BROWSER_EXECUTABLE="$browser" npm run test:browser
+          else
+            npx --no-install playwright-core install chromium
+            npm run test:browser
+          fi

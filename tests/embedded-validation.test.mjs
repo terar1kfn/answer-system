@@ -87,3 +87,81 @@ test('native recovery must still refer to the same recorded request after comple
  let v=await l.begin('a','I changed my phone and use Authenticator');v=await l.choose('a',v,'transfer');v=await l.choose('a',v,'no');assert.equal(v.issue.decision.kind,'offer_mfa_recovery');
  const result=await l.mutation('a',v,'refresh_recovery');assert.equal(result.kind,'recovery_pending');assert.equal(result.issue.decision.kind,'offer_mfa_recovery');
 });
+
+test('AI-disabled policy never invokes injected providers or screenshot hooks',async()=>{
+ let calls=0;
+ const forbidden=async()=>{calls++;throw Error('AI_MUST_NOT_RUN');};
+ const l=lab({intakeAdvisor:{suggest:forbidden},replyAdvisor:{suggest:forbidden},screenshotAdvisor:{suggest:forbidden},authorizeScreenshot:forbidden,getApprovedScreenshot:forbidden});
+ l.policy.allowIntakeAdvice=true;l.policy.allowScreenshotAdvice=true;
+ let v=await l.begin();
+ assert.equal(v.issue.decision.questionId,'task');
+ const picture=await l.mutation('a',v,'screenshot_advice',{screenshotRef:'synthetic_screenshot_123'});
+ assert.equal(picture.reasonCode,'SCREENSHOT_NOT_AVAILABLE');
+ v=await l.choose('a',v,'send');assert.equal(v.issue.decision.questionId,'send_error');
+ v=await l.choose('a',v,'address');assert.equal(v.issue.decision.kind,'open_guide');
+ v=await l.mutation('a',v,'open_guide',{guideId:v.issue.decision.guideId});assert.equal(v.kind,'open_native_guide');
+ v=await l.choose('a',v,'yes');assert.equal(v.issue.decision.kind,'resolved_reported');assert.equal(calls,0);
+});
+test('no model or provider needed for native MFA handoff',async()=>{
+ const l=lab();let v=await l.begin('a','I changed my phone and use Authenticator');
+ v=await l.choose('a',v,'transfer');v=await l.choose('a',v,'no');
+ assert.equal(v.issue.decision.kind,'offer_mfa_recovery');
+ const d=await l.mutation('a',v,'prepare_native_draft');assert.equal(d.kind,'open_native_draft');assert.equal(d.channel,'mfa_recovery');
+});
+test('provider exception during intake cannot prevent deterministic diagnosis',async()=>{
+ let calls=0;const unavailable=async()=>{calls++;throw Error('MODEL_OFFLINE');};
+ const l=lab({intakeAdvisor:{suggest:unavailable}});l.policy.allowModelAdvice=true;l.policy.allowIntakeAdvice=true;
+ let v=await l.begin();assert.equal(calls,1);assert.equal(v.kind,'state');assert.equal(v.issue.decision.questionId,'task');
+ v=await l.choose('a',v,'send');v=await l.choose('a',v,'address');assert.equal(v.issue.decision.kind,'open_guide');
+});
+test('provider timeout leaves deterministic session usable and retains actual resource lease',async()=>{
+ const gate=deferred();let calls=0;
+ const l=lab({adviceTimeoutMs:100,intakeAdvisor:{suggest:async()=>{calls++;await gate.promise;return null;}}});
+ l.policy.allowModelAdvice=true;l.policy.allowIntakeAdvice=true;
+ try{
+  let v=await l.begin();assert.equal(v.kind,'state');assert.equal(calls,1);
+  const b=await l.begin('b');assert.equal(b.kind,'state');assert.equal(calls,1);
+  v=await l.choose('a',v,'send');v=await l.choose('a',v,'address');assert.equal(v.issue.decision.kind,'open_guide');
+ }finally{gate.resolve();}
+});
+test('failed contextual model does not replace a valid fixed answer',async()=>{
+ let calls=0;const l=lab({replyAdvisor:{suggest:async()=>{calls++;throw Error('MODEL_OFFLINE');}}});
+ l.policy.allowModelAdvice=true;
+ const v=await l.begin();
+ const uncertain=await l.mutation('a',v,'respond',{text:'The situation seems rather peculiar'});
+ assert.equal(uncertain.kind,'clarify');assert.equal(calls,1);assert.equal(uncertain.version,v.version);assert.equal(uncertain.issue.decision.questionId,'task');
+ const answered=await l.choose('a',uncertain,'send');assert.equal(answered.issue.decision.questionId,'send_error');
+});
+test('sustained synthetic concurrent visits work with no model hooks', {timeout:30000},async()=>{
+ const n=syntheticNative(),count=32,rounds=12,actors=new Map();
+ for(let i=0;i<count;i++)actors.set('s'+i,{role:'STUDENT',actorRef:'synthetic-load-actor-'+i,visitRef:'synthetic-load-visit-'+i,active:true});
+ let serial=0;const times=[];
+ const bridge=createEmbeddedAnswerBridge({
+  authenticate:async token=>actors.get(token),enabled:async()=>true,
+  routeInput:async()=>({kind:'supplemental',scopeKey:'synthetic-load-scope'}),
+  resolvePolicy:async()=>({allowed:true,revision:'synthetic-load-policy',allowedNativeServiceIds:[n.owner.id],diagnosticServices:['mail'],examStatus:'not-started',allowMfaRecovery:false,allowModelAdvice:false}),
+  getConfiguration:async()=>clone(n.configuration),getMapping:async()=>clone(n.mapping),...n.callbacks,getExistingRequest:async()=>({status:'none'}),verifyRecoveryCompletion:async()=>null,
+  now:()=>1000000,newId:()=> 'synthetic-load-'+(++serial),maxVisits:count
+ });
+ async function command(token,input){
+  const start=performance.now();const result=await bridge.dispatch(token,input);times.push(performance.now()-start);return result;
+ }
+ const start=performance.now();
+ await Promise.all([...actors.keys()].map(async token=>{
+  let v={version:0};
+  for(let r=0;r<rounds;r++){
+   v=await command(token,{action:'begin',expectedVersion:v.version,text:'Cannot send email',language:r%2?'ar':'en'});
+   assert.equal(v.issue.decision.questionId,'send_error');
+   const mutate=(action,extra)=>command(token,{action,expectedVersion:v.version,issueId:v.issue.issueId,...extra});
+   v=await mutate('respond',{questionId:'send_error',optionId:'address'});assert.equal(v.issue.decision.kind,'open_guide');
+   v=await mutate('open_guide',{guideId:v.issue.decision.guideId});assert.equal(v.kind,'open_native_guide');
+   v=await mutate('respond',{questionId:'outcome',optionId:'yes'});assert.equal(v.issue.decision.kind,'resolved_reported');
+  }
+ }));
+ assert.equal(times.length,count*rounds*4);
+ assert.equal(bridge.stats().visits,count);assert.equal(bridge.stats().inFlight,0);
+ for(const actor of actors.values())bridge.forgetVisit(actor.visitRef);
+ assert.equal(bridge.stats().visits,0);
+ const elapsed=performance.now()-start;times.sort((a,b)=>a-b);
+ console.log('SYNTHETIC_LOAD '+JSON.stringify({visits:count,rounds,operations:times.length,elapsedMs:Math.round(elapsed),p95Ms:Math.round(times[Math.ceil(times.length*.95)-1]*100)/100}));
+});

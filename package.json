@@ -71,7 +71,8 @@
     "check": "node scripts/check-syntax.mjs",
     "workbench": "node scripts/workbench.mjs",
     "workbench:persistent": "node scripts/workbench.mjs --persist-demo",
-    "reconcile:private": "node scripts/reconcile-native-catalog.mjs"
+    "reconcile:private": "node scripts/reconcile-native-catalog.mjs",
+    "test:browser": "node scripts/test-browser.mjs"
   },
   "engines": {
     "node": ">=22"
