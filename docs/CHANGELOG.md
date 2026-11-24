@@ -1,5 +1,11 @@
 # Change log
 
+## 0.29.0 — current-catalog review and credential prerequisites (validation deferred)
+
+- Report exact changed service fields and distinguish presentation metadata from other changes without auto-approving changed owners.
+- Add optional wired-campus-computer password-change applicability question and tighten registered-method typed access interpretation.
+- No real catalog content in public code, no tests/builds/deployment or native host changes.
+
 ## 0.28.0 — revision-aware private proposal reconciliation (validation deferred)
 
 - Compare source proposal references, explicit native owner, availability, current scope and existing purpose overlap against a new source publication.

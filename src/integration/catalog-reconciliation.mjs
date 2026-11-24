@@ -36,6 +36,20 @@ function inventory(before,current){
   changed:present.filter(x=>a.has(x)&&nativeRecordFingerprint(a.get(x))!==nativeRecordFingerprint(b.get(x))),
   unchanged:present.filter(x=>a.has(x)&&nativeRecordFingerprint(a.get(x))===nativeRecordFingerprint(b.get(x)))};
 }
+/** Distinguish changed presentation metadata from changed routing or policy.
+ * This is review information only: every changed owner remains held by the
+ * default reconciliation rule until independently reviewed and re-pinned. */
+export function describeNativeServiceChanges(before,current){
+ if(!Array.isArray(before)||!Array.isArray(current))fail('SERVICE_BASELINE_REQUIRED');
+ const previous=new Map(before.map(s=>[s.id,s]));
+ return current.filter(s=>previous.has(s.id)).map(s=>{
+  const a=previous.get(s.id),keys=[...new Set([...Object.keys(a),...Object.keys(s)])].sort();
+  const changedFields=keys.filter(k=>Object.hasOwn(a,k)!==Object.hasOwn(s,k)||Object.hasOwn(a,k)&&Object.hasOwn(s,k)&&nativeRecordFingerprint(a[k])!==nativeRecordFingerprint(s[k]));
+  return {nativeServiceId:s.id,previousFingerprint:nativeRecordFingerprint(a),currentFingerprint:nativeRecordFingerprint(s),changedFields,
+   changeClass:!changedFields.length?'unchanged':changedFields.every(k=>['order','descriptionEn','descriptionAr','icon'].includes(k))?'presentation_metadata_changed':'routing_or_other_metadata_changed',
+   requiresReview:changedFields.length>0};
+ });
+}
 /**
  * Private operator/reviewer computation, not student routing or publishing.
  * The host supplies its current authoritative configuration and exact policy
@@ -109,6 +123,7 @@ export function reconcileNativeMapping({configuration,baselineConfiguration=null
   previous:{mappingRevision:previousMapping.revision,sourceRevision:previousMapping.sourceRevision,sourceCatalogFingerprint:previousMapping.sourceCatalogFingerprint},
   current:{sourceRevision,sourceCatalogFingerprint,guideCount:configuration.guides.length,serviceCount:configuration.services.length},
   relation,baselineAvailable:baselineConfiguration!==null,guideChanges,serviceChanges,
+  serviceFieldChanges:baselineConfiguration?describeNativeServiceChanges(beforeServices,configuration.services):null,
   retainedReviewCandidates:count,withheldCount:rows.length-count,rows,
   unmappedCurrentGuideIds:configuration.guides.filter(g=>!mappedIds.has(g.id)).map(g=>g.id).sort(),
   unmappedCurrentServiceIds:configuration.services.filter(s=>!oldOwners.has(s.id)).map(s=>s.id).sort(),

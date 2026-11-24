@@ -1,0 +1,9 @@
+# Current native catalog review and credential prerequisites — 0.29 (validation deferred)
+
+Catalog revisions may change service presentation, entry routes, permissions or availability independently of guide content. Reconciliation now reports exact service field names that changed, old/new record fingerprints, and a separate presentation-only classification. All changed service records still require review; the classification is not an automatic mapping approval or bypass. Newly available services and new directory/administrative/exam routes remain native unless expressly admitted by the current host policy. Disabled guides are never eligible supplemental recommendations.
+
+Add an optional fixed password-change environment prerequisite for a mapping to an institution-approved wired campus-computer procedure. The engine may request this prerequisite only when a reviewed guide requires it. The answer describes access and knowledge of the required credentials; it never collects those credentials, authorizes account changes, or assumes all institutions require campus computers. Unknown or nonmatching environments cannot satisfy the mapping. Staff review remains required for actual password policy and guidance. Recovery clears outdated password-change environment evidence.
+
+Tighten the typed reply matcher for existing registered MFA method access: simply possessing an old device is not confirmation that a registered method is usable. Retain explicit, current-method reports and the canonical fixed choices. No raw student data or institution-specific guide content is committed.
+
+This version was developed without running project tests, builds, native integration, providers, or deployment. Private catalog review is an offline data analysis separate from runtime validation.

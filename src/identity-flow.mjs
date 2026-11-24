@@ -6,7 +6,7 @@ import {decidePostSignIn} from './operation-context.mjs';
 const get=(s,k)=>s.evidence[k]?.value;
 const has=(s,k)=>Object.hasOwn(s.evidence,k);
 export const SETUP_PURPOSES=Object.freeze(['setup_ios','setup_android']);
-const STALE_SIGN_IN=['mfa_prompt','mfa_access','recovery_context','credentials','connection','peers','service_access','verification_context','error_signature','login_screen','shared_access_pattern','security_info_access','password_intent','password_knowledge','post_signin_stage'];
+const STALE_SIGN_IN=['mfa_prompt','mfa_access','recovery_context','credentials','connection','peers','service_access','verification_context','error_signature','login_screen','shared_access_pattern','security_info_access','password_intent','password_knowledge','password_change_environment','post_signin_stage'];
 function forget(s,keys){for(const k of keys)delete s.evidence[k];s.askedQuestionIds=s.askedQuestionIds.filter(k=>!keys.includes(k));}
 function reported(s,key,value,origin='student_report'){s.evidence[key]={value,origin};}
 export function isFailedSetup(s){

@@ -4,7 +4,7 @@
  * not a learned probability. Hard safety/identity prerequisites are never
  * reordered by this module.
  */
-const permitted=['network_scope','attendance_permission_kind','portal_system','assignment_kind','attendance_qr_task','mail_client','meeting_client','device_os','phone','browser_scope'];
+const permitted=['password_change_environment','network_scope','attendance_permission_kind','portal_system','assignment_kind','attendance_qr_task','mail_client','meeting_client','device_os','phone','browser_scope'];
 export function chooseGuidePrerequisite(viable,state,{minimumSpecificity=-1}={}){
  if(!Array.isArray(viable)||!state?.evidence)return null;
  const relevant=viable.filter(g=>Object.keys(g.requires||{}).length>minimumSpecificity);

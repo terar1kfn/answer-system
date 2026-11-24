@@ -20,7 +20,7 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.27.0';
+export const RULE_VERSION='0.29.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -60,6 +60,8 @@ function guide(s,c,service,purpose){
  // Do not ask a sensitive question merely because a guide references it.
  const viable=eligibleGuides.filter(g=>Object.entries(g.requires||{}).every(([k,values])=>!known(s,k)||values.includes(value(s,k))));
  const specificity=Object.keys(matches[0]?.requires||{}).length;
+ // A mapped prerequisite may distinguish a password-change environment;
+ // it is never a grant of access or authority to change credentials.
  const nextKey=chooseGuidePrerequisite(viable,s,{minimumSpecificity:specificity});
  if(nextKey)return ask(nextKey);
  if(!matches.length){

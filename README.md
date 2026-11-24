@@ -118,3 +118,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Private proposal reconciliation](docs/proposal-reconciliation.md) adds exact baseline-to-current comparison for knowledge drafts, explicit owner and overlapping-purpose review, and separately verified draft rebasing without carrying source approvals forward.
+
+
+[Current native catalog review](docs/native-catalog-current-review.md) distinguishes presentation metadata changes from other service changes, adds a fixed password-change environment prerequisite and tightens typed MFA-access reports. Exact current host eligibility and independent review remain mandatory.
