@@ -3,6 +3,7 @@ import {QUESTIONS} from './questions.mjs';
 import {getErrorSignature} from './error-intelligence.mjs';
 import {eligible} from './knowledge.mjs';
 const ok=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
+const hash=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
 const clone=x=>JSON.parse(JSON.stringify(x));
 const VALID_EXTRA={
  recovery_context:['phone_change'],setup_requested:['yes'],setup_completed:['yes'],mfa_recovery:['completed'],
@@ -25,8 +26,10 @@ export function createCaseIndex({cases=[],getCatalog}={}){
  const rows=cases.map(c=>{
   if(!c||!ok(c.id)||ids.has(c.id)||!isServiceId(c.serviceId)||!ok(c.causeCode)||!ok(c.solutionRef)||typeof c.approved!=='boolean'||
    !Array.isArray(c.signals)||!c.signals.length||c.signals.length>20||!c.signals.every(validSignal)||new Set(c.signals.map(s=>s.key)).size!==c.signals.length||
+   (c.outcome!==undefined&&!['resolved','unresolved','unknown'].includes(c.outcome))||
+   (c.guideFingerprint!==undefined&&!hash(c.guideFingerprint))||
    c.outcomeEvidence!==undefined&&!['staff_verified','student_reported','unverified'].includes(c.outcomeEvidence))throw Error('INVALID_CASE_RECORD');
-  ids.add(c.id);return clone({id:c.id,serviceId:c.serviceId,causeCode:c.causeCode,solutionRef:c.solutionRef,approved:c.approved,signals:c.signals,outcomeEvidence:c.outcomeEvidence||'unverified'});
+  ids.add(c.id);return clone({id:c.id,serviceId:c.serviceId,causeCode:c.causeCode,solutionRef:c.solutionRef,approved:c.approved,signals:c.signals,outcomeEvidence:c.outcomeEvidence||'unverified',outcome:c.outcome||'unknown',...(c.guideFingerprint?{guideFingerprint:c.guideFingerprint}:{})});
  });
  function find(state,{limit=5}={}){
   if(!state||!Array.isArray(state.services)||!state.evidence||['safety','exam'].includes(state.domain)||!Number.isInteger(limit)||limit<1||limit>10)return [];
@@ -34,7 +37,9 @@ export function createCaseIndex({cases=[],getCatalog}={}){
   const guides=new Map(catalog.guides.filter(g=>eligible(g,{catalog})).map(g=>[g.id,g]));
   return rows.filter(r=>{
    const g=guides.get(r.solutionRef);
-   return r.approved&&state.services.includes(r.serviceId)&&g?.serviceId===r.serviceId;
+   return r.approved&&r.outcome!=='unresolved'&&state.services.includes(r.serviceId)&&g?.serviceId===r.serviceId&&
+    (!r.guideFingerprint||r.guideFingerprint===g.nativeGuideFingerprint)&&
+    (!g.nativeGuideFingerprint||r.guideFingerprint===g.nativeGuideFingerprint);
   }).flatMap(r=>{
    const g=guides.get(r.solutionRef),matched=[],missing=[],contradicted=[];
    let matchedWeight=0,totalWeight=0;
@@ -51,8 +56,8 @@ export function createCaseIndex({cases=[],getCatalog}={}){
    const priorAttempt=(state.guideAttempts||[]).some(a=>a.guideId===g.id&&a.outcome==='no');
    return [{caseRef:r.id,serviceId:r.serviceId,causeCode:r.causeCode,solutionRef:r.solutionRef,
     matched:matched.length,totalSignals:r.signals.length,contradicted:false,score:matchedWeight/totalWeight,matchedEvidenceKeys:matched,
-    missingEvidenceKeys:missing,missingPrerequisites,priorAttempt,outcomeEvidence:r.outcomeEvidence,
-    strongMatch:matched.length>=2&&matchedWeight>=5&&missing.length===0&&missingPrerequisites.length===0&&!priorAttempt&&r.outcomeEvidence==='staff_verified',
+    missingEvidenceKeys:missing,missingPrerequisites,priorAttempt,outcomeEvidence:r.outcomeEvidence,outcome:r.outcome,
+    strongMatch:matched.length>=2&&matchedWeight>=5&&missing.length===0&&missingPrerequisites.length===0&&!priorAttempt&&r.outcomeEvidence==='staff_verified'&&r.outcome==='resolved',
     requiresHumanReview:true}];
   }).sort((a,b)=>Number(b.strongMatch)-Number(a.strongMatch)||Number(a.priorAttempt)-Number(b.priorAttempt)||b.score-a.score||b.matched-a.matched||a.caseRef.localeCompare(b.caseRef)).slice(0,limit);
  }

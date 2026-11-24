@@ -1,5 +1,12 @@
 # Change log
 
+## 0.24.0 — reviewed outcome learning (validation deferred)
+
+- Added private durable finalized-outcome ledger with pseudonymous receipt deduplication, monotonic corrections, bounded retention and exact guide-version reporting.
+- Separate navigation/attempt, student report, staff verification and multiple interventions; produce observed verified outcome summaries and review signals only.
+- Added authorized native learning service with historical guide and finalization checks; strengthen prior-case matching with successful outcome provenance and native fingerprints.
+- No case import, real operational data, tests, builds, providers, deployments or original application edits.
+
 ## 0.23.0 — current-operation diagnostic reasoning (validation deferred)
 
 - Separate authentication success, service access and original-task success; preserve academic-system context, exact device/client observations and clarify unsuccessful academic guides.

@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.23 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.24 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -103,3 +103,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Current operation context](docs/operation-context.md) distinguishes verification, service entry and original task, preserves multiple named academic systems and captures explicit platform/client observations.
+
+
+[Reviewed solution-effectiveness learning](docs/solution-effectiveness.md) adds an optional private finalized-outcome import and revision-aware effectiveness ledger, with separate verification and attribution, deduplication, correction, retention, historical-guide checks and staff review signals. It does not automatically change diagnosis or import real cases.
