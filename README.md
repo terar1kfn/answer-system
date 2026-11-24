@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.13 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.14 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -73,3 +73,6 @@ The [native assistant client](docs/native-assistant-client.md) adds a guarded li
 
 
 The [private catalog mapping and coverage review](docs/catalog-mapping-review.md) inventories required guide purposes, reports mapping gaps and potential prerequisite overlaps, proposes eligible metadata-only review leads, and prepares explicit unapproved mapping drafts. It does not publish knowledge or run against a real catalog by itself.
+
+
+[Evidence and alternative diagnosis](docs/diagnostic-reasoning.md) adds relative support/contradiction ranking, an explicit uncertainty summary, and bounded second-line diagnosis after an unsuccessful guide. Alternatives require fresh reported evidence and a different eligible reviewed purpose. Validation remains deferred.

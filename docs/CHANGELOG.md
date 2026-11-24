@@ -1,5 +1,12 @@
 # Change log
 
+## 0.14.0 — evidence ranking and alternative diagnosis (validation deferred)
+
+- Added evidence-linked support, contradiction and conflict ranking with an explicit uncertainty summary (not probabilities).
+- Added structured guide attempt history and bounded second-line diagnosis for unsuccessful guidance. Distinct alternatives require explicit evidence and pass the existing approved-guide eligibility gates.
+- Improved network symptom clarification, setup-request recognition, punctuation and spaced error-code normalization, possible-code filtering, and localized alternative/support copy.
+- No actual university mappings, tests, builds, browser runs, model calls, deployment or private application changes. CI remains manual-only.
+
 ## 0.13.0 — private knowledge mapping preparation (validation deferred)
 
 - Added a shared inventory of core and playbook guide purposes, a native-projection-based mapping coverage report and authorized private reviewer wrapper.

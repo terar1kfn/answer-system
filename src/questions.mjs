@@ -36,6 +36,24 @@ export const QUESTIONS={
  ['all','All','جميع الرسائل'],['some','Some','بعض الرسائل'],unknown]),
  exam_started:q('Has your exam started?','هل بدأ اختبارك؟',[yes,no,unknown]),
  exam_app:q('Which exam app are you using?','ما تطبيق الاختبار؟',[['lockdown','LockDown Browser','LockDown Browser'],['examplify','Examplify','Examplify'],unknown]),
+ guide_result:q('What happened when you tried the previous guidance?','ماذا حدث عند اتباع الإرشادات السابقة؟',[
+ ['completed_same','I followed the steps, but the same problem remains','اتبعت الخطوات لكن المشكلة نفسها ما زالت قائمة'],['partial','Some parts work now, but the original task still fails','تحسنت بعض الأمور لكن المهمة الأصلية لا تزال لا تعمل'],['blocked','I could not complete one of the steps','لم أتمكن من إكمال إحدى الخطوات'],['not_tried','I have not tried the guidance','لم أجرب الإرشادات'],['different','A different error or problem appeared','ظهر خطأ أو مشكلة مختلفة'],unknown]),
+ retry_mail_scope:q('After the previous attempt, is this same mail problem limited to the app?','بعد المحاولة السابقة، هل تقتصر مشكلة البريد نفسها على التطبيق؟',[
+ ['app_only','The original task works in approved webmail but not in the app','تعمل المهمة الأصلية في بريد الويب المعتمد لكن لا تعمل في التطبيق'],['both','The original task still fails in both','المهمة الأصلية لا تزال لا تعمل في الاثنين'],['not_tried','I have not compared them','لم أقارن بينهما'],unknown]),
+ retry_mail_detail:q('What does the latest failed send attempt report?','ماذا تعرض أحدث محاولة إرسال فاشلة؟',[
+ ['address','Recipient address not found','عنوان المستلم غير موجود'],['size','Message or attachment is too large','حجم الرسالة أو المرفق كبير'],['recipients','An explicit recipient-limit message','رسالة صريحة عن حد المستلمين'],['restricted','Sender or account is restricted','المرسل أو الحساب مقيد'],['other','Another error or no clear error','خطأ آخر أو لا يوجد خطأ واضح'],unknown]),
+ retry_network_scope:q('What is the remaining network symptom on the affected device?','ما مشكلة الشبكة المتبقية على الجهاز المتأثر؟',[
+ ['ssid_missing','The intended network name is missing','اسم الشبكة المطلوبة غير ظاهر'],['auth','Network sign-in is rejected','يتم رفض تسجيل الدخول إلى الشبكة'],['slow','The connection works but is intermittent or slow','الاتصال يعمل لكنه متقطع أو بطيء'],['no_internet','Connected, but other websites still do not load','متصل لكن المواقع الأخرى ما زالت لا تعمل'],unknown]),
+ retry_attendance_detail:q('Does the attendance app now explicitly report that a camera or location permission is missing?','هل يعرض تطبيق الحضور الآن رسالة صريحة عن نقص إذن الكاميرا أو الموقع؟',[
+ ['permission','Yes, the app reports a permission problem','نعم، يعرض التطبيق مشكلة إذن'],['other','No, another problem remains','لا، توجد مشكلة أخرى'],unknown]),
+ retry_meeting_scope:q('On the same device, is the same audio or video problem also present in another ordinary app?','على الجهاز نفسه، هل تحدث مشكلة الصوت أو الفيديو نفسها في تطبيق عادي آخر؟',[
+ ['other_apps','Yes, the same problem occurs elsewhere','نعم، تحدث المشكلة نفسها في تطبيق آخر'],['only_meeting','Only the meeting app is affected','المشكلة في تطبيق الاجتماع فقط'],['not_tried','I have not checked','لم أتحقق'],unknown]),
+ retry_software_detail:q('Does the approved application explicitly say it needs an update before it can open?','هل يعرض البرنامج المعتمد رسالة صريحة بأنه يحتاج إلى تحديث قبل فتحه؟',[
+ ['update_required','Yes, an update is required','نعم، يلزم تحديث'],['other','No, another problem remains','لا، توجد مشكلة أخرى'],unknown]),
+ retry_storage_detail:q('Does the current storage or sync screen explicitly report that available space or quota is exhausted?','هل تعرض شاشة التخزين أو المزامنة الحالية رسالة صريحة بأن المساحة أو الحصة ممتلئة؟',[
+ ['quota','Yes, there is a storage limit message','نعم، تظهر رسالة حد التخزين'],['other','No, another problem remains','لا، توجد مشكلة أخرى'],unknown]),
+ retry_printer_detail:q('Is the intended printer now available, but your print job remains stuck in the queue?','هل أصبحت الطابعة المطلوبة متاحة الآن لكن مهمة الطباعة لا تزال عالقة؟',[
+ ['queue','Yes, the printer is available and the job is stuck','نعم، الطابعة متاحة والمهمة عالقة'],['other','No, another problem remains','لا، توجد مشكلة أخرى'],unknown]),
  outcome:q('After following the guidance, does the original task work now?','بعد اتباع الإرشادات، هل تعمل المهمة الأصلية الآن؟',[['yes','Yes, it works','نعم، تعمل الآن'],['no','No, still failing','لا، المشكلة قائمة'],unknown])
 };
 for(const v of Object.values(QUESTIONS)){Object.freeze(v.text);for(const o of v.options){Object.freeze(o.label);Object.freeze(o);}Object.freeze(v.options);Object.freeze(v);}

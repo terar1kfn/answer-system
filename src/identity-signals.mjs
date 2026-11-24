@@ -8,6 +8,8 @@ const patterns={
  challenge:['asks me for a verification code','asks for a verification code','asks me to enter a code','asks me for a code','asks for a code','asks me to approve sign in','asks me to approve the sign in','authenticator code','authenticator approval','number matching','code sent to my old phone','يطلب مني رمز التحقق','يطلب رمز التحقق','يطلب مني كود','يطلب مني رمز','يطلب الموافقه علي تسجيل الدخول','رمز تطبيق المصادقه'],
  unexpected:['unexpected sign in request','unexpected approval request','unexpected authenticator request','sign in request i did not initiate','approval request i did not initiate','did not try to sign in','طلب تسجيل دخول لم ابدا','طلب موافقه لم ابدا','طلب تحقق غير متوقع'],
  unknownSetup:['i don t know what authenticator is','i dont know what authenticator is','never heard of authenticator','i don t know if authenticator is set up','ما اعرف وش المصادقه','ما اعرف ما هو تطبيق المصادقه','ما بعرف شو المصادقه','لا اعرف ما هو تطبيق المصادقه'],
+ knownSetup:['authenticator is already set up','i have already set up authenticator','i already configured authenticator','تم اعداد تطبيق المصادقه','انا مفعل المصادقه'],
+ missingSetup:['authenticator is not set up','i have not set up authenticator','i have never set up authenticator','i haven t set up authenticator','لم اعد تطبيق المصادقه','لم يتم اعداد تطبيق المصادقه'],
  credentialRejected:['incorrect password','invalid username or password','username or password is incorrect','wrong username','invalid username','password is incorrect','password rejected','كلمه المرور غير صحيحه','اسم المستخدم غير صحيح','اسم المستخدم او كلمه المرور غير صحيحه']
 };
 export function detectIdentitySignals(t){
@@ -15,7 +17,8 @@ export function detectIdentitySignals(t){
  const blocked=has('blocked'),challenge=has('challenge'),setup=has('setupScreen'),unexpected=has('unexpected');
  const credential=has('credentialRejected'),screen=has('signInScreen'),unknown=has('unknownSetup');
  const explicitMailFault=/\b(?:cannot|can t|cant|unable to|could not) (?:send|receive) (?:an? |any |my |all |the )?(?:emails?|messages?|mail)\b|\b(?:incoming|outgoing) (?:emails?|mail|messages)\b|لا استطيع (?:ارسال|استقبال) (?:البريد|الايميل|الرسائل)/.test(t);
- const explicitLogin=screen||setup||blocked||challenge||unexpected||credential||unknown;
+ const configured=has('knownSetup'),unconfigured=has('missingSetup');
+ const explicitLogin=screen||setup||blocked||challenge||unexpected||credential||unknown||configured||unconfigured;
  const facts={};
  if(unexpected)facts.mfa_prompt='unexpected';
  else if(setup&&blocked)facts.verification_context='conflicting_screen';
@@ -23,7 +26,8 @@ export function detectIdentitySignals(t){
  else if(blocked)facts.mfa_prompt='blocked';
  else if(challenge)facts.verification_context='challenge';
  if(screen)facts.login_screen='sign_in_visible';
- if(unknown)facts.mfa_setup='unknown';
+ if(unknown||configured&&unconfigured)facts.mfa_setup='unknown';
+ else if(configured)facts.mfa_setup='yes';else if(unconfigured)facts.mfa_setup='no';
  if(credential)facts.credentials='rejected';
  return {explicitLogin,explicitMailFault,facts};
 }

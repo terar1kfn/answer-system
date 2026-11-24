@@ -7,7 +7,7 @@ import {detectIdentitySignals} from './identity-signals.mjs';
 import {normalizePresentation} from './input-language.mjs';
 import {isSharedServiceSet} from './shared-access.mjs';
 export function normalize(text){
- return normalizePresentation(text).toLowerCase().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[^a-z0-9\u0600-\u06ff.]+/g,' ').trim();
+ return normalizePresentation(text).toLowerCase().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[^a-z0-9\u0600-\u06ff.]+/g,' ').replace(/(?<!\d)\.|\.(?!\d)/g,' ').replace(/\s+/g,' ').trim();
 }
 const has=(t,words)=>words.some(w=>(' '+t+' ').includes(' '+normalize(w)+' '));
 function classifyBase(raw){
@@ -54,7 +54,7 @@ function classifyBase(raw){
  if(mfa&&/\b(?:unexpected (?:sign in |approval )?request|did not initiate|didn t initiate)\b|لم ابدا تسجيل الدخول/.test(t)){
   if(!services.length)add('identity');facts.task='login';facts.mfa_prompt='unexpected';
  }
- if(mfa&&!oldPhone&&/\b(?:set up|setup|install|configure)\b|اعداد|تثبيت/.test(t))facts.setup_requested='yes';
+ if(mfa&&!oldPhone&&/^(?:how (?:do|can) i |how to |i (?:want|need) to |please |كيف |اريد |ابغي |بدي )?(?:set up|setup|install|configure|اعداد|اعد|تثبيت|اثبت)(?: |$)|^(?:how|كيف)(?: .*)? (?:set up|install|configure|اعداد|اثبت|تثبيت)(?: |$)/.test(t))facts.setup_requested='yes';
  if(/\b(?:outlook|email) (?:says|shows) sign in\b/.test(t))facts.task='login';
  if(network&&!mail&&!portal&&!attendance&&!mfa&&!oldPhone&&!login)return out('network');
  if(!services.length)return out('unknown');
@@ -103,6 +103,7 @@ export function classify(raw){
  if(named.length&&services.includes('network')&&!/\b(?:wifi|wi fi|internet)\b|واي فاي|النت|انترنت/.test(t))services=services.filter(s=>s!=='network');
  if(named.length&&services.includes('identity')&&base.domain==='identity')services=services.filter(s=>s!=='identity');
  const facts={...base.facts};
+ if(signals.facts.mfa_setup||signals.facts.verification_context==='conflicting_screen')delete facts.setup_requested;
  if(signals.explicitLogin){
   if(signals.explicitMailFault&&base.domain==='mail')return out('task',['mail'],{});
   Object.assign(facts,signals.facts);

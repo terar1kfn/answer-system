@@ -3,6 +3,7 @@ import {classify,normalize} from './classify.mjs';
 import {eligible,exactReviewedFact,searchKnowledge} from './knowledge.mjs';
 import {interpretFollowup} from './followup.mjs';
 import {summarizeEvidence} from './evidence.mjs';
+import {summarizeDiagnosticUncertainty} from './diagnostic-hypotheses.mjs';
 import {isServiceId} from './service-taxonomy.mjs';
 import {hasServicePlaybook,nextServiceDecision} from './service-playbooks.mjs';
 import {getErrorSignature} from './error-intelligence.mjs';
@@ -10,8 +11,9 @@ import {sanitizeText} from './privacy.mjs';
 import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from './answer-planner.mjs';
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
-export const RULE_VERSION='0.11.0';
-export const MAX_TURNS=10;
+import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
+export const RULE_VERSION='0.14.0';
+export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
 const support=(reasonCode,priority='normal')=>({kind:'offer_support',reasonCode,priority});
@@ -78,7 +80,7 @@ function decide(s,c,records,now){
  }
  if(c.diagnosticServices&&s.services.some(id=>!c.diagnosticServices.includes(id)))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
- if(k('outcome')&&!isFailedSetup(s))return support(v('outcome')==='no'?'GUIDE_DID_NOT_WORK':'OUTCOME_UNCONFIRMED');
+ if(v('outcome')==='unknown')return support('OUTCOME_UNCONFIRMED');
  if(s.knowledgeChoices?.length&&!k('reviewed_topic'))return ask('reviewed_topic');
  if(s.domain==='unknown')return !k('service')?ask('service'):support('SERVICE_UNCLEAR');
  if(s.reviewedFactId&&!k('outcome')){
@@ -92,6 +94,8 @@ function decide(s,c,records,now){
  if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
  if(errorHint?.stage==='recipient_rate_limit'||errorHint?.stage==='quota_or_rate_review')return support('MAIL_QUOTA_REVIEW');
  if(s.domain==='mail'&&v('send_error')==='restricted')return support('MAIL_SENDER_RESTRICTED');
+ if(v('outcome')==='no'&&!isFailedSetup(s))return decideAfterFailedGuide(s,c,{ask,guide:g,support});
+ if(s.activeAlternative)return repeatAlternative(s,{guide:g});
  const incident=confirmedIncident(s,records,now);
  if(incident&&['network','identity','task','specific'].includes(s.domain)&&!k('error_signature')&&!k('credentials')&&!k('mfa_access')&&!k('mfa_prompt')&&!k('recovery_context')&&!k('mfa_recovery')&&!k('setup_requested'))return incident;
  if(s.domain==='shared')return decideSharedAccess(s,{ask,support});
@@ -130,11 +134,15 @@ function decide(s,c,records,now){
  }
  if(s.domain==='network'){
   if(!k('connection'))return ask('connection');
-  if(v('connection')==='yes')return v('network_issue')==='slow'?g('network','network_slow'):support('SPECIFIC_SERVICE_FAILURE');
+  if(v('connection')==='yes'){
+   if(!k('network_issue'))return ask('network_issue');
+   return v('network_issue')==='slow'?g('network','network_slow'):support('SPECIFIC_SERVICE_FAILURE');
+  }
   if(!k('peers'))return ask('peers');
   if(v('peers')==='yes')return support('POSSIBLE_SHARED_NETWORK_INCIDENT');
   if(v('peers')==='unknown')return support('NETWORK_SCOPE_UNCLEAR');
   if(v('connection')!=='no')return support('NETWORK_EVIDENCE_INCOMPLETE');
+  if(!k('network_issue'))return ask('network_issue');
   const purpose={ssid_missing:'network_ssid',auth:'network_auth',slow:'network_slow'}[v('network_issue')];
   return g('network',purpose||'individual_connectivity');
  }
@@ -156,9 +164,10 @@ function finish(s,c,records,now){
   if(d.questionId==='service'&&c.diagnosticServices)question={...question,options:question.options.filter(o=>c.diagnosticServices.includes(o.id))};
   if(!question.options.length)d=support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');else d={...d,question};
  }
- if(d.kind==='open_guide'){s.offeredGuideIds.push(d.guideId);s.lastGuidePurpose=c.guides.find(g=>g.id===d.guideId)?.purpose;}
+ if(d.kind==='open_guide'){activateAlternative(s,d);s.offeredGuideIds.push(d.guideId);s.lastGuidePurpose=c.guides.find(g=>g.id===d.guideId)?.purpose;}
  if(d.kind==='open_guide'||d.kind==='answer')d={...d,followUp:{questionId:'outcome',question:QUESTIONS.outcome}};
  s.candidates=summarizeEvidence(s);
+ s.diagnosticUncertainty=summarizeDiagnosticUncertainty(s,s.candidates);
  const hint=getErrorSignature(value(s,'error_signature'));if(hint)s.errorHint=hint;else delete s.errorHint;
  s.decision=d;s.status=d.kind==='ask'?'diagnosing':['open_guide','answer'].includes(d.kind)?'guidance':d.kind==='resolved_reported'?'resolved_reported':'handoff_offered';
  return copy(s);
@@ -175,7 +184,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const r=classify(clean.text||'redacted');
   text=clean.text;
   const isHowTo=/^(?:how (?:do|can|to)|what is|where (?:is|can)|كيف|ما هو|ما هي|اين)\b/i.test(normalize(text))||/^(?:كيف|ما هو|ما هي|اين)(?: |$)/.test(normalize(text));
-  const factMatch=!['safety','exam'].includes(r.domain)&&isHowTo?exactReviewedFact(c,text,r.services):null;
+  const factMatch=!clean.categories.length&&!['safety','exam'].includes(r.domain)&&isHowTo?exactReviewedFact(c,text,r.services):null;
   const s={ruleVersion:RULE_VERSION,catalogRevision:c.revision,turn:0,language,domain:r.domain,services:r.services,evidence:{},askedQuestionIds:[],offeredGuideIds:[],status:'new'};
   for(const [key,v] of Object.entries(r.facts))fact(s,key,v,'student_text_signal');
   s.requestKind=['safety','exam'].includes(r.domain)?'protected':isHowTo?'how_to':r.domain==='unknown'?'unclear':'fault';
@@ -193,6 +202,8 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const options=d.kind==='ask'?d.question.options:d.followUp.question.options;
   if(expected!==questionId||!options.some(o=>o.id===optionId))throw Error('INVALID_ANSWER');
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
+  if(questionId==='outcome')recordGuideOutcome(s,d,optionId);
+  else recordResolutionAnswer(s,questionId,optionId);
   applyIdentityAnswer(s,questionId,optionId);
   applySharedAnswer(s,questionId,optionId);
   if(questionId==='reviewed_topic'&&optionId!=='none'){
@@ -203,7 +214,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
    s.evidence={reviewed_topic:{value:optionId,origin:'student_report'}};
   }
   if(questionId==='service'){
-   s.services=[optionId];
+   s.services=[optionId];delete s.activeAlternative;delete s.lastGuidePurpose;delete s.knowledgeChoices;delete s.reviewedFactId;
    for(const key of Object.keys(s.evidence))if(key!=='service')delete s.evidence[key];
    s.domain=['network','identity','exam'].includes(optionId)?optionId:optionId==='other'?'unknown':['mail','portal','attendance'].includes(optionId)?'task':hasServicePlaybook(optionId)?'specific':'task';
   }
