@@ -6,7 +6,8 @@ const choice=(q,id)=>q?.options?.find(o=>o.id===id);
 export function reportedAnswer(state,next){
  const d=state?.decision,q=d?.kind==='ask'?d.question:d?.followUp?.question,questionId=d?.kind==='ask'?d.questionId:d?.followUp?.questionId;
  if(!q||!questionId||next?.turn<=state.turn)return null;
- const answer=choice(q,next.evidence?.[questionId]?.value);
+ const confirmed=questionId==='confirm_current_error'&&next.lastErrorConfirmation?.turn===next.turn?next.lastErrorConfirmation.choice:undefined;
+ const answer=choice(q,confirmed??next.evidence?.[questionId]?.value);
  if(!answer)return null;
  return {questionId,optionId:answer.id,question:{...q.text},answer:{...answer.label}};
 }

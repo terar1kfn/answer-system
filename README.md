@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.16 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.17 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -82,3 +82,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Reviewed contextual guidance](docs/reviewed-context-learning.md) adds an optional resolved-case-derived disambiguation layer inside existing approved guide selection. It requires fixed evidence, exact service/purpose, current revision, independent review and explicit private publication. No real case data has been imported.
+
+
+[Current error evidence](docs/current-error-evidence.md) integrates confirmed newly reported error signatures into ongoing diagnosis, preserving service scope and earlier attempt history without treating a code as a verified root cause.

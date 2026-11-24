@@ -2,6 +2,12 @@
 // diagnosis from a reason code. The host renders native policy referrals.
 const labels={
  FREE_TEXT_NOT_UNAMBIGUOUS:['I need a little more detail. Choose the option that best matches what you see.','أحتاج إلى مزيد من التفاصيل. اختر الخيار الأقرب إلى ما تراه.'],
+ CONFIRM_CURRENT_ERROR:['Confirm whether the error belongs to your current problem.','أكد ما إذا كان الخطأ متعلقاً بمشكلتك الحالية.'],
+ MULTIPLE_CURRENT_ERRORS:['Several different error codes were reported. Use the single code from the current failed operation, or ask IT to review them.','تم الإبلاغ عن عدة رموز خطأ مختلفة. استخدم رمز العملية الحالية الفاشلة فقط أو اطلب مراجعة الدعم التقني.'],
+ ERROR_SCOPE_UNCONFIRMED:['This error may belong to a different service or operation. Start a separate diagnosis if necessary.','قد يتعلق هذا الخطأ بخدمة أو عملية مختلفة. ابدأ تشخيصاً منفصلاً عند الحاجة.'],
+ ERROR_ALREADY_RECORDED:['This error is already part of the current diagnosis. Answer the question shown.','هذا الخطأ مسجل بالفعل في التشخيص الحالي. أجب عن السؤال الظاهر.'],
+ ERROR_ALREADY_DISMISSED:['This error was previously marked as unrelated or uncertain. Continue the current question or start a new diagnosis.','تم تحديد هذا الخطأ سابقاً بأنه غير متعلق أو غير مؤكد. تابع السؤال الحالي أو ابدأ تشخيصاً جديداً.'],
+ ERROR_CONFIRMATION_LIMIT:['Several error changes have been reported. IT can review the full diagnostic history.','تم الإبلاغ عن عدة تغييرات في الخطأ. يمكن للدعم التقني مراجعة سجل التشخيص.'],
  CONFLICTING_OBSERVATIONS:['Some reported observations point in different directions. Please confirm what is happening now on the affected device.','تشير بعض المعلومات إلى احتمالات مختلفة. يرجى تأكيد ما يحدث الآن على الجهاز المتأثر.'],
  REVIEWED_FACT_CONFLICT:['More than one approved answer matches this question. IT needs to confirm which applies.','توجد أكثر من إجابة معتمدة تطابق السؤال. يجب أن يؤكد الدعم التقني أيها ينطبق.'],
  NETWORK_OBSERVATIONS_CONFLICT:['The reported connection details conflict. IT can review the current network state.','تتعارض معلومات الاتصال المبلغ عنها. يمكن للدعم التقني مراجعة حالة الشبكة الحالية.'],

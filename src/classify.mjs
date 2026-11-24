@@ -83,12 +83,12 @@ export function classify(raw){
  if(hints.length>1)return out('unknown',[...base.services,...hints.map(x=>x.serviceId)],{error_conflict:'yes'});
  if(hints.length===1){
   const hint=hints[0],facts={...base.facts,error_signature:hint.id};
-  const others=base.services.filter(s=>s!=='identity'&&s!=='other'&&s!=='network');
+  const others=[...new Set([...base.services,...matchServices(t,normalize,EXTRA_SERVICE_IDS)])].filter(s=>!['identity','other','network','device'].includes(s));
   if(hint.serviceId==='identity'){
    if(base.domain==='mail'&&['send','receive'].includes(base.facts.task))return out('unknown',['mail','identity'],{error_conflict:'yes'});
    return out('identity',others.length?others:['identity'],{...facts,task:'login'});
   }
-  if(others.some(s=>s!=='mail'))return out('unknown',[...others,'mail'],{error_conflict:'yes'});
+  if(others.some(s=>s!=='mail')||base.facts.task==='receive')return out('unknown',[...others,'mail'],{error_conflict:'yes'});
   const mailFacts={...facts,task:'send'};
   if(hint.stage==='recipient_address')mailFacts.send_error='address';
   if(hint.stage==='sender_restricted')mailFacts.send_error='restricted';

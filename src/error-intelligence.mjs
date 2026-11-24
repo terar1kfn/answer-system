@@ -18,8 +18,8 @@ export const ERROR_SIGNATURES=Object.freeze([
  make('mail-size','5.2.3','mail','message_size',EXCHANGE)
 ]);
 export function recognizeErrors(text){
- if(typeof text!=='string'||text.length>1000)return [];
- text=text.replace(/\bAADSTS\s+(\d{5,7})\b/gi,'AADSTS$1').replace(/\b([245])\s*\.\s*(\d{1,3})\s*\.\s*(\d{1,3})\b/g,'$1.$2.$3');
+ if(typeof text!=='string'||text.length>10000)return [];
+ text=text.replace(/\bAADSTS\s+(\d{5,7})\b/gi,'AADSTS$1').replace(/\b([245])\s*\.\s*(\d{1,3})\s*\.\s*(\d{1,3})\b/g,'$1.$2.$3').replace(/(?<!\d)\.|\.(?!\d)/g,' ');
  return ERROR_SIGNATURES.filter(e=>{
   const code=e.code.replace(/\./g,'\\.');
   return new RegExp('(?:^|[^a-z0-9.])'+code+'(?=$|[^a-z0-9.])','i').test(text);

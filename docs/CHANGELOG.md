@@ -1,5 +1,11 @@
 # Change log
 
+## 0.17.0 — current error evidence (validation deferred)
+
+- Added bounded confirmation of newly pasted known error codes during diagnosis, scope checking, stale-observation cleanup and preservation of verified recovery/guide-attempt provenance.
+- Clarify multiple, repeated and mismatched codes; preserve named services and fixed confirmation labels. Improve bounded full-message error intake and code punctuation handling.
+- No tests, builds, browser/model execution, deployments or private application changes. CI remains manual-only.
+
 ## 0.16.0 — reviewed contextual guide discrimination (validation deferred)
 
 - Added structured, independently reviewed case-derived context patterns to distinguish equally specific eligible guides within the deterministic service/purpose route.

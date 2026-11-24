@@ -6,7 +6,7 @@ export function inspectErrorText(text,{maxChars=4000}={}){
  if(!Number.isSafeInteger(maxChars)||maxChars<1||maxChars>10000||typeof text!=='string'||!text.trim()||text.length>maxChars)return {status:'invalid',signals:[]};
  const clean=sanitizeText(text,{max:maxChars});
  const canonical=clean.text.replace(/\bAADSTS\s+(\d{5,7})\b/gi,'AADSTS$1').replace(/\b([245])\s*\.\s*(\d{1,3})\s*\.\s*(\d{1,3})\b/g,'$1.$2.$3');
- const signals=recognizeErrors(canonical.slice(0,1000));
+ const signals=recognizeErrors(canonical);
  return {status:signals.length===1?'recognized':signals.length>1?'multiple':'unrecognized',signals,privateInformationRemoved:clean.categories.length>0};
 }
 /**
