@@ -43,7 +43,9 @@ function publicDecision(d){
  * resolvePolicy({actor,scopeKey}) -> policy incl. current permitted exact native
  *   service IDs, diagnostic taxonomy scope, safety/exam context, mapping revision
  * getConfiguration(actor) -> live published configuration (not a seed or client cache)
- * getMapping(actor) -> independently reviewed private mapping
+ * getMapping(actor) -> independently reviewed private mapping. Use
+ * createApprovedMappingProvider in an actual native deployment; it rejects
+ * draft/obsolete/revoked releases before any guide can be projected.
  * Native routing must screen sensitive/protected topics and preserve existing exact
  * routes before returning supplemental. Raw input is transient and never stored.
  */
@@ -266,7 +268,7 @@ export function createEmbeddedAnswerBridge({
    fail('INVALID_EMBEDDED_COMMAND');
   }catch(e){
    if(lock.cancelled||['VISIT_ENDED','UNAUTHENTICATED'].includes(e?.message)){rows.delete(key);throw e;}
-   if(['MAPPING_SOURCE_REVISION_CHANGED','MAPPING_SOURCE_CONTENT_CHANGED'].includes(e?.message)){
+   if(['MAPPING_SOURCE_REVISION_CHANGED','MAPPING_SOURCE_CONTENT_CHANGED','APPROVED_MAPPING_UNAVAILABLE'].includes(e?.message)){
     // A publication changed while the private supplemental mapping is stale.
     // Recheck the actor before returning to the existing native workflow.
     const fresh=await authenticateStudent(credential);

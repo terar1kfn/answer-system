@@ -1,5 +1,11 @@
 # Change log
 
+## 0.25.0 — reviewed knowledge mapping release (validation deferred)
+
+- Added exact published-guide mapping additions from independently reviewed private source proposals, per-row release approval preparation and a host-verified active mapping provider.
+- Preserve source pins, exact native owner, guide content, prerequisite and entry-mode restrictions. Drafts, stale/revoked releases and ineligible rows cannot become active guidance through the new provider.
+- Strengthen reviewed-case pattern provenance and safe native fallback for unavailable mapping releases. No actual publication, activation, tests, builds, live import, deployment or original application changes.
+
 ## 0.24.0 — reviewed outcome learning (validation deferred)
 
 - Added private durable finalized-outcome ledger with pseudonymous receipt deduplication, monotonic corrections, bounded retention and exact guide-version reporting.

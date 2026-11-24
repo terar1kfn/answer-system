@@ -117,10 +117,10 @@ export function disambiguateReviewedContext({catalog,state,tiedGuides}={}){
  * No raw case content, credential, transcript or auto-publication.
  */
 export function prepareReviewedContextDraft({catalog,caseRecord,patternId,authorRef,purpose,match}={}){
- if(!catalog||!caseRecord||caseRecord.approved!==true||caseRecord.outcomeEvidence!=='staff_verified'||!id(caseRecord.id)||
+ if(!catalog||!caseRecord||caseRecord.approved!==true||caseRecord.outcomeEvidence!=='staff_verified'||caseRecord.outcome!=='resolved'||!id(caseRecord.id)||
  !id(patternId)||!id(authorRef)||!id(purpose)||!Array.isArray(caseRecord.signals)||!match||typeof match!=='object')fail('VERIFIED_CASE_REQUIRED');
  const g=catalog.guides.find(x=>x.id===caseRecord.solutionRef&&x.serviceId===caseRecord.serviceId&&x.purpose===purpose&&eligible(x,{catalog}));
- if(!g)fail('CASE_GUIDE_UNAVAILABLE');
+ if(!g||g.nativeGuideFingerprint&&caseRecord.guideFingerprint!==g.nativeGuideFingerprint)fail('CASE_GUIDE_UNAVAILABLE');
  if(Object.entries(match).some(([key,value])=>!caseRecord.signals.some(s=>s.key===key&&s.value===value)))fail('CONTEXT_SIGNAL_NOT_IN_CASE');
  const p={id:patternId,serviceId:g.serviceId,purpose:g.purpose,guideId:g.id,match:clone(match),sourceRevision:catalog.sourceRevision??catalog.revision,
   ...(g.nativeGuideFingerprint?{guideFingerprint:g.nativeGuideFingerprint}:{}),caseRef:caseRecord.id,authorRef,reviewed:false,enabled:false,outcomeEvidence:'staff_verified'};

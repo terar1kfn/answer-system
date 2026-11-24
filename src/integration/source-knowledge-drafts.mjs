@@ -77,7 +77,7 @@ export async function prepareSourceKnowledgeReview({pack,configuration,proposalI
   }
   const missingGuideIds=proposal.existingGuideIds.filter(g=>!configuration.guides.some(x=>x.id===g));
   proposals.push({proposal:copy(proposal),findings,missingGuideIds,
-   status:missingGuideIds.length||findings.some(f=>f.status!=='reviewed_by_host')?'needs_source_or_reference_review':'needs_independent_applicability_review'});
+   status:missingGuideIds.length||findings.some(f=>f.status!=='reviewed_by_host')?'needs_source_or_reference_review':'needs_independent_applicability_review',proposalFingerprint:nativeRecordFingerprint(proposal)});
  }
  return {kind:'private_source_review_draft',sourceRevision:pack.sourceRevision,sourceCatalogFingerprint:pack.sourceCatalogFingerprint,actorRef,proposals,
   published:false,activated:false};
