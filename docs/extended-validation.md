@@ -13,3 +13,11 @@ Baseline: package 0.45.2, main bb3e01a32560d3224aa674d488bb79c57eb3da6c, 221 pas
 
 Package version 0.46.0; deterministic engine RULE_VERSION remains 0.45.2, since question/selection rules did not change. Guide metadata and availability changes still invalidate native catalog pins. This is intentionally not a native database, real browser/phone/vision/model test, live deployment or verified university policy. Host must perform final authorization and durable transactional deduplication immediately before actual effects. No private catalog or actual student data is included. Verify all tests on the corrected branch before moving main.
 
+
+## Verified corrected run
+
+- Tested package: 0.46.0. Tested source commit: 377159ba9023dfc277f724c8c875e6e1c8af6339.
+- GitHub Actions (Ubuntu, Node.js 22): https://github.com/terar1kfn/answer-system/actions/runs/45377871891 — completed, success.
+- Syntax: 97/97 passed. Regression: 262/262 passed, 0 failed, 0 cancelled, 0 skipped, 0 todo.
+- The same ten bounded diagnostic walks again exercised 1,245 transitions. All 28 previously failing assertions now pass; the 221 baseline cases remain registered and pass. No tests were removed or disabled.
+- Main is eligible for fast-forward to the tested code plus this documentation-only record. The earlier baseline remains in history for rollback. Native integration and actual AI inference remain separate validation gates; no AU Assist live changes were made.
