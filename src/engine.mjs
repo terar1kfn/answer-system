@@ -25,7 +25,7 @@ import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {initializeSharedProgress,applySharedProgressAnswer,sharedProgressDecision,applySharedProgressDecision,sharedProgressQuestion} from './shared-progress.mjs';
 import {bindGuideNavigation,failedStepQuestion} from './attempt-review.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.44.0';
+export const RULE_VERSION='0.45.2';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -87,7 +87,7 @@ function confirmedIncident(s,records,now){
 }
 function decide(s,c,records,now){
  const v=k=>value(s,k),k=x=>known(s,x),g=(service,purpose)=>guide(s,c,service,purpose);
- if(s.domain==='safety')return safety(s.safetyPolicy||'SENSITIVE_OR_DANGEROUS');
+ if(s.domain==='safety')return safety(s.safetyPolicy||(v('mfa_prompt')==='unexpected'?'UNEXPECTED_VERIFICATION_REQUEST':'SENSITIVE_OR_DANGEROUS'));
  if(s.domain==='exam'){
   if(v('exam_started')==='yes'||v('exam_started')==='unknown')return safety('EXAM_PROFESSOR_FIRST');
   if(!k('exam_started'))return ask('exam_started');

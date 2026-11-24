@@ -20,7 +20,7 @@ export function serviceCases(a){
   const open=token=>call(token,'open');
   const begin=(token,text,expectedVersion=0)=>call(token,'begin',{expectedVersion,text});
   const choose=(token,v,optionId)=>call(token,'respond',{expectedVersion:v.version,issueId:v.issue.issueId,questionId:v.issue.state.decision.questionId||'outcome',optionId}).then(x=>x.visit);
-  const recovery=async()=>{await open('s1');return choose('s1',await begin('s1','I lost my old phone'),'no');};
+  const recovery=async()=>{await open('s1');const v=await begin('s1','I changed my phone and use Authenticator');eq(v.issue.state.decision.questionId,'mfa_method_goal');const method=await choose('s1',v,'transfer');eq(method.issue.state.decision.questionId,'mfa_access');return choose('s1',method,'no');};
   const intent=(token,v)=>call(token,'prepare_handoff',{expectedVersion:v.version,issueId:v.issue.issueId,requestKey:'demo-key',confirmed:true});
   return {svc,call,open,begin,choose,recovery,intent,advance:ms=>t+=ms};
  }
@@ -58,7 +58,7 @@ export function serviceCases(a){
  ['manager creates investigating not confirmed incident',async()=>{const l=lab();eq((await l.call('m1','incident_create',{serviceId:'network',scope:'site-a'})).status,'investigating');}],
  ['manager confirmation is scoped to authorized site',async()=>{const l=lab(),i=await l.call('m1','incident_create',{serviceId:'network',scope:'site-a'});await l.call('m1','incident_transition',{incidentId:i.id,expectedRevision:i.revision,status:'confirmed'});await l.open('s1');await l.open('s2');eq((await l.begin('s1','Wi-Fi not working')).issue.state.decision.kind,'incident_notice');eq((await l.begin('s2','Wi-Fi not working')).issue.state.decision.kind,'ask');}],
  ['student signal requires diagnostic evidence',async()=>{const l=lab();await l.open('s1');const v=await l.begin('s1','Wi-Fi not working');await reject(()=>l.call('s1','report_incident',{expectedVersion:v.version,issueId:v.issue.issueId}),/INCIDENT_SIGNAL_NOT_SUPPORTED/);}],
- ['student signal deduped from trusted visit',async()=>{const l=lab();await l.open('s1');let v=await l.begin('s1','Wi-Fi not working');v=await l.choose('s1',v,'no');v=await l.choose('s1',v,'yes');eq((await l.call('s1','report_incident',{expectedVersion:v.version,issueId:v.issue.issueId})).accepted,true);eq((await l.call('s1','report_incident',{expectedVersion:v.version,issueId:v.issue.issueId})).accepted,false);}],
+ ['student signal deduped from trusted visit',async()=>{const l=lab();await l.open('s1');let v=await l.begin('s1','Wi-Fi not working');v=await l.choose('s1',v,'no_internet');v=await l.choose('s1',v,'no');v=await l.choose('s1',v,'yes');eq((await l.call('s1','report_incident',{expectedVersion:v.version,issueId:v.issue.issueId})).accepted,true);eq((await l.call('s1','report_incident',{expectedVersion:v.version,issueId:v.issue.issueId})).accepted,false);}],
  ['student cannot propose knowledge',async()=>{const l=lab();await reject(()=>l.call('s1','propose',{caseCode:'x'}),/FORBIDDEN/);}],
  ['staff knowledge requires host permission',async()=>{const l=lab({mayReviewKnowledge:async()=>false});await reject(()=>l.call('i1','review_list'),/FORBIDDEN/);}],
  ['stale proposal cannot be created',async()=>{const l=lab();await reject(()=>l.call('i1','propose',{caseCode:'case-demo',causeCode:'mfa',solutionRef:'guide-demo',catalogRevision:'old',proposalKind:'new_alias'}),/CATALOG_CHANGED/);}],

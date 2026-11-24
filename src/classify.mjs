@@ -74,7 +74,8 @@ export function classify(raw){
  const out=(domain,services,facts)=>({domain,services:[...new Set(services)],facts});
  // Never allow an ordinary service or error match to override protected topics.
  if(base.domain==='safety')return base;
- if(/\b(?:certificate warning|certificate is not trusted|your connection is not private|unexpected approval request|unsolicited sign in request)\b|الاتصال غير خاص|طلب موافقه لم ابدا/.test(t))return out('safety',['other'],{});
+ if(/\b(?:certificate warning|certificate is not trusted|your connection is not private)\b|الاتصال غير خاص/.test(t))return out('safety',['other'],{});
+ if(/\b(?:unexpected approval request|unsolicited sign in request)\b|طلب موافقه لم ابدا/.test(t))return out('safety',['other'],{mfa_prompt:'unexpected'});
  if(base.domain==='exam'){
   const specific=inferServiceIssue('exam',t,normalize);
   if(specific)base.facts[specific.questionId]=specific.optionId;

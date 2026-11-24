@@ -10,7 +10,7 @@ export function runtimeCases(a){
   const open=(ref='v1',opts={})=>r.openVisit({visitRef:ref,...opts});
   const begin=(text,ref='v1',expectedVersion=0)=>r.begin(ref,{expectedVersion,text});
   const answer=(v,optionId,ref=v.visitRef)=>r.respond(ref,{expectedVersion:v.version,issueId:v.issue.issueId,questionId:v.issue.state.decision.questionId||'outcome',optionId}).visit;
-  const recovery=()=>{open();return answer(begin('I lost my old phone'),'no');};
+  const recovery=()=>{open();const v=begin('I changed my phone and use Authenticator');a.equal(v.issue.state.decision.questionId,'mfa_method_goal');const method=answer(v,'transfer');a.equal(method.issue.state.decision.questionId,'mfa_access');return answer(method,'no');};
   const prep=(v,requestKey='req-a',extra={})=>r.prepareHandoff(v.visitRef,{expectedVersion:v.version,issueId:v.issue.issueId,requestKey,confirmed:true,...extra});
   const record=(o,status,hostRef)=>r.recordHandoffResult(o.operationId,{attempt:o.attempt,status,...(hostRef?{hostRef}:{})});
   const retry=v=>r.retryHandoff(v.visitRef,{expectedVersion:v.version,issueId:v.issue.issueId,requestKey:'req-a'});
@@ -20,9 +20,9 @@ export function runtimeCases(a){
  }
  const proposal={actorRef:'staff-a',caseCode:'case-demo',causeCode:'mfa-setup',solutionRef:'guide-demo',catalogRevision:'rev-1',proposalKind:'new_alias'};
  return [
- ['trusted visit starts isolated issue',()=>{const l=lab();l.open();const v=l.begin('Wi-Fi not working');a.equal(v.version,1);a.equal(v.issue.state.decision.questionId,'connection');}],
+ ['trusted visit starts isolated issue',()=>{const l=lab();l.open();const v=l.begin('Wi-Fi not working');a.equal(v.version,1);a.equal(v.issue.state.decision.questionId,'network_issue');}],
  ['cross-visit issue denied',()=>{const l=lab();l.open();l.open('v2');const v=l.begin('Wi-Fi not working'),w=l.begin('Email not working','v2');a.throws(()=>l.r.respond('v2',{expectedVersion:w.version,issueId:v.issue.issueId,questionId:'connection',optionId:'yes'}),/ISSUE_NOT_ACTIVE/);}],
- ['replayed version denied',()=>{const l=lab();l.open();const v=l.begin('Wi-Fi not working');l.answer(v,'no');a.throws(()=>l.answer(v,'no'),/STALE_VISIT_VERSION/);}],
+ ['replayed version denied',()=>{const l=lab();l.open();const v=l.begin('Wi-Fi not working');l.answer(v,'no_internet');a.throws(()=>l.answer(v,'no_internet'),/STALE_VISIT_VERSION/);}],
  ['new issue invalidates old response',()=>{const l=lab();l.open();const v=l.begin('Wi-Fi not working'),w=l.begin('Email not working','v1',v.version);a.throws(()=>l.r.respond('v1',{expectedVersion:w.version,issueId:v.issue.issueId,questionId:'connection',optionId:'no'}),/ISSUE_NOT_ACTIVE/);}],
  ['ambiguous free text does not advance',()=>{const l=lab();l.open();const v=l.begin('Wi-Fi not working'),x=l.r.respond('v1',{expectedVersion:v.version,issueId:v.issue.issueId,text:'yes and no'});a.equal(x.kind,'clarify');a.equal(x.visit.version,v.version);}],
  ['mixed answer input denied',()=>{const l=lab();l.open();const v=l.begin('Wi-Fi not working');a.throws(()=>l.r.respond('v1',{expectedVersion:v.version,issueId:v.issue.issueId,text:'no',optionId:'yes'}),/AMBIGUOUS_INPUT/);}],

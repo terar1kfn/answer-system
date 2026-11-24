@@ -148,7 +148,8 @@ test('updated phone-transfer path confirms actual method and Security info',()=>
  s=choose(e,s,'security_info_access','yes');assert.equal(s.decision.guideId,'demo-mfa-existing');
 });
 test('failure is not automatic resolution or a repeated guide',()=>{
- const e=engine(),first=e.begin({text:'Recipient address not found'});
+ const marker='synthetic_unretained_phrase_az';
+ const e=engine(),first=e.begin({text:'Recipient address not found '+marker});
  assert.equal(first.decision.guideId,'demo-recipient-address');
  const second=choose(e,first,'outcome','no');
  assert.equal(second.decision.questionId,'guide_result');assert.equal(second.guideAttempts.at(-1).outcome,'no');
@@ -158,7 +159,8 @@ test('failure is not automatic resolution or a repeated guide',()=>{
  assert.equal(third.resolutionPlan.automaticActions,false);
  const snapshot=buildInternDiagnosticSnapshot({caseRef:'synthetic-case',state:third,catalog:demoCatalog});
  assert.equal(snapshot.verifiedRootCause,false);assert.equal(snapshot.automaticActions,false);
- assert.ok(!JSON.stringify(snapshot).includes('Recipient address not found'));
+ assert.ok(!JSON.stringify(snapshot).includes(marker));
+ assert.ok(snapshot.attempts.some(a=>a.guideId==='demo-recipient-address'&&a.reportedOutcome==='no'));
 });
 test('old diagnostic rule pins cannot be replayed',()=>{
  const e=engine(),s=e.begin({text:'Wi-Fi not working'});

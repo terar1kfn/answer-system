@@ -1,5 +1,11 @@
 # Change log
 
+## 0.45.2 — align legacy regression scenarios and specific security referral
+
+- Second CI run: 96/96 syntax checks; 171/221 regression tests passed, 50 failed. Most remaining failures were legacy assertions that skipped the newer symptom, current screen, verification-goal, registered-method and client-comparison questions.
+- Update those scenarios, keeping the original safety and isolation assertions, requiring the newly explicit evidence and preserving all test cases. Test privacy with a unique raw-input marker, not the text of a legitimate fixed question or label.
+- Fix the actual unexpected-approval classification defect: preserve its specific evidence and return the correct do-not-approve referral instead of a generic safety message. Generic certificate and other safety routing remain protected. Bump rule version to invalidate stale state. Full re-run required.
+
 ## 0.45.1 — synthetic catalog repair
 
 - Initial CI run: 96 syntax checks passed; 84 of 221 tests passed, 137 failed. A duplicate fictional directory guide ID prevented the standalone engine fixture from loading.
