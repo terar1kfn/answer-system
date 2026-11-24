@@ -1,5 +1,13 @@
 # Change log
 
+## 0.44.0 — session and architecture optimization (validation deferred)
+
+- Add bounded per-bridge LRU engine reuse only after fresh complete projection, exact catalog/incident content pins and eligibility hooks; no authority or visit-state cache. Minimize authorized incident metadata and invalidate old state on incident-set changes.
+- Bound pending initial visits and staff capture with shared visit locks, cancellation on native lifecycle end, monotonic version and optional trusted idle-issue sweep retaining owner/version tombstones. No automatic host expiry or cross-process state.
+- Clear undo history on native guide launch, prevent undo across a native attempt, and snapshot navigation metadata with reversible evidence. Existing recovery barrier remains.
+- Add configurable shared local-advice concurrency, deadline and abort coordinator. Timed-out work holds its lease until settlement; no queued or retried inference. Built-in advisors accept a shared provider coordinator and external signal; bridge independently bounds injected advisor waits and drops results after native revocation. Bump rule version to 0.44.0.
+- No tests, syntax checks, builds, model calls, actual host changes or deployment.
+
 ## 0.43.0 — controlled learning and contextual publication (validation deferred)
 
 - Add separate reviewed-context release coordinator: exact verified case evidence, full current approved mapping scope, same-native-owner applicability tie and current route review, independent draft author/reviewer, manager activation, exact source/base/rule/head pins and authoritative host compare-and-swap transaction.

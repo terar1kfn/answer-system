@@ -1,4 +1,5 @@
 import {QUESTIONS} from './questions.mjs';
+import {createAdviceCoordinator} from './advice-coordinator.mjs';
 import {fixedOption as knownOption,isUnconfirmedPrerequisite} from './diagnostic-evidence.mjs';
 import {classify,normalize} from './classify.mjs';
 import {sanitizeText} from './privacy.mjs';
@@ -66,25 +67,24 @@ export function validateReplyAdvice(request,output){
  return {status:'suggestion',questionId:request.questionId,optionId:output.optionId,requiresConfirmation:true};
 }
 /** Disabled by default; one inference at a time, no automatic decision. */
-export function createContextualReplyAdvisor({enabled=false,provider,timeoutMs=2500}={}){
+export function createContextualReplyAdvisor({enabled=false,provider,timeoutMs=2500,coordinator=createAdviceCoordinator()}={}){
  if(typeof enabled!=='boolean'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>10000||
- enabled&&typeof provider!=='function')throw Error('INVALID_CONTEXTUAL_ADVISOR');
+ enabled&&typeof provider!=='function'||typeof coordinator?.run!=='function')throw Error('INVALID_CONTEXTUAL_ADVISOR');
  let busy=false;
- async function suggest({state,text}={}){
+ async function suggest({state,text,signal}={}){
   if(!enabled)return {status:'disabled'};
   if(busy)return {status:'busy'};
   const prepared=prepareReplyAdvice(state,text);
   if(prepared.status!=='ready')return {status:prepared.status};
-  const request=prepared.request,controller=new AbortController();let timer;
-  busy=true;
-  const task=Promise.resolve().then(()=>provider(request,{signal:controller.signal})).finally(()=>{busy=false;});
-  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{controller.abort();resolve(null);},timeoutMs);});
   try{
-   const output=await Promise.race([task,timeout]);
-   if(output===null)return {status:'unavailable_or_timeout'};
-   return validateReplyAdvice(request,output);
+   const result=await coordinator.run(async({signal:providerSignal})=>{
+    if(busy)throw Error('ADVISOR_BUSY');
+    busy=true;
+    try{return await provider(prepared.request,{signal:providerSignal});}
+    finally{busy=false;}
+   },{signal,timeoutMs});
+   return result.status==='completed'&&result.value!==null?validateReplyAdvice(prepared.request,result.value):{status:['completed','timeout'].includes(result.status)?'unavailable_or_timeout':result.status};
   }catch{return {status:'unavailable'};}
-  finally{clearTimeout(timer);}
  }
  return Object.freeze({suggest});
 }

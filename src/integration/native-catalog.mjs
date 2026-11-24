@@ -20,7 +20,7 @@ const boundedTerms=x=>Array.isArray(x)?x.filter(v=>typeof v==='string'&&v.trim()
  * IDs, current availability or guide text are bundled in the public repository.
  * Generic service categories are not interchangeable native card identities.
  */
-export function projectNativeCatalog({
+function projectNativeCatalogCore({
  configuration, mapping, allowedNativeServiceIds, diagnosticServices,
  isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu
 }={}){
@@ -103,8 +103,35 @@ export function projectNativeCatalog({
  // Availability, exact ownership and metadata changes invalidate old choices even
  // if an external publication revision is accidentally reused.
  const catalog={...body,revision:'native-'+digest(body)};
- createEngine({catalog});
  return {catalog,availableNativeServices:[...available.values()].sort((a,b)=>a.nativeId.localeCompare(b.nativeId)),withheld,withheldContexts};
+}
+/** Uncached public API still validates every derived catalog. */
+export function projectNativeCatalog(input){
+ const projection=projectNativeCatalogCore(input);
+ createEngine({catalog:projection.catalog});
+ return projection;
+}
+/** Per-host bounded LRU of immutable engine instances. Every invocation
+ * still runs the complete fresh native projection and all eligibility hooks.
+ * Incidents are a separate exact content pin; no credentials, visit state,
+ * raw questions or model payloads are cached. */
+export function createNativeCatalogEnginePool({maxEntries=8,now=()=>Date.now()}={}){
+ if(!Number.isSafeInteger(maxEntries)||maxEntries<0||maxEntries>32||typeof now!=='function')fail('INVALID_ENGINE_POOL');
+ const engines=new Map();
+ function project(input,{incidents=[]}={}){
+  if(!Array.isArray(incidents)||incidents.length>1000)fail('INVALID_ENGINE_INCIDENTS');
+  const projection=projectNativeCatalogCore(input);
+  const incidentFingerprint=digest(incidents);
+  const key=digest([projection.catalog.revision,incidentFingerprint]);
+  let engine=engines.get(key);
+  if(engine){engines.delete(key);engines.set(key,engine);}
+  else{
+   engine=createEngine({catalog:projection.catalog,incidents,now});
+   if(maxEntries){engines.set(key,engine);while(engines.size>maxEntries)engines.delete(engines.keys().next().value);}
+  }
+  return {projection,engine,incidentFingerprint};
+ }
+ return Object.freeze({project,clear:()=>engines.clear(),stats:()=>({size:engines.size,maxEntries})});
 }
 export function nativeGuideReference(projection,decision){
  if(!projection||decision?.kind!=='open_guide'||projection.catalog.revision!==decision.catalogRevision)fail('NATIVE_GUIDE_STALE');

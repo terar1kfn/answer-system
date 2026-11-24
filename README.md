@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.43 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.44 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -154,3 +154,6 @@ Core consistency stabilization is documented in [docs/core-consistency.md](docs/
 
 
 The [reviewed-context release coordinator](docs/context-release.md) adds separately authorized publication of case-derived disambiguation patterns over the immutable approved base mapping. It includes candidate preparation, independent review, native transactional activation, individual/all revocation and fresh-review rollback. Native durable hooks are required; nothing is activated by this repository alone.
+
+
+[Session and architecture stabilization](docs/session-architecture.md) adds bounded fresh-projection engine reuse, visit capacity including pending work, native lifecycle cancellation, conservative undo barriers, incident revision pins, and shared AI concurrency leases. The native host still owns actual authentication, expiry, private storage and all external effects.

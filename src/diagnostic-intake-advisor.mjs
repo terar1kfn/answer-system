@@ -1,4 +1,5 @@
 import {QUESTIONS} from './questions.mjs';
+import {createAdviceCoordinator} from './advice-coordinator.mjs';
 import {ORDINARY_ADVISOR_DOMAINS,ORDINARY_ADVISOR_SERVICES,hasProtectedAdvisorEvidence,fixedOption} from './diagnostic-evidence.mjs';
 import {classify,normalize} from './classify.mjs';
 import {sanitizeText} from './privacy.mjs';
@@ -91,19 +92,22 @@ export function validateIntakeAdvice(request,output){
  // generated procedure, or an unconfirmed observation as evidence.
  return {status:'suggestions',requiresConfirmation:true,suggestions};
 }
-export function createDiagnosticIntakeAdvisor({enabled=false,provider,timeoutMs=3500}={}){
- if(typeof enabled!=='boolean'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>10000||enabled&&typeof provider!=='function')throw Error('INVALID_INTAKE_ADVISOR');
+export function createDiagnosticIntakeAdvisor({enabled=false,provider,timeoutMs=3500,coordinator=createAdviceCoordinator()}={}){
+ if(typeof enabled!=='boolean'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>10000||enabled&&typeof provider!=='function'||typeof coordinator?.run!=='function')throw Error('INVALID_INTAKE_ADVISOR');
  let busy=false;
- async function suggest({state,text}={}){
+ async function suggest({state,text,signal}={}){
   if(!enabled)return {status:'disabled'};
   if(busy)return {status:'busy'};
   const p=prepareIntakeAdvice(state,text);if(p.status!=='ready')return {status:p.status};
-  const controller=new AbortController();let timer;
-  busy=true;
-  const task=Promise.resolve().then(()=>provider(p.request,{signal:controller.signal})).finally(()=>{busy=false;});
-  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{controller.abort();resolve(null);},timeoutMs);});
-  try{const result=await Promise.race([task,timeout]);return result===null?{status:'timeout'}:validateIntakeAdvice(p.request,result);}
-  catch{return {status:'unavailable'};}finally{clearTimeout(timer);}
+  try{
+   const result=await coordinator.run(async({signal:providerSignal})=>{
+    if(busy)throw Error('ADVISOR_BUSY');
+    busy=true;
+    try{return await provider(p.request,{signal:providerSignal});}
+    finally{busy=false;}
+   },{signal,timeoutMs});
+   return result.status==='completed'&&result.value!==null?validateIntakeAdvice(p.request,result.value):{status:result.status==='completed'?'timeout':result.status};
+  }catch{return {status:'unavailable'};}
  }
  return Object.freeze({suggest});
 }

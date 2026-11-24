@@ -1,11 +1,12 @@
 import {randomUUID} from 'node:crypto';
-import {createEngine} from '../engine.mjs';
+import {Buffer} from 'node:buffer';
+import {createAdviceCoordinator} from '../advice-coordinator.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
 import {sanitizeText} from '../privacy.mjs';
 import {prepareReplyAdvice} from '../contextual-reply-advisor.mjs';
 import {prepareIntakeAdvice,acceptIntakeSuggestions,currentIntakeSuggestion,advanceIntakeSuggestions} from '../diagnostic-intake-advisor.mjs';
 import {prepareScreenshotAdvice,acceptScreenshotAdvice,isScreenshotRef,normalizedScreenshotPng} from '../screenshot-advisor.mjs';
-import {projectNativeCatalog,nativeGuideReference} from './native-catalog.mjs';
+import {createNativeCatalogEnginePool,nativeGuideReference} from './native-catalog.mjs';
 import {reportedAnswers,buildNativeJourney} from './native-journey.mjs';
 import {recordKnowledgeGap} from '../analytics.mjs';
 import {buildInternDiagnosticSnapshot} from './intern-diagnostic.mjs';
@@ -58,7 +59,7 @@ export function createEmbeddedAnswerBridge({
  authenticate,enabled=()=>false,routeInput,resolvePolicy,getConfiguration,getMapping,
  isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,
  getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,replyAdvisor=null,intakeAdvisor=null,screenshotAdvisor=null,authorizeScreenshot=null,getApprovedScreenshot=null,knowledgeMetrics=null,authorizeDiagnosticCapture=null,
- now=()=>Date.now(),newId=()=>randomUUID(),maxVisits=128
+ now=()=>Date.now(),newId=()=>randomUUID(),maxVisits=128,engineCacheEntries=8,adviceCoordinator=createAdviceCoordinator(),adviceTimeoutMs=35000
 }={}){
  if(![authenticate,enabled,routeInput,resolvePolicy,getConfiguration,getMapping,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,getIncidents,getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn,now,newId].every(f=>typeof f==='function')||
  (knowledgeMetrics!==null&&typeof knowledgeMetrics?.record!=='function')||
@@ -66,8 +67,28 @@ export function createEmbeddedAnswerBridge({
  (replyAdvisor!==null&&typeof replyAdvisor?.suggest!=='function')||
  (intakeAdvisor!==null&&typeof intakeAdvisor?.suggest!=='function')||
  (screenshotAdvisor!==null&&(typeof screenshotAdvisor?.suggest!=='function'||typeof authorizeScreenshot!=='function'||typeof getApprovedScreenshot!=='function'))||
- (authorizeScreenshot!==null&&typeof authorizeScreenshot!=='function')||(getApprovedScreenshot!==null&&typeof getApprovedScreenshot!=='function')||!Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000)fail('NATIVE_HOST_HOOKS_REQUIRED');
+ (authorizeScreenshot!==null&&typeof authorizeScreenshot!=='function')||(getApprovedScreenshot!==null&&typeof getApprovedScreenshot!=='function')||!Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000||typeof adviceCoordinator?.run!=='function'||!Number.isSafeInteger(adviceTimeoutMs)||adviceTimeoutMs<100||adviceTimeoutMs>60000)fail('NATIVE_HOST_HOOKS_REQUIRED');
  const rows=new Map(),locks=new Map();
+ const enginePool=createNativeCatalogEnginePool({maxEntries:engineCacheEntries,now});
+ const readClock=()=>{const t=now();if(!Number.isFinite(t))fail('INVALID_HOST_CLOCK');return t;};
+ function reserve(key){
+  if(locks.has(key))fail('VISIT_BUSY');
+  // Bound pending first requests too; do not evict live visits or reset their
+  // version. The native host owns expiration and unique visit identifiers.
+  const occupied=new Set([...rows.keys(),...locks.keys()]);
+  if(!occupied.has(key)&&occupied.size>=maxVisits)return null;
+  const lock={cancelled:false,controller:new AbortController()};locks.set(key,lock);return lock;
+ }
+ function release(key,lock){if(locks.get(key)===lock)locks.delete(key);}
+ function cancel(lock){if(lock){lock.cancelled=true;lock.controller.abort();}}
+ async function advise(lock,advisor,request){
+  try{
+   const result=await adviceCoordinator.run(({signal})=>advisor.suggest({...request,signal}),{signal:lock.controller.signal,timeoutMs:adviceTimeoutMs});
+   return result.status==='completed'?result.value:null;
+  }catch{return null;}
+ }
+ function canUndo(issue){return Boolean(issue&&issue.history.length&&!issue.guideLaunch&&issue.state.decision.kind!=='safety_referral');}
+
  function newIssueId(){const x=newId();if(!opaque(x)||[...rows.values()].some(r=>r.issue?.id===x))fail('ISSUE_ID_COLLISION');return x;}
  async function authenticateStudent(credential){
   const a=await authenticate(credential);
@@ -83,19 +104,20 @@ export function createEmbeddedAnswerBridge({
   // An unknown exam status alone is not a reason to block ordinary non-exam help.
   if(policy.protected===true||policy.examStatus==='started')return null;
   const [configuration,mapping]=await Promise.all([getConfiguration(actor),getMapping(actor)]);
-  const projection=projectNativeCatalog({configuration,mapping,
-   allowedNativeServiceIds:policy.allowedNativeServiceIds,diagnosticServices:policy.diagnosticServices,
-   isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu});
   const raw=await getIncidents({actor,scopeKey});
+  const t=readClock();
   // getIncidents is responsible for exact native service/location authorization.
   // Never promote aggregate reports to confirmed incidents here.
   const incidents=Array.isArray(raw)?raw.filter(i=>i?.authority==='authorized_staff'&&i.status==='confirmed'&&policy.diagnosticServices.includes(i.serviceId)&&
-   opaque(i.id)&&Number.isFinite(i.updatedAt)&&Number.isFinite(i.expiresAt)&&i.updatedAt<=now()&&i.expiresAt>now()&&now()-i.updatedAt<=900000):[];
-  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true,policy.allowKnowledgeMetrics===true,policy.allowDiagnosticHandoff===true,policy.allowIntakeAdvice===true,policy.allowScreenshotAdvice===true]);
-  return {policy,projection,incidents,pin,engine:createEngine({catalog:projection.catalog,incidents,now})};
+   opaque(i.id)&&Number.isFinite(i.updatedAt)&&Number.isFinite(i.expiresAt)&&i.updatedAt<=t&&i.expiresAt>t&&t-i.updatedAt<=900000).map(i=>({id:i.id,serviceId:i.serviceId,status:i.status,authority:i.authority,updatedAt:i.updatedAt,expiresAt:i.expiresAt})):[];
+  const {projection,engine,incidentFingerprint}=enginePool.project({configuration,mapping,
+   allowedNativeServiceIds:policy.allowedNativeServiceIds,diagnosticServices:policy.diagnosticServices,
+   isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu},{incidents});
+  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true,policy.allowKnowledgeMetrics===true,policy.allowDiagnosticHandoff===true,policy.allowIntakeAdvice===true,policy.allowScreenshotAdvice===true,incidentFingerprint]);
+  return {policy,projection,incidents,pin,engine};
  }
  function view(row){return {version:row?.version??0,issue:row?.issue?{issueId:row.issue.id,language:row.issue.state.language,
-  status:row.issue.state.status,decision:publicDecision(row.issue.state.decision),guideContinuation:guideContinuationView(row.issue),canUndo:row.issue.history.length>0&&row.issue.state.decision.kind!=='safety_referral'}:null};}
+  status:row.issue.state.status,decision:publicDecision(row.issue.state.decision),guideContinuation:guideContinuationView(row.issue),canUndo:canUndo(row.issue)}:null};}
  function withIntakeSuggestion(row){
   const suggestion=currentIntakeSuggestion(row.issue?.state,row.issue?.intakeAdvice);
   return suggestion?{kind:'clarify',reasonCode:'CONFIRM_INTAKE_INTERPRETATION',suggestion,...view(row)}:{kind:'state',...view(row)};
@@ -110,7 +132,7 @@ export function createEmbeddedAnswerBridge({
   if(!row.issue||row.issue.id!==c.issueId)fail('STALE_ISSUE');
   return row.issue;
  }
- function save(key,row,issue){const next={version:(row?.version??0)+1,actorRef:row?.actorRef,issue};rows.set(key,next);return next;}
+ function save(key,row,issue){const version=(row?.version??0)+1;if(!Number.isSafeInteger(version))fail('VISIT_VERSION_EXHAUSTED');const next={version,actorRef:row?.actorRef,issue,lastActivityAt:readClock()};rows.set(key,next);return next;}
  function clear(key,row,reason){
   // Do not retain abandoned diagnostic evidence, even during rollback.
   const next=row?save(key,row,null):null;
@@ -130,10 +152,10 @@ export function createEmbeddedAnswerBridge({
  }
  async function dispatch(credential,input){
   const c=command(input),actor=await authenticateStudent(credential),key=actor.visitRef;
-  if(locks.has(key))fail('VISIT_BUSY');
-  const lock={cancelled:false};locks.set(key,lock);
   let row=rows.get(key);
-  if(row&&row.actorRef!==actor.actorRef){locks.delete(key);fail('VISIT_OWNER_MISMATCH');}
+  const lock=reserve(key);
+  if(!lock){const fresh=await authenticateStudent(credential);if(!sameActor(actor,fresh))fail('VISIT_ENDED');return {...native('HOST_CAPACITY'),...view(null)};}
+  if(row&&row.actorRef!==actor.actorRef){release(key,lock);fail('VISIT_OWNER_MISMATCH');}
   async function live(){
    const fresh=await authenticateStudent(credential);
    if(lock.cancelled||!sameActor(actor,fresh))fail('VISIT_ENDED');
@@ -152,10 +174,10 @@ export function createEmbeddedAnswerBridge({
     if(lock.cancelled)fail('VISIT_ENDED');return clear(key,row,'FEATURE_DISABLED');
    }
    if(lock.cancelled)fail('VISIT_ENDED');
+   if(row)row.lastActivityAt=readClock();
    if(c.action==='read'&&!row?.issue){await live();return {kind:'state',...view(row)};}
    if(c.action==='begin'){
     if(!Number.isSafeInteger(c.expectedVersion)||c.expectedVersion!==(row?.version??0))fail('STALE_VERSION');
-    if(!row&&rows.size>=maxVisits)return {...native('HOST_CAPACITY'),...view(null)};
     if(!languageOk(c.language))fail('INVALID_LANGUAGE');
     const text=inputText(c.text);
     // The host's existing safety and native exact-routing checks happen first.
@@ -174,7 +196,7 @@ export function createEmbeddedAnswerBridge({
     if(intakeAdvisor&&latest.policy.allowModelAdvice===true&&latest.policy.allowIntakeAdvice===true){
      const prepared=prepareIntakeAdvice(state,text);
      if(prepared.status==='ready'){
-      let proposed;try{proposed=await intakeAdvisor.suggest({state:copy(state),text});}catch{proposed=null;}
+      const proposed=await advise(lock,intakeAdvisor,{state:copy(state),text});
       latest=await recheck(route.scopeKey,ctx.pin);
       intakeAdvice=acceptIntakeSuggestions(prepared.request,proposed);
      }
@@ -187,8 +209,8 @@ export function createEmbeddedAnswerBridge({
    const issue=c.action==='read'?row.issue:current(row,c);
    const ctx=await context(actor,issue.scopeKey);await live();
    if(!ctx)return clear(key,row,'PROTECTED_CONTEXT');
-   if(issue.pin!==ctx.pin)return clear(key,row,'CATALOG_CHANGED');
    if(!incidentStillCurrent(issue,ctx))return clear(key,row,'INCIDENT_REFRESH_REQUIRED');
+   if(issue.pin!==ctx.pin)return clear(key,row,'CATALOG_CHANGED');
    const blocked=decisionAllowed(issue.state,ctx);if(blocked)return clear(key,row,blocked);
    if(c.action==='read')return {kind:'state',...view(row)};
    if(c.action==='clear'){row=save(key,row,null);return {kind:'state',...view(row)};}
@@ -225,7 +247,14 @@ export function createEmbeddedAnswerBridge({
      try{stillAuthorized=await authorizeScreenshot({...binding,phase:'before'})===true;}catch{}
      await recheck(issue.scopeKey,ctx.pin);
      if(!stillAuthorized)return fallback('SCREENSHOT_NOT_AVAILABLE');
-     try{proposed=await screenshotAdvisor.suggest({state:copy(issue.state),png});}catch{proposed=null;}
+     // Give the adapter its own transient bytes. If a custom advisor ignores
+     // cancellation, its buffer remains valid until that invocation settles.
+     const result=await adviceCoordinator.run(async({signal})=>{
+      const owned=Buffer.from(png);
+      try{return await screenshotAdvisor.suggest({state:copy(issue.state),png:owned,signal});}
+      finally{owned.fill(0);}
+     },{signal:lock.controller.signal,timeoutMs:adviceTimeoutMs});
+     proposed=result.status==='completed'?result.value:null;
     }finally{png?.fill(0);png=null;approved=null;}
     await recheck(issue.scopeKey,ctx.pin);
     authorized=false;try{authorized=await authorizeScreenshot({...binding,phase:'after'})===true;}catch{}
@@ -239,6 +268,7 @@ export function createEmbeddedAnswerBridge({
    }
    if(c.action==='set_language'){
     if(!languageOk(c.language))fail('INVALID_LANGUAGE');
+    await recheck(issue.scopeKey,ctx.pin);
     row=save(key,row,{...issue,state:{...issue.state,language:c.language}});return {kind:'state',...view(row)};
    }
    if(c.action==='open_guide'){
@@ -247,7 +277,7 @@ export function createEmbeddedAnswerBridge({
     const reference=nativeGuideReference(latest.projection,d);
     const launch=issue.guideLaunch||newGuideLaunch({launchRef:newId(),reference});
     if(launch.reference.guideId!==reference.guideId||launch.reference.nativeGuideFingerprint!==reference.nativeGuideFingerprint)fail('NATIVE_GUIDE_STALE');
-    if(!issue.guideLaunch)row=save(key,row,{...issue,guideLaunch:launch});
+    if(!issue.guideLaunch)row=save(key,row,{...issue,guideLaunch:launch,history:[],intakeAdvice:[]});
     return {kind:'open_native_guide',reference,launchRef:launch.launchRef,...view(row)};
    }
    if(c.action==='refresh_native_guide'){
@@ -294,11 +324,11 @@ export function createEmbeddedAnswerBridge({
     return {kind:'state',...view(row)};
    }
    if(c.action==='undo'){
-    if(!issue.history.length||issue.state.decision.kind==='safety_referral')fail('UNDO_NOT_AVAILABLE');
+    if(!canUndo(issue))fail('UNDO_NOT_AVAILABLE');
     const latest=await recheck(issue.scopeKey,ctx.pin),previous=issue.history[issue.history.length-1];
     const state=latest.engine.reconsider({...previous.state,language:issue.state.language},{nextTurn:issue.state.turn+1});
     const reason=decisionAllowed(state,latest);if(reason)return clear(key,row,reason);
-    row=save(key,row,{...issue,state,answers:previous.answers,guideLaunch:null,intakeAdvice:[],history:issue.history.slice(0,-1)});
+    row=save(key,row,{...issue,state,answers:previous.answers,guideLaunch:previous.guideLaunch??null,guideReturns:previous.guideReturns??[],intakeAdvice:[],history:issue.history.slice(0,-1)});
     return {kind:'state',...view(row)};
    }
    if(c.action==='respond'){
@@ -326,8 +356,7 @@ export function createEmbeddedAnswerBridge({
       const prepared=prepareReplyAdvice(issue.state,text);
       if(prepared.status!=='ready')return fallback();
       issue.adviceCalls=(issue.adviceCalls||0)+1; // internal bounded per-issue resource counter
-      let proposed;
-      try{proposed=await replyAdvisor.suggest({state:copy(issue.state),text});}catch{proposed=null;}
+      const proposed=await advise(lock,replyAdvisor,{state:copy(issue.state),text});
       await recheck(issue.scopeKey,ctx.pin);
       if(proposed?.status!=='suggestion'||proposed.requiresConfirmation!==true||
        proposed.questionId!==prepared.request.questionId||!prepared.request.options.some(o=>o.id===proposed.optionId))return fallback();
@@ -339,7 +368,7 @@ export function createEmbeddedAnswerBridge({
     const answers=reportedAnswers(issue.state,state);
     const intakeAdvice=typed?[]:advanceIntakeSuggestions({before:issue.state,after:state,queue:issue.intakeAdvice,choice:{questionId:c.questionId,optionId:c.optionId}});
     row=save(key,row,{...issue,state,intakeAdvice,guideLaunch:null,answers:[...issue.answers,...answers].slice(-25),
-     history:[...issue.history,{state:copy(issue.state),answers:copy(issue.answers)}].slice(-12)});
+     history:issue.guideLaunch?[]:[...issue.history,{state:copy(issue.state),answers:copy(issue.answers),guideLaunch:null,guideReturns:copy(issue.guideReturns)}].slice(-12)});
     measureGap(row.issue,latest);
     return withIntakeSuggestion(row);
    }
@@ -355,7 +384,7 @@ export function createEmbeddedAnswerBridge({
    }
    if(['CATALOG_CHANGED','FEATURE_DISABLED'].includes(e?.message))return clear(key,rows.get(key),e.message);
    throw e;
-  }finally{if(locks.get(key)===lock)locks.delete(key);}
+  }finally{release(key,lock);}
  }
  /** Trusted host callback, NOT a browser command. Capture only after the
   * native host has verified an actual existing case and permission to attach
@@ -365,27 +394,42 @@ export function createEmbeddedAnswerBridge({
   const actor=await authenticateStudent(credential),key=actor.visitRef;
   const row=rows.get(key);
   if(locks.has(key)||!row||row.actorRef!==actor.actorRef)fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
-  const issue=current(row,{issueId,expectedVersion}),d=issue.state.decision;
-  if(!['offer_support','offer_mfa_recovery'].includes(d.kind))fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
-  const channel=d.kind==='offer_mfa_recovery'?'mfa_recovery':'support';
-  const checked=async a=>{
-   if(await enabled(a)!==true)fail('FEATURE_DISABLED');
-   const ctx=await context(a,issue.scopeKey);
-   if(!ctx||ctx.pin!==issue.pin||ctx.policy.allowDiagnosticHandoff!==true||decisionAllowed(issue.state,ctx))fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
-   const existing=await getExistingRequest({actor:a,channel,issueId});
-   if(existing?.status!=='recorded'||existing.reference!==caseRef||await authorizeDiagnosticCapture({actor:a,caseRef,issueId,channel,expectedVersion})!==true)fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
-   if(rows.get(key)!==row||locks.has(key))fail('STALE_VERSION');
-   return ctx;
-  };
-  await checked(actor);
-  const fresh=await authenticateStudent(credential);if(!sameActor(actor,fresh))fail('VISIT_ENDED');
-  const ctx=await checked(fresh);
-  const last=await authenticateStudent(credential);if(!sameActor(actor,last)||rows.get(key)!==row||locks.has(key))fail('STALE_VERSION');
-  return buildInternDiagnosticSnapshot({caseRef,state:issue.state,catalog:ctx.projection.catalog});
+  const lock=reserve(key);if(!lock)fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+  try{
+   const issue=current(row,{issueId,expectedVersion}),d=issue.state.decision;
+   if(!['offer_support','offer_mfa_recovery'].includes(d.kind))fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+   const channel=d.kind==='offer_mfa_recovery'?'mfa_recovery':'support';
+   const live=async()=>{
+    const fresh=await authenticateStudent(credential);
+    if(!sameActor(actor,fresh)||lock.cancelled||locks.get(key)!==lock||rows.get(key)!==row)fail('VISIT_ENDED');
+    if(await enabled(fresh)!==true)fail('FEATURE_DISABLED');
+    if(lock.cancelled||rows.get(key)!==row)fail('VISIT_ENDED');
+    return fresh;
+   };
+   const checked=async()=>{
+    const a=await live(),ctx=await context(a,issue.scopeKey);
+    if(!ctx||ctx.pin!==issue.pin||ctx.policy.allowDiagnosticHandoff!==true||decisionAllowed(issue.state,ctx))fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+    const existing=await getExistingRequest({actor:a,channel,issueId});
+    if(existing?.status!=='recorded'||existing.reference!==caseRef||await authorizeDiagnosticCapture({actor:a,caseRef,issueId,channel,expectedVersion})!==true)fail('DIAGNOSTIC_CAPTURE_NOT_ALLOWED');
+    await live();return ctx;
+   };
+   await checked();const ctx=await checked();await live();
+   return buildInternDiagnosticSnapshot({caseRef,state:issue.state,catalog:ctx.projection.catalog});
+  }finally{release(key,lock);}
  }
  /** Trusted native lifecycle hook: invoke on expiry, sign-out, staff termination,
   * kiosk cleanup or revocation. Not a student command. Never terminate host auth. */
- function forgetVisit(visitRef){const lock=locks.get(visitRef);if(lock)lock.cancelled=true;return rows.delete(visitRef);}
- function clearAll(){for(const lock of locks.values())lock.cancelled=true;rows.clear();}
- return Object.freeze({dispatch,captureDiagnosticSnapshot,forgetVisit,clearAll});
+ function forgetVisit(visitRef){cancel(locks.get(visitRef));return rows.delete(visitRef);}
+ function clearAll(){for(const lock of locks.values())cancel(lock);rows.clear();enginePool.clear();}
+ // Trusted host sweep only: erase idle issue evidence, retain version and
+ // actor tombstone until the host ends the actual visit. Never reset an active
+ // visit to version zero or evict pending work. No automatic timers.
+ function expireIdleIssues({idleMs}={}){
+  if(!Number.isSafeInteger(idleMs)||idleMs<1000||idleMs>86400000)fail('INVALID_IDLE_LIMIT');
+  const t=readClock();let cleared=0;
+  for(const [key,row] of rows)if(!locks.has(key)&&row.issue&&t-row.lastActivityAt>=idleMs){save(key,row,null);cleared++;}
+  return cleared;
+ }
+ function stats(){return {visits:rows.size,inFlight:locks.size,activeIssues:[...rows.values()].filter(r=>r.issue).length,engineCache:enginePool.stats()};}
+ return Object.freeze({dispatch,captureDiagnosticSnapshot,forgetVisit,clearAll,expireIdleIssues,stats});
 }

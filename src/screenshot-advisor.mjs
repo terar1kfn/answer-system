@@ -1,5 +1,6 @@
 import {Buffer} from 'node:buffer';
 import {QUESTIONS} from './questions.mjs';
+import {createAdviceCoordinator} from './advice-coordinator.mjs';
 import {ORDINARY_ADVISOR_DOMAINS,ORDINARY_ADVISOR_SERVICES,hasProtectedAdvisorEvidence,fixedOption} from './diagnostic-evidence.mjs';
 import {ERROR_SIGNATURES,getErrorSignature} from './error-intelligence.mjs';
 import {isServiceId} from './service-taxonomy.mjs';
@@ -94,21 +95,24 @@ export function acceptScreenshotAdvice(request,result){
  const error=getErrorSignature(checked.value);
  return {errorSuggestion:{signatureId:error.id,code:error.code,requiresConfirmation:true}};
 }
-export function createScreenshotAdvisor({enabled=false,provider,timeoutMs=12000}={}){
- if(typeof enabled!=='boolean'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>30000||enabled&&typeof provider!=='function')throw Error('INVALID_SCREENSHOT_ADVISOR');
+export function createScreenshotAdvisor({enabled=false,provider,timeoutMs=12000,coordinator=createAdviceCoordinator()}={}){
+ if(typeof enabled!=='boolean'||!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>30000||enabled&&typeof provider!=='function'||typeof coordinator?.run!=='function')throw Error('INVALID_SCREENSHOT_ADVISOR');
  let busy=false;
- async function suggest({state,png}={}){
+ async function suggest({state,png,signal}={}){
   if(!enabled)return {status:'disabled'};
   if(busy)return {status:'busy'};
   const p=prepareScreenshotAdvice(state);if(p.status!=='ready')return {status:p.status};
   let image;
   try{image=normalizedScreenshotPng(png).toString('base64');}catch{return {status:'blocked'};}
-  const controller=new AbortController();let timer;
-  busy=true;
-  const task=Promise.resolve().then(()=>provider({...p.request,image},{signal:controller.signal})).finally(()=>{busy=false;});
-  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{controller.abort();resolve(null);},timeoutMs);});
-  try{const result=await Promise.race([task,timeout]);return result===null?{status:'timeout'}:validateScreenshotOutput(p.request,result);}
-  catch{return {status:'unavailable'};}finally{clearTimeout(timer);}
+  try{
+   const result=await coordinator.run(async({signal:providerSignal})=>{
+    if(busy)throw Error('ADVISOR_BUSY');
+    busy=true;
+    try{return await provider({...p.request,image},{signal:providerSignal});}
+    finally{busy=false;}
+   },{signal,timeoutMs});
+   return result.status==='completed'&&result.value!==null?validateScreenshotOutput(p.request,result.value):{status:result.status==='completed'?'timeout':result.status};
+  }catch{return {status:'unavailable'};}
  }
  return Object.freeze({suggest});
 }
