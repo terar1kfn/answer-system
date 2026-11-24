@@ -2,7 +2,8 @@ import {projectNativeCatalog} from './native-catalog.mjs';
 import {nativeRecordFingerprint as digest} from './native-fingerprint.mjs';
 import {inspectNativeGuideRoute} from './native-route-review.mjs';
 import {validateContextMatch} from '../reviewed-context.mjs';
-import {planApplicableGuides} from '../guide-selection.mjs';
+import {planApplicableGuides,confirmedPrerequisitesMatch} from '../guide-selection.mjs';
+import {LEARNING_SERVICES,isUnconfirmedLearningValue} from '../diagnostic-evidence.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
 import {knownGuidePurpose} from '../guide-purposes.mjs';
 
@@ -17,8 +18,7 @@ const day=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&Number.isFinite
 const sorted=xs=>[...xs].sort((a,b)=>a<b?-1:a>b?1:0);
 const unique=xs=>new Set(xs).size===xs.length;
 const clone=x=>JSON.parse(JSON.stringify(x));
-const ordinary=new Set(['mail','network','portal','attendance','collaboration','printing','software','device','storage']);
-const uncertain=new Set(['unknown','not_tried','other','different','not_checked','unclear']);
+const ordinary=new Set(LEARNING_SERVICES);
 const completion=new Set(['attempted','viewed_only','not_viewed','unknown']);
 const outcomes=new Set(['resolved','unresolved','unknown','not_attempted']);
 const provenance=new Set(['staff_verified','student_reported','unverified']);
@@ -44,7 +44,7 @@ function scopeOf(scope){
 }
 function validContext(serviceId,context){
  if(context===null)return true;
- try{return validateContextMatch(serviceId,context)===true&&!Object.values(context).some(v=>uncertain.has(v));}catch{return false;}
+ try{return validateContextMatch(serviceId,context)===true&&!Object.values(context).some(isUnconfirmedLearningValue);}catch{return false;}
 }
 function validRow(r,asOf){
  return exact(r,fields)&&opaque(r.caseKey)&&opaque(r.receiptKey)&&int(r.revision,1,Number.MAX_SAFE_INTEGER)&&day(r.day)&&r.day<=asOf&&
@@ -81,7 +81,7 @@ function lowerBound(c){
  const z=1.96,n=c.known,p=c.resolved/n;
  return (p+z*z/(2*n)-z*Math.sqrt((p*(1-p)+z*z/(4*n))/n))/(1+z*z/n);
 }
-const matched=(g,context)=>Object.entries(g.requires||{}).every(([k,vs])=>Object.hasOwn(context,k)&&!uncertain.has(context[k])&&vs.includes(context[k]));
+const matched=confirmedPrerequisitesMatch;
 const compatible=(a,b)=>!Object.entries(a).some(([k,v])=>Object.hasOwn(b,k)&&b[k]!==v);
 
 /** Read-only learning from a COMPLETE, host-verified private cohort.

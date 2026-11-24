@@ -1,4 +1,5 @@
 import {QUESTIONS} from './questions.mjs';
+import {validGuidePrerequisites,normalizeGuidePrerequisites} from './diagnostic-evidence.mjs';
 import {classify,normalize} from './classify.mjs';
 import {eligible,resolveReviewedFact,createKnowledgeRetriever} from './knowledge.mjs';
 import {reconcileInitialContext} from './initial-context.mjs';
@@ -24,7 +25,7 @@ import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {initializeSharedProgress,applySharedProgressAnswer,sharedProgressDecision,applySharedProgressDecision,sharedProgressQuestion} from './shared-progress.mjs';
 import {bindGuideNavigation,failedStepQuestion} from './attempt-review.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.36.0';
+export const RULE_VERSION='0.42.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -40,7 +41,7 @@ function checkedCatalog(input){
  const ids=new Set();
  for(const g of input.guides){
   if(!g||typeof g.id!=='string'||!g.id||ids.has(g.id)||!SVC.has(g.serviceId)||typeof g.purpose!=='string'||typeof g.reviewed!=='boolean'||typeof g.enabled!=='boolean'||!['student','staff'].includes(g.audience)||typeof g.title?.en!=='string'||typeof g.title?.ar!=='string')throw new TypeError('Invalid guide');
-  if(g.requires!==undefined&&(!g.requires||typeof g.requires!=='object'||Array.isArray(g.requires)||Object.entries(g.requires).some(([key,values])=>!Object.hasOwn(QUESTIONS,key)||!Array.isArray(values)||!values.length||values.some(v=>!QUESTIONS[key].options.some(o=>o.id===v)))))throw new TypeError('Invalid guide prerequisites');
+  if(g.requires!==undefined&&!validGuidePrerequisites(g.requires))throw new TypeError('Invalid guide prerequisites');
   for(const key of ['aliases','keywords','errorSignatures'])if(g[key]!==undefined&&(!Array.isArray(g[key])||g[key].length>100||g[key].some(v=>typeof v!=='string'||v.length>500)))throw new TypeError('Invalid guide metadata');
   ids.add(g.id);
  }
@@ -52,7 +53,9 @@ function checkedCatalog(input){
  if(input.serviceAvailability!==undefined&&(!input.serviceAvailability||typeof input.serviceAvailability!=='object'||Array.isArray(input.serviceAvailability)||Object.entries(input.serviceAvailability).some(([id,flag])=>!SVC.has(id)||typeof flag!=='boolean')))throw new TypeError('Invalid service availability');
  if(input.diagnosticServices!==undefined&&(!Array.isArray(input.diagnosticServices)||!input.diagnosticServices.length||input.diagnosticServices.some(s=>!SVC.has(s))||new Set(input.diagnosticServices).size!==input.diagnosticServices.length))throw new TypeError('Invalid diagnostic scope');
  validateReviewedContexts(input.reviewedContexts??[]);
- return copy(input);
+ const snapshot=copy(input);
+ snapshot.guides=snapshot.guides.map(g=>({...g,...(g.requires===undefined?{}:{requires:normalizeGuidePrerequisites(g.requires)})}));
+ return snapshot;
 }
 function guide(s,c,service,purpose){
  if(c.diagnosticServices&&!c.diagnosticServices.includes(service))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');

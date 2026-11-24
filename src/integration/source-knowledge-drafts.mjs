@@ -1,7 +1,7 @@
 import {knownGuidePurpose} from '../guide-purposes.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
 import {nativeRecordFingerprint} from './native-catalog.mjs';
-import {QUESTIONS} from '../questions.mjs';
+import {validGuidePrerequisites} from '../diagnostic-evidence.mjs';
 const copy=x=>JSON.parse(JSON.stringify(x));
 const fail=x=>{throw Error(x);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
@@ -17,7 +17,7 @@ function sourceValid(s){
  try{const u=new URL(s.url);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&!u.hash;}catch{return false;}
 }
 function prerequisitesValid(requires){
- return requires&&typeof requires==='object'&&!Array.isArray(requires)&&Object.entries(requires).every(([k,vs])=>Object.hasOwn(QUESTIONS,k)&&Array.isArray(vs)&&vs.length&&new Set(vs).size===vs.length&&vs.every(v=>QUESTIONS[k].options.some(o=>o.id===v)));
+ return validGuidePrerequisites(requires,{requireUnique:true});
 }
 /** Validate draft shape and evidence attribution, not the truth or local
  * applicability of a source. Drafts never enter createEngine as facts/guides. */

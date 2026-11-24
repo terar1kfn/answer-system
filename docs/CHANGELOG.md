@@ -1,5 +1,13 @@
 # Change log
 
+## 0.42.0 — core consistency and diagnostic logic (validation deferred)
+
+- Share canonical fixed-question lookup, confirmed prerequisite validation, deterministic set normalization, auto-question inventory and theoretical applicability comparisons across selection, native projection, mapping/source drafts and both audits. Duplicate legacy values no longer increase specificity; wholly unconfirmed requirements fail closed. Raw publication/release pins are not rewritten.
+- Use consistent explicit Low/Medium native risk, student self-service and known-unreviewed-source predicates in projection, route inspection/verification and audit candidates. Existing independent native approval and owner hooks remain required.
+- Share context/learning schema and ordinary intake/screenshot protected-evidence boundary. Permit exact meeting-product/client, academic-system and mail-client observations for independently reviewed context; no new context publication/activation mechanism or AI permission expansion.
+- Add 79 bilingual reason messages, a safe student-copy fallback and enumerated copy keys. Bump engine rule version to 0.42.0 so changed selection behavior is not treated as older diagnostic state.
+- No tests, syntax checks, builds, model calls, native integration, actual catalog data or deployment. Controlled reviewed-context releases and further stabilization remain pending.
+
 ## 0.41.0 — verified recurring-context learning and review workflow (validation deferred)
 
 - Add a private complete-cohort review report using current guide/source/route/rule pins, distinct single-attempt case filtering, staff-verified isolated outcomes, and fixed pre-attempt context. Do not credit mixed, repeated, stale or unverified cases.

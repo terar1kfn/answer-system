@@ -1,4 +1,5 @@
 import {createEngine} from './engine.mjs';
+import {normalizeGuidePrerequisites} from './diagnostic-evidence.mjs';
 import {isServiceId} from './service-taxonomy.mjs';
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -11,7 +12,7 @@ export function buildCatalogSnapshot({sourceRevision,mappingRevision,guideRows,f
  if(!id(sourceRevision)||!id(mappingRevision)||!Array.isArray(guideRows)||!Array.isArray(factRows)||guideRows.length>5000||factRows.length>5000)throw Error('INVALID_CATALOG_INPUT');
  const guides=guideRows.map(row=>{
   if(!row||!id(row.id)||!id(row.purpose)||!isServiceId(row.serviceId)||typeof row.published!=='boolean'||typeof row.enabled!=='boolean'||typeof row.reviewed!=='boolean'||!['student','staff'].includes(row.audience))throw Error('INVALID_GUIDE_MAPPING');
-  return {id:row.id,serviceId:row.serviceId,purpose:row.purpose,title:clone(row.title),reviewed:row.reviewed&&row.published,enabled:row.enabled,audience:row.audience,aliases:clone(row.aliases||[]),keywords:clone(row.keywords||[]),errorSignatures:clone(row.errorSignatures||[]),requires:clone(row.requires||{}),...(id(row.sourceRef)?{sourceRef:row.sourceRef}:{})};
+  return {id:row.id,serviceId:row.serviceId,purpose:row.purpose,title:clone(row.title),reviewed:row.reviewed&&row.published,enabled:row.enabled,audience:row.audience,aliases:clone(row.aliases||[]),keywords:clone(row.keywords||[]),errorSignatures:clone(row.errorSignatures||[]),requires:normalizeGuidePrerequisites(row.requires),...(id(row.sourceRef)?{sourceRef:row.sourceRef}:{})};
  });
  const facts=factRows.map(row=>{
   if(!row||!id(row.id)||!isServiceId(row.serviceId)||!id(row.sourceRef)||typeof row.published!=='boolean'||typeof row.reviewed!=='boolean'||typeof row.enabled!=='boolean')throw Error('INVALID_FACT_MAPPING');

@@ -1,4 +1,5 @@
 import {nativeRecordFingerprint as digest} from './native-fingerprint.mjs';
+import {isPermittedNativeRisk,isNativeStudentSelfService,isUnreviewedNativeSource} from './native-guide-policy.mjs';
 const validId=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const filled=x=>typeof x==='string'&&Boolean(x.trim());
 const fail=code=>{throw Error(code);};
@@ -6,7 +7,6 @@ const limits=Object.freeze({guides:5000,questionsPerGuide:200,optionsPerQuestion
 const sorted=(xs,key)=>xs.sort((a,b)=>key(a)<key(b)?-1:key(a)>key(b)?1:0);
 const key=(g,q)=>JSON.stringify([g,q]);
 const unique=(xs,id)=>Array.isArray(xs)&&xs.every(x=>x&&validId(x[id]))&&new Set(xs.map(x=>x[id])).size===xs.length;
-const blockedSource=new Set(['DRAFT / NEEDS REVIEW','REQUIRES IT VALIDATION']);
 const clone=x=>JSON.parse(JSON.stringify(x));
 /**
  * Inspect the complete reachable native route, including CASE and SOLUTION
@@ -46,10 +46,10 @@ export function inspectNativeGuideRoute({configuration,mappingRow,isServiceAvail
   if(!questionsOk)block('ROUTE_INVALID_QUESTIONS',g.id);
   if(!owner||g.serviceId&&g.serviceId!==owner.id||owner&&ownsGuide(g,owner,configuration)!==true)block('ROUTE_OWNER_CHANGED',g.id);
   if(g.isEnabled!==true||isGuideAvailable(g,configuration)!==true)block('ROUTE_GUIDE_UNAVAILABLE',g.id);
-  if(!['Student','All'].includes(g.audience)||g.permissionLevel!=='SELF SERVICE')block('ROUTE_PRIVILEGED_OR_AUDIENCE_RESTRICTED',g.id);
-  if(!['Low','Medium'].includes(g.riskLevel))block('ROUTE_HIGH_OR_UNKNOWN_RISK',g.id);
+  if(!isNativeStudentSelfService(g))block('ROUTE_PRIVILEGED_OR_AUDIENCE_RESTRICTED',g.id);
+  if(!isPermittedNativeRisk(g))block('ROUTE_HIGH_OR_UNKNOWN_RISK',g.id);
   else if(g.riskLevel==='Medium')note('ROUTE_MEDIUM_RISK_REVIEW',g.id);
-  if(blockedSource.has(g.sourceType)||isReviewedGuide(g,configuration)!==true)block('ROUTE_SOURCE_UNREVIEWED',g.id);
+  if(isUnreviewedNativeSource(g)||isReviewedGuide(g,configuration)!==true)block('ROUTE_SOURCE_UNREVIEWED',g.id);
   if(isEntryMenu(g,configuration)!==false)block('ROUTE_ENTRY_MENU_NATIVE_ONLY',g.id);
   if(!filled(g.title)||!filled(g.titleAr))block('ROUTE_BILINGUAL_TITLE_INCOMPLETE',g.id);
   return map;
@@ -143,5 +143,5 @@ export function routeReviewMatches({review,configuration,mappingRow}={}){
  if(!owner||review.ownerFingerprint!==digest(owner))return false;
  const all=new Map(configuration.guides.map(g=>[g.id,g]));
  return review.dependencies.some(d=>d.guideId===mappingRow.guideId&&d.fingerprint===mappingRow.expectedFingerprint)&&
- review.dependencies.every(d=>all.has(d.guideId)&&d.fingerprint===digest(all.get(d.guideId)));
+ review.dependencies.every(d=>{const g=all.get(d.guideId);return g&&d.fingerprint===digest(g)&&isPermittedNativeRisk(g)&&isNativeStudentSelfService(g)&&g.isEnabled===true&&!isUnreviewedNativeSource(g);});
 }

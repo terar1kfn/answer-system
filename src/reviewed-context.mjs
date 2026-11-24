@@ -1,23 +1,10 @@
-import {QUESTIONS} from './questions.mjs';
+import {REVIEWED_CONTEXT_DEFINITIONS as definitions,REVIEWED_CONTEXT_QUESTIONS as askable,fixedOption,isUnconfirmedContextValue} from './diagnostic-evidence.mjs';
 import {eligible} from './knowledge.mjs';
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const revision=x=>typeof x==='string'&&x.length>0&&x.length<=200;
 const fingerprint=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
 const clone=x=>JSON.parse(JSON.stringify(x));
-const UNKNOWN=new Set(['unknown','not_tried','other','different']);
-const definitions={
- mail:{domains:['mail','specific'],anchors:['task','mail_feature'],context:['send_error','send_scope','receive_scope','mail_client_scope','device_os']},
- network:{domains:['network'],anchors:['network_issue'],context:['connection','peers','device_os']},
- portal:{domains:['specific','task'],anchors:['portal_issue'],context:['browser_scope','device_os','service_access']},
- attendance:{domains:['specific','task'],anchors:['attendance_issue'],context:['device_os','phone']},
- collaboration:{domains:['specific','task'],anchors:['meeting_issue'],context:['device_os','phone']},
- printing:{domains:['specific','task'],anchors:['printing_issue'],context:['device_os']},
- software:{domains:['specific','task'],anchors:['software_issue'],context:['device_os']},
- device:{domains:['specific','task'],anchors:['device_issue'],context:['device_os']},
- storage:{domains:['specific','task'],anchors:['storage_issue'],context:['device_os','phone']}
-};
 const fields=new Set(['id','serviceId','purpose','guideId','match','sourceRevision','guideFingerprint','caseRef','authorRef','reviewerRef','reviewed','enabled','outcomeEvidence']);
-const askable=['device_os','phone','browser_scope','mail_client_scope'];
 const fail=x=>{throw Error(x);};
 function validateShape(p,{draft=false}={}){
  const d=p&&Object.hasOwn(definitions,p.serviceId)?definitions[p.serviceId]:null;
@@ -38,7 +25,7 @@ export function validateContextMatch(serviceId,match){
  const keys=Object.keys(match);
  if(keys.length<2||keys.length>6||!keys.some(k=>d.anchors.includes(k))||!keys.some(k=>d.context.includes(k)))fail('CONTEXT_EVIDENCE_TOO_WEAK');
  for(const [key,value] of Object.entries(match)){
-  if(![...d.anchors,...d.context].includes(key)||!id(value)||UNKNOWN.has(value)||!QUESTIONS[key]?.options.some(o=>o.id===value))fail('INVALID_CONTEXT_SIGNAL');
+  if(![...d.anchors,...d.context].includes(key)||!id(value)||isUnconfirmedContextValue(value)||!fixedOption(key,value))fail('INVALID_CONTEXT_SIGNAL');
   // Context records must never encode protected/administrative paths as an
   // ordinary alternative. The deterministic router still takes precedence.
   if(key==='task'&&!['send','receive','app'].includes(value))fail('CONTEXT_OPERATION_NOT_ALLOWED');
@@ -89,7 +76,7 @@ export function disambiguateReviewedContext({catalog,state,tiedGuides}={}){
   // Require the actual operation anchor to have been reported. Do not ask a
   // platform question solely because a loosely related case exists.
   if(!vals.some(([k,v])=>d.anchors.includes(k)&&state.evidence[k]?.value===v))continue;
-  const conflicts=vals.some(([k,v])=>state.evidence[k]&& !UNKNOWN.has(state.evidence[k].value)&&state.evidence[k].value!==v);
+  const conflicts=vals.some(([k,v])=>state.evidence[k]&& !isUnconfirmedContextValue(state.evidence[k].value)&&state.evidence[k].value!==v);
   if(conflicts)continue;
   const missing=vals.filter(([k,v])=>state.evidence[k]?.value!==v).map(([k])=>k);
   usable.push({pattern:p,missing});

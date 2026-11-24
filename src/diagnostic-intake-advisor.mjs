@@ -1,11 +1,12 @@
 import {QUESTIONS} from './questions.mjs';
+import {ORDINARY_ADVISOR_DOMAINS,ORDINARY_ADVISOR_SERVICES,hasProtectedAdvisorEvidence,fixedOption} from './diagnostic-evidence.mjs';
 import {classify,normalize} from './classify.mjs';
 import {sanitizeText} from './privacy.mjs';
 import {recognizeErrors} from './error-intelligence.mjs';
 import {isServiceId,matchServices} from './service-taxonomy.mjs';
 const maxQuestions=3;
-const ordinary=new Set(['unknown','specific','task','network','mail']);
-const safeServices=new Set(['mail','portal','attendance','network','collaboration','storage','printing','software','device','directory']);
+const ordinary=new Set(ORDINARY_ADVISOR_DOMAINS);
+const safeServices=new Set(ORDINARY_ADVISOR_SERVICES);
 const allowed={
  service:[...safeServices],task:['app','send','receive'],
  network_issue:['setup','ssid_missing','auth','no_internet','slow','only_service'],
@@ -39,13 +40,13 @@ function ordinaryState(state){
  return state&&ordinary.has(state.domain)&&['en','ar'].includes(state.language)&&Array.isArray(state.services)&&state.services.every(isServiceId)&&
   !state.pendingError&&!state.pendingContext&&!state.conflictingObservations?.length&&!state.sharedProgress&&
   !state.reviewedFactId&&!state.reviewedFactIds?.length&&!state.knowledgeChoices?.length&&!state.reviewedFactConflict&&!state.compositeAnswerGap&&
-  !['error_signature','error_conflict','mfa_prompt','mfa_access','mfa_recovery','recovery_context','verification_context','credentials','password_intent','setup_requested'].some(k=>Object.hasOwn(state.evidence||{},k));
+  !hasProtectedAdvisorEvidence(state.evidence);
 }
 function row(state,key,question){
  const permitted=allowed[key];
  if(!permitted||!question||!bounded(question.text?.[state.language],500))return null;
- const options=(question.options||[]).filter(o=>permitted.includes(o.id)&&QUESTIONS[key]?.options.some(x=>x.id===o.id))
-  .map(o=>({id:o.id,label:QUESTIONS[key].options.find(x=>x.id===o.id).label[state.language]}));
+ const options=(question.options||[]).filter(o=>permitted.includes(o.id)&&fixedOption(key,o.id))
+  .map(o=>({id:o.id,label:fixedOption(key,o.id).label[state.language]}));
  if(options.length<2||options.length>20)return null;
  return {questionId:key,question:question.text[state.language],options};
 }

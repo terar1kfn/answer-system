@@ -1,4 +1,5 @@
 import {QUESTIONS} from './questions.mjs';
+import {fixedOption as knownOption,isUnconfirmedPrerequisite} from './diagnostic-evidence.mjs';
 import {classify,normalize} from './classify.mjs';
 import {sanitizeText} from './privacy.mjs';
 import {readInitialObservations} from './observation-intake.mjs';
@@ -13,7 +14,6 @@ const ADVISABLE=new Set([
 const CONTEXT_KEYS=['task','shared_operation','network_issue','portal_issue','attendance_issue','meeting_issue','printing_issue','software_issue','device_issue','storage_issue','mail_feature','device_os','phone','connection','service_access','browser_scope','send_scope','receive_scope','mail_client_scope'];
 const block=/\b(?:ignore (?:all |previous |the )?instructions|system prompt|developer message|assistant role|jailbreak|reveal (?:the )?prompt|password|passcode|otp|secret|api key|access token|verification code)\b|كلمه المرور|رمز التحقق|تجاهل التعليمات|تعليمات النظام/i;
 const textOk=(x,n)=>typeof x==='string'&&x.trim().length>0&&x.length<=n;
-const knownOption=(q,v)=>QUESTIONS[q]?.options.find(o=>o.id===v);
 const safeId=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 /** Only the authoritative current question and fixed existing observations
  * enter the model context. No previous raw text, guide content or identity. */
@@ -48,7 +48,7 @@ export function prepareReplyAdvice(state,text){
  for(const key of CONTEXT_KEYS){
   if(key===qid)continue;
   const value=state.evidence[key]?.value,option=knownOption(key,value);
-  if(!option||['unknown','not_tried'].includes(value))continue;
+  if(!option||isUnconfirmedPrerequisite(value))continue;
   context.push({questionId:key,optionId:value,label:option.label[state.language]});
   if(context.length===8)break;
  }

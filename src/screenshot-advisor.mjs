@@ -1,10 +1,11 @@
 import {Buffer} from 'node:buffer';
 import {QUESTIONS} from './questions.mjs';
+import {ORDINARY_ADVISOR_DOMAINS,ORDINARY_ADVISOR_SERVICES,hasProtectedAdvisorEvidence,fixedOption} from './diagnostic-evidence.mjs';
 import {ERROR_SIGNATURES,getErrorSignature} from './error-intelligence.mjs';
 import {isServiceId} from './service-taxonomy.mjs';
 
-const safeServices=new Set(['mail','portal','attendance','network','collaboration','storage','printing','software','device','directory']);
-const ordinary=new Set(['unknown','specific','task','network','mail']);
+const safeServices=new Set(ORDINARY_ADVISOR_SERVICES);
+const ordinary=new Set(ORDINARY_ADVISOR_DOMAINS);
 const visualOptions={
  service:[...safeServices],
  meeting_product:['zoom','teams'],meeting_client:['desktop','mobile','web'],
@@ -18,7 +19,6 @@ const visualOptions={
  software_issue:['install','update','launch'],storage_issue:['sync','space'],
  device_issue:['storage','display','audio','update']
 };
-const blockedKeys=['error_signature','error_conflict','mfa_prompt','mfa_access','mfa_recovery','recovery_context','verification_context','credentials','password_intent','setup_requested'];
 const bounded=(v,n)=>typeof v==='string'&&v.trim().length>0&&v.length<=n;
 const shape=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).length===keys.length&&keys.every(k=>Object.hasOwn(o,k));
 export const MAX_SCREENSHOT_BYTES=2*1024*1024;
@@ -59,7 +59,7 @@ function safeState(state){
   state.services.length<=1&&state.services.every(s=>isServiceId(s)&&safeServices.has(s))&&
   !state.pendingError&&!state.pendingContext&&!state.sharedProgress&&!state.conflictingObservations?.length&&
   !state.reviewedFactId&&!state.reviewedFactIds?.length&&!state.knowledgeChoices?.length&&!state.reviewedFactConflict&&!state.compositeAnswerGap&&
-  !blockedKeys.some(k=>Object.hasOwn(state.evidence||{},k));
+  !hasProtectedAdvisorEvidence(state.evidence);
 }
 /** Only current ordinary fixed questions. No inferred permission, account state,
  * outcome, scope across devices, troubleshooting execution or root cause. */
@@ -67,8 +67,8 @@ export function prepareScreenshotAdvice(state){
  if(!safeState(state)||state.decision?.kind!=='ask')return {status:'not_applicable'};
  const d=state.decision,q=QUESTIONS[d.questionId],permitted=visualOptions[d.questionId]||[];
  if(!q||Object.hasOwn(state.evidence||{},d.questionId)||!bounded(q.text?.[state.language],500))return {status:'not_applicable'};
- const options=(d.question?.options||[]).filter(o=>permitted.includes(o.id)&&q.options.some(x=>x.id===o.id))
-  .map(o=>({id:o.id,label:q.options.find(x=>x.id===o.id).label[state.language]}));
+ const options=(d.question?.options||[]).filter(o=>permitted.includes(o.id)&&fixedOption(d.questionId,o.id))
+  .map(o=>({id:o.id,label:fixedOption(d.questionId,o.id).label[state.language]}));
  // Only ordinary documented mail delivery codes. Identity/security/exam codes
  // stay with native routing. Do not treat a model's reading as verified OCR.
  const errors=state.services.length===1&&state.services[0]==='mail'&&(permitted.length||d.questionId==='task')?

@@ -1,25 +1,20 @@
 import {GUIDE_PURPOSES,knownGuidePurpose} from '../guide-purposes.mjs';
 import {projectNativeCatalog} from './native-catalog.mjs';
 import {searchKnowledge} from '../knowledge.mjs';
-import {QUESTIONS} from '../questions.mjs';
+import {isAutomaticPrerequisiteQuestion} from '../diagnostic-evidence.mjs';
+import {potentialGuideTie} from '../guide-selection.mjs';
+import {isPermittedNativeRisk,isNativeStudentSelfService,isUnreviewedNativeSource} from './native-guide-policy.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
 const fail=x=>{throw Error(x);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const terms=x=>Array.isArray(x)?x.filter(s=>typeof s==='string'&&s.trim()&&s.length<=500).slice(0,100):[];
 const title=g=>typeof g.title==='string'&&g.title.trim()&&g.title.length<=500&&typeof g.titleAr==='string'&&g.titleAr.trim()&&g.titleAr.length<=500;
 const priority=x=>x.priority==='core'?0:1;
-const allowedPrerequisites=new Set(['password_change_environment','network_scope','attendance_permission_kind','portal_system','assignment_kind','attendance_qr_task','mail_client','meeting_product','meeting_client','device_os','phone','browser_scope']);
-function overlapping(a,b){
- const ra=a.requires||{},rb=b.requires||{};
- if(Object.keys(ra).length!==Object.keys(rb).length)return false;
- for(const key of Object.keys(ra))if(Object.hasOwn(rb,key)&&!ra[key].some(v=>rb[key].includes(v)))return false;
- return true;
-}
 function overlappingPairs(rows){
  const output=[];
  // Bound comparison output. Report potential overlaps, not proof that no
  // more specific third guide would resolve a given assignment.
- for(let i=0;i<rows.length;i++)for(let j=i+1;j<rows.length;j++)if(overlapping(rows[i],rows[j])){
+ for(let i=0;i<rows.length;i++)for(let j=i+1;j<rows.length;j++)if(potentialGuideTie(rows[i],rows[j])){
   output.push([rows[i].id,rows[j].id]);if(output.length>=25)return {pairs:output,truncated:true};
  }
  return {pairs:output,truncated:false};
@@ -30,8 +25,8 @@ function candidateRows(input,projection){
  const owners=projection.availableNativeServices.map(s=>({...s,native:configuration.services.find(n=>n.id===s.nativeId)}));
  const result=[];
  for(const g of configuration.guides){
-  if(!g||!id(g.id)||mapped.has(g.id)||g.isEnabled!==true||!['Student','All'].includes(g.audience)||g.permissionLevel!=='SELF SERVICE'||
-   g.riskLevel==='High'||['DRAFT / NEEDS REVIEW','REQUIRES IT VALIDATION'].includes(g.sourceType)||
+  if(!g||!id(g.id)||mapped.has(g.id)||g.isEnabled!==true||!isNativeStudentSelfService(g)||
+   !isPermittedNativeRisk(g)||isUnreviewedNativeSource(g)||
    !title(g)||isGuideAvailable(g,configuration)!==true||isReviewedGuide(g,configuration)!==true||isEntryMenu(g,configuration)!==false)continue;
   const eligibleOwners=owners.filter(o=>(!g.serviceId||g.serviceId===o.nativeId)&&isServiceAvailable(o.native,configuration)===true&&ownsGuide(g,o.native,configuration)===true);
   if(eligibleOwners.length!==1)continue;
@@ -85,7 +80,7 @@ export function auditNativeCoverage(input,{nativeOnlyServices=['exam','directory
   if(!existing.length)return {...base,status:rejected.length?'withheld':'mapping_needed',withheld:rejected,candidates:suggestions(p,candidates)};
   const {pairs,truncated}=overlappingPairs(existing);
   const prerequisites=existing.map(g=>({guideId:g.id,requires:g.requires||{},
-   questionsNotAutomaticallyAsked:Object.keys(g.requires||{}).filter(k=>!allowedPrerequisites.has(k))}));
+   questionsNotAutomaticallyAsked:Object.keys(g.requires||{}).filter(k=>!isAutomaticPrerequisiteQuestion(k))}));
   const unconditional=existing.some(g=>!Object.keys(g.requires||{}).length);
   // A conditional mapping can be eligible in some cases only. Even a mapped
   // unconditional guide is not proof that runtime routing works correctly.

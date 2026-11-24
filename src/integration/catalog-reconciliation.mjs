@@ -1,7 +1,7 @@
 import {nativeRecordFingerprint,projectNativeCatalog} from './native-catalog.mjs';
 import {knownGuidePurpose} from '../guide-purposes.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
-import {QUESTIONS} from '../questions.mjs';
+import {validGuidePrerequisites} from '../diagnostic-evidence.mjs';
 import {inspectNativeGuideRoute} from './native-route-review.mjs';
 const fail=code=>{throw Error(code);};
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -24,9 +24,7 @@ function validateMapping(m){
  for(const g of m.guides){
   if(!id(g.nativeServiceId)||!owners.has(g.nativeServiceId)||!id(g.purpose)||
   !hash(g.expectedFingerprint)||!['diagnostic','resolution'].includes(g.entryMode)||
-  !g.requires||typeof g.requires!=='object'||Array.isArray(g.requires)||
-  Object.entries(g.requires).some(([k,vs])=>!Object.hasOwn(QUESTIONS,k)||!Array.isArray(vs)||!vs.length||
-   new Set(vs).size!==vs.length||vs.some(v=>!QUESTIONS[k].options.some(o=>o.id===v))))fail('PINNED_GUIDE_MAPPING_REQUIRED');
+  !validGuidePrerequisites(g.requires,{requireUnique:true}))fail('PINNED_GUIDE_MAPPING_REQUIRED');
  }
 }
 function inventory(before,current){

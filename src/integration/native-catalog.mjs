@@ -1,6 +1,8 @@
 import {nativeRecordFingerprint} from './native-fingerprint.mjs';
 export {nativeRecordFingerprint} from './native-fingerprint.mjs';
 import {createEngine} from '../engine.mjs';
+import {validGuidePrerequisites,normalizeGuidePrerequisites} from '../diagnostic-evidence.mjs';
+import {isPermittedNativeRisk,isNativeStudentSelfService,isUnreviewedNativeSource} from './native-guide-policy.mjs';
 import {SERVICE_IDS,isServiceId} from '../service-taxonomy.mjs';
 import {validateReviewedContexts} from '../reviewed-context.mjs';
 import {knownGuidePurpose} from '../guide-purposes.mjs';
@@ -54,12 +56,15 @@ export function projectNativeCatalog({
   if(!mappedServices.has(m.nativeServiceId))fail('GUIDE_OWNER_NOT_MAPPED');
   if(!knownGuidePurpose(mappedServices.get(m.nativeServiceId).serviceId,m.purpose)){withheld.push({guideId:m.guideId,reason:'UNKNOWN_GUIDE_PURPOSE'});continue;}
   if(!owner||!g){withheld.push({guideId:m.guideId,reason:'UNAVAILABLE_OR_OUT_OF_SCOPE'});continue;}
+  if(m.requires!==undefined&&!validGuidePrerequisites(m.requires)){withheld.push({guideId:m.guideId,reason:'INVALID_GUIDE_PREREQUISITES'});continue;}
+  const requires=normalizeGuidePrerequisites(m.requires);
   // Broad collaboration taxonomy is not an exact product authorization.
+  // Preserve the original explicit single-product mapping gate as well.
   if(owner.serviceId==='collaboration'&&(!Array.isArray(m.requires?.meeting_product)||m.requires.meeting_product.length!==1||!['zoom','teams'].includes(m.requires.meeting_product[0]))){withheld.push({guideId:m.guideId,reason:'EXACT_MEETING_PRODUCT_REQUIRED'});continue;}
   if((g.serviceId&&g.serviceId!==m.nativeServiceId)||ownsGuide(g,s,configuration)!==true){withheld.push({guideId:m.guideId,reason:'OWNERSHIP_UNCONFIRMED'});continue;}
   // Entry menus and procedures for privileged personnel stay in the native router.
-  if(g.isEnabled!==true||!['Student','All'].includes(g.audience)||g.permissionLevel!=='SELF SERVICE'||
-  g.riskLevel==='High'||['DRAFT / NEEDS REVIEW','REQUIRES IT VALIDATION'].includes(g.sourceType)||
+  if(g.isEnabled!==true||!isNativeStudentSelfService(g)||
+  !isPermittedNativeRisk(g)||isUnreviewedNativeSource(g)||
   isGuideAvailable(g,configuration)!==true||isReviewedGuide(g,configuration)!==true||
   isEntryMenu(g,configuration)!==false){withheld.push({guideId:m.guideId,reason:'NOT_APPROVED_FOR_SUPPLEMENTAL_ROUTING'});continue;}
   const fingerprint=digest(g);
@@ -80,7 +85,7 @@ export function projectNativeCatalog({
    // original guide body remains in the host and is never returned here.
    nativeGuideFingerprint:fingerprint,resolutionStepCount:g.resolutionSteps.length,entryMode,reviewed:true,enabled:true,audience:'student',
    aliases:boundedTerms(g.aliases),keywords:boundedTerms(g.keywords),
-   requires:clone(m.requires||{}),errorSignatures:boundedTerms(m.errorSignatures)
+   requires,errorSignatures:boundedTerms(m.errorSignatures)
   });
  }
  const serviceAvailability=Object.fromEntries(SERVICE_IDS.map(id=>[id,[...available.values()].some(s=>s.serviceId===id)]));

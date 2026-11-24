@@ -4,10 +4,10 @@
  * not a learned probability. Hard safety/identity prerequisites are never
  * reordered by this module.
  */
-const permitted=['password_change_environment','network_scope','attendance_permission_kind','portal_system','assignment_kind','attendance_qr_task','mail_client','meeting_product','meeting_client','device_os','phone','browser_scope'];
+import {GUIDE_PREREQUISITE_QUESTIONS as permitted,normalizeGuidePrerequisites} from './diagnostic-evidence.mjs';
 export function chooseGuidePrerequisite(viable,state,{minimumSpecificity=-1}={}){
  if(!Array.isArray(viable)||!state?.evidence)return null;
- const relevant=viable.filter(g=>Object.keys(g.requires||{}).length>minimumSpecificity);
+ const relevant=viable.map(g=>({...g,requires:normalizeGuidePrerequisites(g.requires)})).filter(g=>Object.keys(g.requires).length>minimumSpecificity);
  const candidates=permitted.filter(k=>!Object.hasOwn(state.evidence,k)&&!state.askedQuestionIds.includes(k)&&relevant.some(g=>Object.hasOwn(g.requires||{},k)));
  const score=key=>{
   const options=[...new Set(relevant.flatMap(g=>g.requires?.[key]||[]))];

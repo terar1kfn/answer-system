@@ -1,11 +1,11 @@
 import {projectNativeCatalog,nativeRecordFingerprint} from './native-catalog.mjs';
 import {knownGuidePurpose} from '../guide-purposes.mjs';
-import {QUESTIONS} from '../questions.mjs';
+import {validGuidePrerequisites} from '../diagnostic-evidence.mjs';
 const copy=x=>JSON.parse(JSON.stringify(x));
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const fail=x=>{throw Error(x);};
 function checkedPrerequisites(value){
- if(!value||typeof value!=='object'||Array.isArray(value)||Object.entries(value).some(([key,values])=>!Object.hasOwn(QUESTIONS,key)||!Array.isArray(values)||!values.length||new Set(values).size!==values.length||values.some(v=>!QUESTIONS[key].options.some(o=>o.id===v))))fail('INVALID_MAPPING_PREREQUISITES');
+ if(!validGuidePrerequisites(value,{requireUnique:true}))fail('INVALID_MAPPING_PREREQUISITES');
  return copy(value);
 }
 /**

@@ -3,9 +3,10 @@ import {nativeRecordFingerprint as digest} from './native-fingerprint.mjs';
 import {inspectNativeGuideRoute} from './native-route-review.mjs';
 import {buildKnowledgeBacklog} from './knowledge-backlog.mjs';
 import {GUIDE_PURPOSES,knownGuidePurpose} from '../guide-purposes.mjs';
-import {QUESTIONS} from '../questions.mjs';
+import {normalizeGuidePrerequisites,confirmedOptionIds,isAutomaticPrerequisiteQuestion} from '../diagnostic-evidence.mjs';
+import {isPermittedNativeRisk,isNativeStudentSelfService,isUnreviewedNativeSource} from './native-guide-policy.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
-import {moreSpecific} from '../guide-selection.mjs';
+import {compareGuideApplicability,confirmedPrerequisitesMatch,MAX_GUIDE_CANDIDATES} from '../guide-selection.mjs';
 
 const fail=code=>{throw Error(code);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
@@ -19,7 +20,6 @@ const byId=(a,b)=>a.localeCompare(b);
 const sorted=xs=>[...xs].sort(byId);
 const groupKey=(s,p)=>JSON.stringify([s,p]);
 const nativeOnly=new Set(['exam','directory']);
-const uncertain=new Set(['unknown','not_tried']);
 const maxGuides=250,maxFindings=3000,maxAssignments=512,maxContexts=1000;
 const statusSet=new Set(['verified_current','changed','unavailable','unverified']);
 const actionFor=Object.freeze({
@@ -78,19 +78,10 @@ function validSteps(g){
  const en=g.resolutionSteps,ar=g.resolutionStepsAr;
  return list(en,200)&&list(ar,200)&&en.length>0&&en.length===ar.length&&[...en,...ar].every(s=>bounded(s));
 }
-function requires(g){
- return Object.fromEntries(Object.entries(g.requires||{}).map(([k,v])=>[k,sorted(new Set(v))]));
-}
-function overlaps(a,b){
- for(const [k,v] of Object.entries(a))if(Object.hasOwn(b,k)&&!v.some(x=>b[k].includes(x)&&!uncertain.has(x)))return false;
- // A constraint containing only an uncertain answer cannot establish a match.
- return [...Object.values(a),...Object.values(b)].every(v=>v.some(x=>!uncertain.has(x)));
-}
-function sameConditions(a,b){return digest(a)===digest(b);}
 function combinations(guides){
  const keys=sorted(new Set(guides.flatMap(g=>Object.keys(g.requires))));
  if(!keys.length||guides.some(g=>!Object.keys(g.requires).length))return {kind:'unconditional'};
- const domains=keys.map(k=>QUESTIONS[k].options.map(o=>o.id).filter(x=>!uncertain.has(x)));
+ const domains=keys.map(k=>confirmedOptionIds(k));
  let total=1;
  for(const domain of domains){
   if(!domain.length||total>Math.floor(maxAssignments/domain.length))return {kind:'limit'};
@@ -100,7 +91,7 @@ function combinations(guides){
  for(let i=0;i<total;i++){
   let n=i;const assignment={};
   for(let k=keys.length-1;k>=0;k--){const values=domains[k];assignment[keys[k]]=values[n%values.length];n=Math.floor(n/values.length);}
-  if(!guides.some(g=>Object.entries(g.requires).every(([k,vs])=>vs.includes(assignment[k])))){uncovered++;if(!first)first=assignment;}
+  if(!guides.some(g=>confirmedPrerequisitesMatch(g,assignment))){uncovered++;if(!first)first=assignment;}
  }
  return {kind:'checked',total,uncovered,first};
 }
@@ -144,7 +135,7 @@ export function auditNativeKnowledgeQuality({input,reviewScope,sourceReviews=[],
   return owner&&(!g.serviceId||g.serviceId===owner.id)&&ownsGuide(g,owner,configuration)===true;
  }
  function ordinaryGuide(g){
-  return ['Student','All'].includes(g.audience)&&g.permissionLevel==='SELF SERVICE'&&['Low','Medium'].includes(g.riskLevel)&&isEntryMenu(g,configuration)===false;
+  return isNativeStudentSelfService(g)&&isPermittedNativeRisk(g)&&isEntryMenu(g,configuration)===false;
  }
  function register(g,m,ownerId){
   const serviceId=owners.get(ownerId),purpose=m&&knownGuidePurpose(serviceId,m.purpose)?m.purpose:null;
@@ -160,7 +151,7 @@ export function auditNativeKnowledgeQuality({input,reviewScope,sourceReviews=[],
   if(!info.guideFingerprint||!available.has(ownerId)||!ordinaryGuide(g)||g.isEnabled!==true||isGuideAvailable(g,configuration)!==true)return;
   if(m&&!hash(m.expectedFingerprint))add('MAPPING_FINGERPRINT_MISSING','review',subject);
   if(!m)add('UNMAPPED_GUIDE_REVIEW','info',subject);
-  if(isReviewedGuide(g,configuration)!==true||['DRAFT / NEEDS REVIEW','REQUIRES IT VALIDATION'].includes(g.sourceType))add('SOURCE_REVIEW_REQUIRED','review',subject);
+  if(isReviewedGuide(g,configuration)!==true||isUnreviewedNativeSource(g))add('SOURCE_REVIEW_REQUIRED','review',subject);
   const f=freshness.get(guideId);
   if(!f)add('SOURCE_REVIEW_RECORD_MISSING','info',subject);
   else if(f.guideFingerprint!==info.guideFingerprint)add('SOURCE_REVIEW_VERSION_CHANGED','review',subject);
@@ -250,19 +241,19 @@ export function auditNativeKnowledgeQuality({input,reviewScope,sourceReviews=[],
  for(const g of admitted.values()){
   const k=groupKey(g.serviceId,g.purpose);
   if(!groups.has(k))groups.set(k,[]);
-  groups.get(k).push({...g,requires:requires(g)});
+  groups.get(k).push({...g,requires:normalizeGuidePrerequisites(g.requires)});
  }
- const askable=new Set(['password_change_environment','network_scope','attendance_permission_kind','portal_system','assignment_kind','attendance_qr_task','mail_client','meeting_product','meeting_client','device_os','phone','browser_scope']);
  for(const [k,gs] of groups){
   const [serviceId,purpose]=JSON.parse(k),subject={serviceId,purpose};
-  if(gs.length>128)add('CANDIDATE_LIMIT','blocker',subject,{candidateCount:gs.length});
+  if(gs.length>MAX_GUIDE_CANDIDATES)add('CANDIDATE_LIMIT','blocker',subject,{candidateCount:gs.length});
   for(let i=0;i<gs.length;i++)for(let j=i+1;j<gs.length;j++){
    const a=gs[i],b=gs[j];
-   if(!overlaps(a.requires,b.requires)||moreSpecific(a,b)||moreSpecific(b,a))continue;
-   add('POTENTIAL_GUIDE_CONFLICT','review',subject,{guides:sorted([a.id,b.id]).map(x=>noText(records.get(x))),relation:sameConditions(a.requires,b.requires)?'equivalent_conditions':'incomparable_overlapping_conditions'});
+   const relation=compareGuideApplicability(a,b);
+   if(!['equivalent','overlapping'].includes(relation))continue;
+   add('POTENTIAL_GUIDE_CONFLICT','review',subject,{guides:sorted([a.id,b.id]).map(x=>noText(records.get(x))),relation:relation==='equivalent'?'equivalent_conditions':'incomparable_overlapping_conditions'});
   }
   for(const g of gs){
-   const keys=Object.keys(g.requires).filter(q=>!askable.has(q));
+   const keys=Object.keys(g.requires).filter(q=>!isAutomaticPrerequisiteQuestion(q));
    if(keys.length)add('PREREQUISITE_QUESTION_REVIEW','review',noText(records.get(g.id)),{questionIds:sorted(keys)});
   }
   if(complete.has(serviceId)){
