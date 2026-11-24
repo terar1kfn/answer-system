@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.7 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.8 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Run the diagnostic lab
 
@@ -51,3 +51,6 @@ Additional operational modules: optional local Ollama providers, revision-pinned
 
 
 The new unified [development workbench](docs/workbench.md) connects fictional student, intern and manager workflows through the reference host service. It includes diagnostic correction and guide-progress tracking, scoped incidents, simulated delivery/reconciliation, knowledge review and optional synthetic metadata persistence. It is not a release or a hosted application. Validation remains deferred.
+
+
+The [host assembly](docs/assembly.md) composes optional model/retrieval, guide resolution, diagnostics, durable handoff reconciliation, metrics, monitoring and a host-authorized OCR boundary behind explicit private integration callbacks. Informational paraphrases can ask the student to confirm a reviewed fact topic; pasted-error intake retains only documented signals. Feature code is unvalidated and no real host is connected.

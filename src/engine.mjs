@@ -7,7 +7,8 @@ import {isServiceId} from './service-taxonomy.mjs';
 import {hasServicePlaybook,nextServiceDecision} from './service-playbooks.mjs';
 import {getErrorSignature} from './error-intelligence.mjs';
 import {sanitizeText} from './privacy.mjs';
-export const RULE_VERSION='0.5.0';
+import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from './answer-planner.mjs';
+export const RULE_VERSION='0.8.0';
 export const MAX_TURNS=7;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -36,8 +37,18 @@ function checkedCatalog(input){
  return copy(input);
 }
 function guide(s,c,service,purpose){
- const matches=c.guides.filter(g=>g.serviceId===service&&g.purpose===purpose&&eligible(g,{catalog:c})&&Object.entries(g.requires||{}).every(([k,values])=>values.includes(value(s,k)))).sort((a,b)=>Object.keys(b.requires||{}).length-Object.keys(a.requires||{}).length);
- if(!matches.length)return support('NO_APPROVED_GUIDE');
+ const eligibleGuides=c.guides.filter(g=>g.serviceId===service&&g.purpose===purpose&&eligible(g,{catalog:c}));
+ const matches=eligibleGuides.filter(g=>Object.entries(g.requires||{}).every(([k,values])=>values.includes(value(s,k)))).sort((a,b)=>Object.keys(b.requires||{}).length-Object.keys(a.requires||{}).length);
+ // Only safe platform/context fields may be requested as missing prerequisites.
+ // Do not ask a sensitive question merely because a guide references it.
+ const viable=eligibleGuides.filter(g=>Object.entries(g.requires||{}).every(([k,values])=>!known(s,k)||values.includes(value(s,k))));
+ const specificity=Object.keys(matches[0]?.requires||{}).length;
+ const nextKey=['device_os','phone','browser_scope'].find(key=>!known(s,key)&&viable.some(g=>Object.keys(g.requires||{}).length>specificity&&Object.hasOwn(g.requires||{},key)));
+ if(nextKey)return ask(nextKey);
+ if(!matches.length){
+  const needed=['device_os','phone','browser_scope'].find(key=>!known(s,key)&&viable.some(g=>Object.hasOwn(g.requires||{},key)));
+  return needed?ask(needed):support('NO_APPROVED_GUIDE');
+ }
  if(matches.length>1&&Object.keys(matches[0].requires||{}).length===Object.keys(matches[1].requires||{}).length)return support('MULTIPLE_APPROVED_GUIDES');
  const g=matches[0];
  if(s.offeredGuideIds.includes(g.id))return support('GUIDE_ALREADY_OFFERED');
@@ -63,6 +74,7 @@ function decide(s,c,records,now){
  }
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
  if(k('outcome'))return support(v('outcome')==='no'?'GUIDE_DID_NOT_WORK':'OUTCOME_UNCONFIRMED');
+ if(s.knowledgeChoices?.length&&!k('reviewed_topic'))return ask('reviewed_topic');
  if(s.domain==='unknown')return !k('service')?ask('service'):support('SERVICE_UNCLEAR');
  if(s.reviewedFactId&&!k('outcome')){
   const f=(c.facts||[]).find(f=>f.id===s.reviewedFactId&&eligible(f,{catalog:c}));
@@ -145,7 +157,7 @@ function finish(s,c,records,now){
  if(d.kind==='ask'&&(s.askedQuestionIds.length>=MAX_TURNS||s.askedQuestionIds.includes(d.questionId)))d=support('QUESTION_BUDGET_OR_REPEAT');
  if(d.kind==='ask'){
   s.askedQuestionIds.push(d.questionId);
-  let question=QUESTIONS[d.questionId];
+  let question=d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):QUESTIONS[d.questionId];
   if(d.questionId==='task'&&!s.services.includes('mail'))question={...question,options:question.options.filter(o=>!['send','receive'].includes(o.id))};
   if(d.questionId==='service'&&s.services.length>1)question={...question,options:question.options.filter(o=>s.services.includes(o.id)||o.id==='other')};
   d={...d,question};
@@ -174,6 +186,9 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   for(const [key,v] of Object.entries(r.facts))fact(s,key,v,'student_text_signal');
   s.requestKind=['safety','exam'].includes(r.domain)?'protected':isHowTo?'how_to':r.domain==='unknown'?'unclear':'fault';
   if(factMatch){s.reviewedFactId=factMatch.id;s.domain='task';s.services=[factMatch.serviceId];}
+  else if(!clean.categories.length&&!['safety','exam'].includes(r.domain)&&r.facts.mfa_prompt!=='unexpected'&&!r.facts.error_signature&&isInformationalQuery(text)){
+   const choices=reviewedTopicChoices(c,{text,services:r.services});if(choices.length)s.knowledgeChoices=choices;
+  }
   return finish(s,c,records,now());
  }
  function advance(state,{expectedTurn,questionId,optionId}={}){
@@ -184,6 +199,13 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const options=d.kind==='ask'?d.question.options:d.followUp.question.options;
   if(expected!==questionId||!options.some(o=>o.id===optionId))throw Error('INVALID_ANSWER');
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
+  if(questionId==='reviewed_topic'&&optionId!=='none'){
+   const choice=s.knowledgeChoices?.find(x=>x.optionId===optionId);
+   const f=(c.facts||[]).find(x=>x.id===choice?.factId&&eligible(x,{catalog:c,services:s.services}));
+   if(!f)throw Error('FACT_UNAVAILABLE');
+   s.reviewedFactId=f.id;s.domain='task';s.services=[f.serviceId];s.requestKind='information';
+   s.evidence={reviewed_topic:{value:optionId,origin:'student_report'}};
+  }
   if(questionId==='service'){
    s.services=[optionId];
    for(const key of Object.keys(s.evidence))if(key!=='service')delete s.evidence[key];

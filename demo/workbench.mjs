@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const root=$('root'),key=document.querySelector('meta[name="workbench-key"]').content;
-let meta,persona='student-a',student=null,staffData=null,managerData=null,workspace=null,ledger=[],language='en',tab='visits',selectedVisit=null,detail=null,caseMatches=[],guide=null,guideStep=1,requestKeys=new Map(),results=null,busy=false,deliveryMessage='';
+let meta,persona='student-a',student=null,staffData=null,managerData=null,workspace=null,ledger=[],language='en',tab='visits',selectedVisit=null,detail=null,caseMatches=[],guide=null,guideStep=1,results=null,errorResult=null,busy=false,deliveryMessage='';
 const labels={offer_support:'IT assistance recommended',offer_mfa_recovery:'Verification recovery required',incident_notice:'Confirmed service incident (simulation)',safety_referral:'Authorized support or professor first',resolved_reported:'Original task reported as working'};
 const arLabels={offer_support:'يوصى بالدعم التقني',offer_mfa_recovery:'يلزم استعادة التحقق',incident_notice:'انقطاع مؤكد في المحاكاة',safety_referral:'راجع الدعم المخول أو الأستاذ أولاً',resolved_reported:'أفاد الطالب بأن المهمة تعمل'};
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined&&text!==null)n.textContent=String(text);if(cls)n.className=cls;return n;};
@@ -36,7 +36,7 @@ const concurrency=()=>({expectedVersion:student.version,issueId:student.issue?.i
 function t(en,ar){return language==='ar'?ar:en;}
 async function run(fn){
  if(busy)return;busy=true;status('Working…');
- try{await fn();status('');}catch(e){status(String(e.message||e).replaceAll('_',' '),true);}
+ try{await fn();if($('status').textContent==='Working…')status('');}catch(e){status(String(e.message||e).replaceAll('_',' '),true);}
  finally{busy=false;}
 }
 async function updateGuide(){
@@ -49,7 +49,7 @@ async function updateGuide(){
 }
 async function studentUpdate(next){student=next;language=next.issue?.state?.language||language;await updateGuide();render();}
 async function begin(text){
- deliveryMessage='';results=null;
+ deliveryMessage='';results=null;errorResult=null;
  const next=await cmd('begin',{expectedVersion:student.version,text,language});await studentUpdate(next);
 }
 async function serviceCard(id){
@@ -90,7 +90,7 @@ function renderGuide(d){
 }
 async function submitHandoff(retry=false){
  const issue=student.issue;
- const requestKey=requestKeys.get(issue.issueId)||crypto.randomUUID();requestKeys.set(issue.issueId,requestKey);
+ const requestKey='request-'+issue.issueId;
  if(!retry&&!confirm('Create a fictional support request in the isolated workbench?'))return;
  const r=await cmd(retry?'retry_handoff':'prepare_handoff',{...concurrency(),requestKey,...(retry?{}:{confirmed:true})});
  deliveryMessage='Simulated delivery: '+r.delivery.status+' (attempt '+r.delivery.attempt+')';await studentUpdate(r.visit);
@@ -136,6 +136,14 @@ function studentView(){
  const top=panel(t('Student support','دعم الطالب'),row(lang,tag(student?.persistent?'authorized persistent':'ordinary session'),button('Keep active',async()=>{await cmd('keep_alive');render();}),button('Finish session',async()=>{await cmd('finish');student=null;render();},'danger',student?.persistent===true)));
  if(!student){top.append(empty('The fictional visit is closed.'),button('Start a new fictional visit',async()=>studentUpdate(await api('start')),'primary'));root.append(top);return;}
  top.append(searchForm,cards);
+ const err=input(t('Paste a fictional error code or message','الصق رمز خطأ تجريبي أو رسالة'),4000);
+ const errorPanel=append(el('details'),el('summary','Error evidence'),form([err,submitButton('Interpret error')],async()=>{errorResult=await cmd('analyze_error',{text:err.value});render();}));
+ if(errorResult){
+  errorPanel.append(muted('Interpretation: '+errorResult.status));
+  for(const signal of errorResult.signals||[]){const box=append(el('div',undefined,'mini'),el('strong',signal.code),muted(signal.stage.replaceAll('_',' ')),muted('Reported clue only; not a confirmed cause.'));if(errorResult.signals.length===1)box.append(button('Diagnose this code',()=>begin(signal.code),'primary'));errorPanel.append(box);}
+  if(errorResult.privateInformationRemoved)errorPanel.append(muted('Potential private information was removed. Do not paste credentials.'));
+ }
+ top.append(errorPanel);
  if(results!==null){const r=append(el('div',undefined,'result'),el('h3','Eligible knowledge matches'));if(!results.length)r.append(empty('No reviewed matches.'));else results.forEach(g=>r.append(append(el('div',undefined,'mini'),el('strong',g.title?.[language]||g.id),muted(g.kind+' • '+g.serviceId+' • '+g.id))));top.append(r);}
  top.append(renderDecision());
  const s=student.issue?.state,inspector=panel('Diagnostic inspector',facts({session:student.persistent?'authorized persistent':'ordinary',version:student.version,status:student.issue?.status||'ready',domain:s?.domain||'—',services:s?.services?.join(', ')||'—',catalog:s?.catalogRevision||meta.catalogRevision}));
@@ -239,6 +247,7 @@ async function refresh(){
 }
 async function switchPersona(id){
  persona=id;student=null;staffData=null;managerData=null;selectedVisit=null;detail=null;guide=null;guideStep=1;results=null;deliveryMessage='';
+ errorResult=null;
  if(active().role==='student'){student=await api('start');language=student.issue?.state?.language||'en';await updateGuide();}
  else await refreshStaff();
  render();

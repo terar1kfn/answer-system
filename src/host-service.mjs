@@ -3,6 +3,7 @@ import {createIncidentRegistry} from './incidents.mjs';
 import {createReviewQueue} from './review-queue.mjs';
 import {createEngine} from './engine.mjs';
 import {metricForDecision} from './analytics.mjs';
+import {inspectErrorText} from './error-intake.mjs';
 const error=code=>{throw Error(code);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const obj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x)&&[Object.prototype,null].includes(Object.getPrototypeOf(x));
@@ -10,7 +11,7 @@ const roles=new Set(['student','intern','manager']);
 const staff=a=>a.role==='intern'||a.role==='manager';
 const commandFields={
  open:[],read:[],begin:['expectedVersion','text','language'],respond:['expectedVersion','issueId','questionId','optionId','text'],undo:['expectedVersion','issueId'],cancel_issue:['expectedVersion','issueId'],set_language:['expectedVersion','issueId','language'],guide_progress:['expectedVersion','issueId','guideId','step'],
- search:['text','services','limit'],suggest_reply:['expectedVersion','issueId','text'],load_guide:['expectedVersion','issueId','guideId'],finish:[],keep_alive:[],
+ search:['text','services','limit'],analyze_error:['text'],suggest_reply:['expectedVersion','issueId','text'],load_guide:['expectedVersion','issueId','guideId'],finish:[],keep_alive:[],
  prepare_handoff:['expectedVersion','issueId','requestKey','confirmed'],
  retry_handoff:['expectedVersion','issueId','requestKey'],
  report_incident:['expectedVersion','issueId'],
@@ -21,7 +22,7 @@ const commandFields={
  review:['proposalId','expectedRevision','decision','currentCatalogRevision'],review_list:[],
  publication_candidate:['proposalId','currentCatalogRevision']
 };
-const STUDENT=new Set(['open','read','begin','respond','search','finish','keep_alive','prepare_handoff','retry_handoff','report_incident','suggest_reply','load_guide','undo','cancel_issue','set_language','guide_progress']);
+const STUDENT=new Set(['open','read','begin','respond','search','finish','keep_alive','prepare_handoff','retry_handoff','report_incident','suggest_reply','load_guide','undo','cancel_issue','set_language','guide_progress','analyze_error']);
 const STAFF=new Set(['terminate','recover','propose','review','review_list','publication_candidate','active_visits','read_visit','case_matches']);
 const MANAGER=new Set(['incident_candidates','incident_list','incident_create','incident_transition','monitoring','analytics']);
 const optional=(o,k)=>Object.hasOwn(o,k)?o[k]:undefined;
@@ -110,13 +111,14 @@ export function createAnswerService({
     if(!Array.isArray(steps)||!steps.length||steps.length>200)error('GUIDE_UNAVAILABLE');
     return studentView(runtime.recordGuideProgress(ref,{...c,total:steps.length}));
    }
+   if(action==='analyze_error')return inspectErrorText(c.text,{maxChars:4000});
    if(action==='search'){
     if(!hybridRetriever)return createEngine({catalog:getCatalog(),now}).search(c);
     const result=await hybridRetriever.search(c);runtime.read(ref);return result.results||[];
    }
    if(action==='suggest_reply'){
     const current=sameIssue(ref,c.expectedVersion,c.issueId),d=current.issue.state.decision;
-    if(!advisor||d.kind!=='ask'||current.issue.handoffRef)return {status:'disabled'};
+    if(!advisor||d.kind!=='ask'||d.questionId==='reviewed_topic'||current.issue.handoffRef)return {status:'disabled'};
     const suggestion=await advisor.suggest({questionId:d.questionId,options:d.question.options,text:c.text,language:current.issue.state.language});
     sameIssue(ref,c.expectedVersion,c.issueId);return suggestion;
    }

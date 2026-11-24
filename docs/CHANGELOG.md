@@ -1,5 +1,13 @@
 # Change log
 
+## 0.8.0 — feature-building phase (validation deferred)
+
+- Added reviewed fact-topic clarification, safe missing-prerequisite questions and documented error intake for pasted text.
+- Added opt-in host-authorized local OCR extraction boundary (no upload or OCR engine bundled).
+- Added server-side composition factory with explicit required private callbacks, optional model/retrieval, durable delivery and reconciliation, monitoring, metrics and case retrieval.
+- Added fictional error interpretation in workbench and stable per-issue request keys for recovery of the UI state.
+- No test, syntax, build, benchmark, browser, provider or deployment execution. Existing private repositories remain untouched.
+
 ## 0.7.0 — feature-building phase (validation deferred)
 
 - Added trusted previous-answer correction, issue cancellation, language continuity and guide-progress tracking.
