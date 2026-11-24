@@ -1,5 +1,12 @@
 # Change log
 
+## 0.40.0 — automated private knowledge-quality review (validation deferred)
+
+- Add a unified read-only quality audit for authorized native guide scope: bilingual content, repeated steps and option labels, reachable route structure, mapping eligibility, duplicate procedure/title leads, overlapping applicability and bounded conditional coverage.
+- Add independently supplied exact-guide freshness records and stale/overlapping reviewed-context leads. Overdue review, missing records and similarity are not proof of obsolete or incorrect instructions.
+- Reuse purpose-specific aggregate gap events and exact current-source/route-pinned staff-verified unresolved outcomes from the existing backlog. No new learning, diagnosis, or automatic publication/routing changes.
+- Add a staff-only authorized snapshot recheck, scoped guide/service coverage, minimized finding metadata and explicit bounds. No private inputs, tests, builds, model calls, deployment or live host changes.
+
 ## 0.39.0 — consented local screenshot diagnostic hints (validation deferred)
 
 - Add bounded host-normalized PNG intake, ordinary current-question visual interpretation and documented mail-error hints with independent exact-ID validation.

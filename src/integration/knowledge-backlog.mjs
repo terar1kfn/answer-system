@@ -20,10 +20,10 @@ function gapAction(kind){
 /** Read-only, scope-constrained staff review agenda. Observed counts are
  * separate from static gaps and successful/unsuccessful outcome statistics.
  * Never rank a student-facing guide based on these counts. */
-export function buildKnowledgeBacklog({input,metricRows=[],effectivenessRows=[],proposalPack=null,minimumGroup=5,days=30}={}){
- if(!bounded(metricRows,10000)||!bounded(effectivenessRows,5000)||!Number.isSafeInteger(minimumGroup)||minimumGroup<5||minimumGroup>100||
+export function buildKnowledgeBacklog({input,metricRows=[],effectivenessRows=[],proposalPack=null,minimumGroup=5,days=30,includeSuggestions=true}={}){
+ if(typeof includeSuggestions!=='boolean'||!bounded(metricRows,10000)||!bounded(effectivenessRows,5000)||!Number.isSafeInteger(minimumGroup)||minimumGroup<5||minimumGroup>100||
  !Number.isSafeInteger(days)||days<1||days>90)fail('INVALID_KNOWLEDGE_BACKLOG_INPUT');
- const projection=projectNativeCatalog(input),coverage=auditNativeCoverage(input,{includeSuggestions:true}),scope=new Set(projection.catalog.diagnosticServices);
+ const projection=projectNativeCatalog(input),coverage=auditNativeCoverage(input,{includeSuggestions}),scope=new Set(projection.catalog.diagnosticServices);
  const rows=coverage.rows.filter(r=>scope.has(r.serviceId)&&!['native_route','out_of_scope'].includes(r.status));
  const indexed=new Map(rows.map(r=>[key(r.serviceId,r.purpose),{serviceId:r.serviceId,purpose:r.purpose,title:r.title,
   coverageStatus:r.status,registryPriority:r.priority,actions:[],observedGapCounts:[],effectivenessReview:[],proposalIds:[],

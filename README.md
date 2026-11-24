@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.39 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.40 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -142,3 +142,6 @@ Version 0.30 separates changed-phone verification transfer from the original sig
 
 
 Optional local screenshot interpretation is documented in [docs/screenshot-diagnosis.md](docs/screenshot-diagnosis.md). It is disabled by default, requires native host consent/privacy approval and a local vision provider, and returns only unconfirmed fixed-choice or documented mail-error hints. No upload endpoint, real screenshots or production model integration is included.
+
+
+The staff-only deterministic [knowledge-quality review](docs/knowledge-quality-review.md) combines structural route findings, bilingual completeness, duplicate and applicability review, source-review freshness, and the existing verified-outcome/gap backlog. It never edits, activates, publishes or ranks guides. Native authorization and scoped private data are required; validation is deferred.
