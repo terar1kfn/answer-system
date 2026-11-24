@@ -1,5 +1,12 @@
 # Change log
 
+## 0.43.0 — controlled learning and contextual publication (validation deferred)
+
+- Add separate reviewed-context release coordinator: exact verified case evidence, full current approved mapping scope, same-native-owner applicability tie and current route review, independent draft author/reviewer, manager activation, exact source/base/rule/head pins and authoritative host compare-and-swap transaction.
+- Add opt-in contextual mapping provider over the unchanged approved base. Verify live context head and activation, invalidate stale context/source/rule revisions, recheck head and base, and fail closed to native routing on inconsistent release state. Disallow context patterns in original base release consumption.
+- Add authorized individual/all revocation, monotonically versioned head, historical release restoration only through new case and independent review, native commit readback and uncertain-result handling. All durable records, current authority and audit transaction are owned by the private host.
+- Restrict native context disambiguation to the exact same native owner and bump rule version to 0.43.0. Aggregate learning reports remain review leads, never automatic routing approvals. No tests/builds/model calls, native hooks, live data, deployments or private host modifications.
+
 ## 0.42.0 — core consistency and diagnostic logic (validation deferred)
 
 - Share canonical fixed-question lookup, confirmed prerequisite validation, deterministic set normalization, auto-question inventory and theoretical applicability comparisons across selection, native projection, mapping/source drafts and both audits. Duplicate legacy values no longer increase specificity; wholly unconfirmed requirements fail closed. Raw publication/release pins are not rewritten.

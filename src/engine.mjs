@@ -25,7 +25,7 @@ import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {initializeSharedProgress,applySharedProgressAnswer,sharedProgressDecision,applySharedProgressDecision,sharedProgressQuestion} from './shared-progress.mjs';
 import {bindGuideNavigation,failedStepQuestion} from './attempt-review.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.42.0';
+export const RULE_VERSION='0.43.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));

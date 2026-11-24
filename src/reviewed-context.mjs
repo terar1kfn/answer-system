@@ -69,6 +69,9 @@ export function disambiguateReviewedContext({catalog,state,tiedGuides}={}){
  const first=tiedGuides[0],d=Object.hasOwn(definitions,first.serviceId)?definitions[first.serviceId]:null;
  if(!d||!d.domains.includes(state.domain)||state.services.length!==1||state.services[0]!==first.serviceId||
  tiedGuides.some(g=>g.serviceId!==first.serviceId||g.purpose!==first.purpose))return {kind:'none'};
+ // Native product/card ownership is not interchangeable across generic
+ // service categories. Keep synthetic standalone guides without native IDs.
+ if(tiedGuides.some(g=>g.nativeServiceId!==undefined)&&(!id(first.nativeServiceId)||tiedGuides.some(g=>g.nativeServiceId!==first.nativeServiceId)))return {kind:'none'};
  const candidateIds=new Set(tiedGuides.map(g=>g.id)),usable=[];
  for(const p of catalog.reviewedContexts||[]){
   if(!p.enabled||p.serviceId!==first.serviceId||p.purpose!==first.purpose||!candidateIds.has(p.guideId)||!currentGuide(catalog,p))continue;

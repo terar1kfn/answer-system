@@ -9,6 +9,7 @@ const fail=x=>{throw Error(x);};
 const revision=c=>String(c.gatewayRevision??c.revision);
 const unique=(xs,k)=>new Set(xs.map(x=>x[k])).size===xs.length;
 const same=(a,b)=>nativeRecordFingerprint(a)===nativeRecordFingerprint(b);
+const baseOnly=m=>!Object.hasOwn(m,'reviewedContexts')||Array.isArray(m.reviewedContexts)&&m.reviewedContexts.length===0;
 function pinned(mapping,configuration){
  return mapping&&configuration&&mapping.sourceRevision===revision(configuration)&&
  hash(mapping.sourceCatalogFingerprint)&&mapping.sourceCatalogFingerprint===nativeRecordFingerprint(configuration)&&
@@ -113,7 +114,7 @@ export async function prepareMappingRelease({
  }
  // Previously learned patterns have a separate outcome and review lifecycle.
  // This release gate only handles the approved original guide mappings.
- if(mapping.reviewedContexts?.length)fail('REVIEWED_CONTEXT_RELEASE_SEPARATE');
+ if(!baseOnly(mapping))fail('REVIEWED_CONTEXT_RELEASE_SEPARATE');
  const projection=projectNativeCatalog({configuration,mapping,allowedNativeServiceIds,diagnosticServices,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu});
  if(projection.withheld.length||projection.catalog.guides.length!==mapping.guides.length)fail('MAPPING_RELEASE_CONTAINS_INELIGIBLE_GUIDE');
  const payload={releaseId,preparerRef,releaseReviewerRef,mapping:clone(mapping),approvals:clone(approvals),routeReviews:clone(routeReviews)};
@@ -135,6 +136,9 @@ export function createApprovedMappingProvider({getConfiguration,getActiveRelease
    release.releaseFingerprint!==nativeRecordFingerprint(release.payload)||
    !pinned(release.payload.mapping,configuration))fail('APPROVED_MAPPING_UNAVAILABLE');
   const p=release.payload,m=p.mapping;
+  // Contexts have their own independent activation/revocation lifecycle.
+  // Even a host-approved base envelope cannot bypass that release gate.
+  if(!baseOnly(m))fail('APPROVED_MAPPING_UNAVAILABLE');
   if(!id(p.releaseId)||!id(p.preparerRef)||!id(p.releaseReviewerRef)||p.preparerRef===p.releaseReviewerRef||
    !Array.isArray(p.approvals)||p.approvals.length!==m.guides.length||!unique(p.approvals,'guideId')||
    !Array.isArray(p.routeReviews)||p.routeReviews.length!==m.guides.length||!unique(p.routeReviews,'guideId')||

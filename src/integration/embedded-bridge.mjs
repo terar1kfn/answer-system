@@ -346,7 +346,7 @@ export function createEmbeddedAnswerBridge({
    fail('INVALID_EMBEDDED_COMMAND');
   }catch(e){
    if(lock.cancelled||['VISIT_ENDED','UNAUTHENTICATED'].includes(e?.message)){rows.delete(key);throw e;}
-   if(['MAPPING_SOURCE_REVISION_CHANGED','MAPPING_SOURCE_CONTENT_CHANGED','APPROVED_MAPPING_UNAVAILABLE'].includes(e?.message)){
+   if(['MAPPING_SOURCE_REVISION_CHANGED','MAPPING_SOURCE_CONTENT_CHANGED','APPROVED_MAPPING_UNAVAILABLE','CONTEXT_RELEASE_UNAVAILABLE'].includes(e?.message)){
     // A publication changed while the private supplemental mapping is stale.
     // Recheck the actor before returning to the existing native workflow.
     const fresh=await authenticateStudent(credential);

@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.42 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.43 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -151,3 +151,6 @@ The private [advanced-learning workflow](docs/advanced-learning.md) derives cons
 
 
 Core consistency stabilization is documented in [docs/core-consistency.md](docs/core-consistency.md). The diagnostic selector, coverage and quality audits share confirmed prerequisite-set semantics; native risk admission and fixed-choice definitions are consistent, and additional bilingual student messages are available. Native activation, tests and integration are still deferred.
+
+
+The [reviewed-context release coordinator](docs/context-release.md) adds separately authorized publication of case-derived disambiguation patterns over the immutable approved base mapping. It includes candidate preparation, independent review, native transactional activation, individual/all revocation and fresh-review rollback. Native durable hooks are required; nothing is activated by this repository alone.
