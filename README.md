@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.5 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.6 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Run the diagnostic lab
 
@@ -45,3 +45,6 @@ The optional host authorization façade and advisory inference adapter are docum
 
 
 Expanded service taxonomy, eleven service-specific support areas plus identity/exam safeguards, documented error signatures, bilingual concept retrieval, conditional guide selection and an explicit private catalog adapter are described in [docs/diagnostic-coverage.md](docs/diagnostic-coverage.md). Validation is deliberately deferred during the feature-building phase.
+
+
+Additional operational modules: optional local Ollama providers, revision-pinned hybrid retrieval, atomic single-writer persistence, reviewed catalog workspace, durable handoff metadata/dispatcher, aggregate analytics, monitoring signals, reviewed-case similarity and host-facing staff/guide/advisor commands. See [docs/operational-architecture.md](docs/operational-architecture.md). These are unvalidated build-phase modules; no live integration or provider connection has been enabled.

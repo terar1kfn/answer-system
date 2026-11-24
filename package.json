@@ -1,6 +1,6 @@
 {
   "name": "answer-system",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -12,13 +12,21 @@
     "./advisor": "./src/model-advisor.mjs",
     "./catalog": "./src/catalog-adapter.mjs",
     "./taxonomy": "./src/service-taxonomy.mjs",
-    "./errors": "./src/error-intelligence.mjs"
+    "./errors": "./src/error-intelligence.mjs",
+    "./ollama": "./src/providers/ollama.mjs",
+    "./hybrid": "./src/hybrid-retrieval.mjs",
+    "./store": "./src/atomic-store.mjs",
+    "./catalog-workspace": "./src/catalog-workspace.mjs",
+    "./delivery-ledger": "./src/delivery-ledger.mjs",
+    "./analytics": "./src/analytics.mjs",
+    "./monitoring": "./src/monitor-signals.mjs",
+    "./cases": "./src/case-retrieval.mjs"
   },
   "scripts": {
     "test": "node --test tests/engine.test.mjs",
     "demo": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
-    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs && node --check src/host-service.mjs && node --check src/model-advisor.mjs && node --check src/service-taxonomy.mjs && node --check src/service-playbooks.mjs && node --check src/error-intelligence.mjs && node --check src/privacy.mjs && node --check src/catalog-adapter.mjs"
+    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs && node --check src/host-service.mjs && node --check src/model-advisor.mjs && node --check src/service-taxonomy.mjs && node --check src/service-playbooks.mjs && node --check src/error-intelligence.mjs && node --check src/privacy.mjs && node --check src/catalog-adapter.mjs && node --check src/providers/ollama.mjs && node --check src/hybrid-retrieval.mjs && node --check src/atomic-store.mjs && node --check src/catalog-workspace.mjs && node --check src/delivery-ledger.mjs && node --check src/analytics.mjs && node --check src/monitor-signals.mjs && node --check src/case-retrieval.mjs"
   },
   "engines": {
     "node": ">=22"

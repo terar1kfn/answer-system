@@ -1,5 +1,12 @@
 # Change log
 
+## 0.6.0 — feature-building phase (validation deferred)
+
+- Added optional bounded local-model and embedding adapters, hybrid retrieval, and host-gated advisory/guide commands.
+- Added single-writer revisioned metadata storage, independently reviewed catalog workspace and durable handoff ledger/dispatcher with reconciliation.
+- Added privacy-conscious aggregate analytics, scoped monitoring observations, reviewed-case recommendations and staff visit inspection.
+- No test runs, live connections or private application changes. CI remains manual-only.
+
 ## 0.5.0 — feature-building phase (validation deferred)
 
 - Expanded generic service taxonomy and bilingual diagnostic playbooks for meetings, directory, printing, software, devices, storage and more detailed existing services.

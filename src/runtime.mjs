@@ -109,5 +109,12 @@ export function createRuntime({getCatalog,getIncidents=()=>[],now=()=>Date.now()
   const next=e(v).resumeRecovery(i.state,{expectedTurn:i.state.turn});
   operations.delete(o.operationId);i.handoffRef=null;i.state=next;i.status=next.status;return update(v);
  }
- return Object.freeze({openVisit,read,begin,respond,keepAlive,finishVisit,terminateVisit,prepareHandoff,recordHandoffResult,retryHandoff,resumeRecovery,sweep});
+ function listActive(){
+  sweep();return [...visits.values()].map(v=>({
+   visitRef:v.visitRef,scope:v.scope,persistent:v.persistent,version:v.version,startedAt:v.startedAt,touchedAt:v.touchedAt,
+   issueId:v.issue?.issueId??null,status:v.issue?.status??'ready',services:v.issue?.state.services||[],decision:v.issue?.state.decision.kind??null,
+   handoff:v.issue?.handoffRef?(()=>{const o=operations.get(v.issue.handoffRef);return o?{operationId:o.operationId,status:o.status,kind:o.kind,hostRef:o.hostRef??null,attempt:o.attempt}:null;})():null
+  })).map(copy);
+ }
+ return Object.freeze({openVisit,read,begin,respond,keepAlive,finishVisit,terminateVisit,prepareHandoff,recordHandoffResult,retryHandoff,resumeRecovery,sweep,listActive});
 }

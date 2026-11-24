@@ -2,6 +2,7 @@ import {createRuntime} from './runtime.mjs';
 import {createIncidentRegistry} from './incidents.mjs';
 import {createReviewQueue} from './review-queue.mjs';
 import {createEngine} from './engine.mjs';
+import {metricForDecision} from './analytics.mjs';
 const error=code=>{throw Error(code);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const obj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x)&&[Object.prototype,null].includes(Object.getPrototypeOf(x));
@@ -9,20 +10,20 @@ const roles=new Set(['student','intern','manager']);
 const staff=a=>a.role==='intern'||a.role==='manager';
 const commandFields={
  open:[],read:[],begin:['expectedVersion','text','language'],respond:['expectedVersion','issueId','questionId','optionId','text'],
- search:['text','services','limit'],finish:[],keep_alive:[],
+ search:['text','services','limit'],suggest_reply:['expectedVersion','issueId','text'],load_guide:['expectedVersion','issueId','guideId'],finish:[],keep_alive:[],
  prepare_handoff:['expectedVersion','issueId','requestKey','confirmed'],
  retry_handoff:['expectedVersion','issueId','requestKey'],
  report_incident:['expectedVersion','issueId'],
- terminate:['targetVisitRef'],recover:['targetVisitRef','expectedVersion','issueId','hostRef'],
- incident_candidates:[],incident_list:[],incident_create:['serviceId','scope','expiresInMs'],
+ terminate:['targetVisitRef'],recover:['targetVisitRef','expectedVersion','issueId','hostRef'],active_visits:[],read_visit:['targetVisitRef'],case_matches:['targetVisitRef'],
+ incident_candidates:[],incident_list:[],monitoring:[],analytics:['days'],incident_create:['serviceId','scope','expiresInMs'],
  incident_transition:['incidentId','expectedRevision','status','expiresInMs'],
  propose:['caseCode','causeCode','solutionRef','catalogRevision','proposalKind'],
  review:['proposalId','expectedRevision','decision','currentCatalogRevision'],review_list:[],
  publication_candidate:['proposalId','currentCatalogRevision']
 };
-const STUDENT=new Set(['open','read','begin','respond','search','finish','keep_alive','prepare_handoff','retry_handoff','report_incident']);
-const STAFF=new Set(['terminate','recover','propose','review','review_list','publication_candidate']);
-const MANAGER=new Set(['incident_candidates','incident_list','incident_create','incident_transition']);
+const STUDENT=new Set(['open','read','begin','respond','search','finish','keep_alive','prepare_handoff','retry_handoff','report_incident','suggest_reply','load_guide']);
+const STAFF=new Set(['terminate','recover','propose','review','review_list','publication_candidate','active_visits','read_visit','case_matches']);
+const MANAGER=new Set(['incident_candidates','incident_list','incident_create','incident_transition','monitoring','analytics']);
 const optional=(o,k)=>Object.hasOwn(o,k)?o[k]:undefined;
 /**
  * Application-facing authorization façade. A trusted host supplies authenticate(),
@@ -34,7 +35,7 @@ export function createAnswerService({
  authenticate,getCatalog,now=()=>Date.now(),newId=()=>globalThis.crypto.randomUUID(),
  mayManageVisit=async()=>false,mayManageScope=async()=>false,
  mayReviewKnowledge=async()=>false,revokeHostVisit=async()=>false,
- verifyRecovery=async()=>false,runtimeOptions={}
+ verifyRecovery=async()=>false,runtimeOptions={},advisor=null,hybridRetriever=null,resolveGuide=null,metrics=null,monitoring=null,caseIndex=null
 }={}){
  if(![authenticate,getCatalog,now,newId,mayManageVisit,mayManageScope,mayReviewKnowledge,revokeHostVisit,verifyRecovery].every(f=>typeof f==='function'))error('INVALID_SERVICE_CONFIG');
  const registry=createIncidentRegistry({now,newId}),reviewQueue=createReviewQueue({now,newId});
@@ -67,6 +68,17 @@ export function createAnswerService({
   return safe;
  }
  const operationView=o=>({operationId:o.operationId,status:o.status,kind:o.kind,attempt:o.attempt});
+ function metric(event,v,reasonCode){
+  if(!metrics||!event||!v?.issue?.state)return;
+  const s=v.issue.state;
+  try{metrics.record({event,serviceId:s.services.length===1?s.services[0]:'other',...(reasonCode?{reasonCode}:{}),eventKey:v.issue.issueId+':'+v.version+':'+event});}catch{}
+ }
+ function decisionMetric(v){const d=v.issue?.state?.decision;metric(metricForDecision(d),v,d?.reasonCode||d?.policyCode);if(d?.reasonCode==='NO_APPROVED_GUIDE')metric('knowledge_gap',v,d.reasonCode);}
+ function sameIssue(ref,expectedVersion,issueId){
+  const v=runtime.read(ref);
+  if(v.version!==expectedVersion||v.issue?.issueId!==issueId||!v.issue?.state)error('STALE_ISSUE');
+  return v;
+ }
  async function permitted(fn,a,target){if(await fn(a,target)!==true)error('FORBIDDEN');}
  async function dispatch(credential,input){
   const c=validate(input),a=await actor(credential),action=c.action;
@@ -81,9 +93,28 @@ export function createAnswerService({
    const v=runtime.read(ref);
    if(action==='read')return studentView(v);
    if(action==='keep_alive')return runtime.keepAlive(ref);
-   if(action==='begin')return studentView(runtime.begin(ref,c));
-   if(action==='respond'){const x=runtime.respond(ref,c);return {...x,visit:studentView(x.visit)};}
-   if(action==='search')return createEngine({catalog:getCatalog(),now}).search(c);
+   if(action==='begin'){const next=runtime.begin(ref,c);metric('issue_started',next);decisionMetric(next);return studentView(next);}
+   if(action==='respond'){
+    const x=runtime.respond(ref,c);
+    if(x.kind==='advanced')decisionMetric(x.visit);else metric('clarification',x.visit);
+    return {...x,visit:studentView(x.visit)};
+   }
+   if(action==='search'){
+    if(!hybridRetriever)return createEngine({catalog:getCatalog(),now}).search(c);
+    const result=await hybridRetriever.search(c);runtime.read(ref);return result.results||[];
+   }
+   if(action==='suggest_reply'){
+    const current=sameIssue(ref,c.expectedVersion,c.issueId),d=current.issue.state.decision;
+    if(!advisor||d.kind!=='ask'||current.issue.handoffRef)return {status:'disabled'};
+    const suggestion=await advisor.suggest({questionId:d.questionId,options:d.question.options,text:c.text,language:current.issue.state.language});
+    sameIssue(ref,c.expectedVersion,c.issueId);return suggestion;
+   }
+   if(action==='load_guide'){
+    const current=sameIssue(ref,c.expectedVersion,c.issueId),d=current.issue.state.decision;
+    if(!resolveGuide||d.kind!=='open_guide'||d.guideId!==c.guideId)error('GUIDE_UNAVAILABLE');
+    const content=await resolveGuide({guideId:d.guideId,catalogRevision:d.catalogRevision,audience:'student'});
+    sameIssue(ref,c.expectedVersion,c.issueId);return content;
+   }
    if(action==='finish'){
     if(v.persistent)error('STAFF_TERMINATION_REQUIRED');
     // Confirm host sign-out first; do not claim termination if auth revocation fails.
@@ -94,7 +125,7 @@ export function createAnswerService({
    }
    if(action==='prepare_handoff'||action==='retry_handoff'){
     const r=action==='prepare_handoff'?runtime.prepareHandoff(ref,c):runtime.retryHandoff(ref,c);
-    return {operation:operationView(r.operation),visit:studentView(r.visit)};
+    metric('handoff_prepared',r.visit);return {operation:operationView(r.operation),visit:studentView(r.visit)};
    }
    if(action==='report_incident'){
     const i=v.issue;
@@ -104,6 +135,24 @@ export function createAnswerService({
    }
   }
   if(!staff(a)||(!STAFF.has(action)&&!(a.role==='manager'&&MANAGER.has(action))))error('FORBIDDEN');
+  if(action==='active_visits'){
+   const rows=runtime.listActive(),allowed=[];
+   for(const row of rows)if(await mayManageVisit(a,row.visitRef)===true)allowed.push(row);
+   return allowed;
+  }
+  if(action==='read_visit'||action==='case_matches'){
+   if(!id(c.targetVisitRef))error('INVALID_TARGET');await permitted(mayManageVisit,a,c.targetVisitRef);
+   const v=runtime.read(c.targetVisitRef);
+   if(action==='case_matches')return caseIndex&&v.issue?.state?caseIndex.find(v.issue.state):[];
+   return v;
+  }
+  if(action==='analytics'){
+   await permitted(mayReviewKnowledge,a,'analytics');return metrics?metrics.summary({days:c.days??7}):[];
+  }
+  if(action==='monitoring'){
+   if(!monitoring)return [];
+   const allowed=[];for(const row of monitoring.snapshot())if(await mayManageScope(a,row.scope)===true)allowed.push(row);return allowed;
+  }
   if(action==='terminate'||action==='recover'){
    if(!id(c.targetVisitRef))error('INVALID_TARGET');
    await permitted(mayManageVisit,a,c.targetVisitRef);
@@ -117,7 +166,7 @@ export function createAnswerService({
    const before=runtime.read(c.targetVisitRef);
    if(before.version!==c.expectedVersion||before.issue?.issueId!==c.issueId||before.issue?.status!=='awaiting_it'||!id(c.hostRef))error('RECOVERY_NOT_READY');
    if(await verifyRecovery({actor:a,targetVisitRef:c.targetVisitRef,issueId:c.issueId,hostRef:c.hostRef})!==true)error('RECOVERY_NOT_CONFIRMED');
-   return studentView(runtime.resumeRecovery(c.targetVisitRef,c));
+   const next=runtime.resumeRecovery(c.targetVisitRef,c);decisionMetric(next);return studentView(next);
   }
   if(action==='incident_create'){
    await permitted(mayManageScope,a,c.scope??null);
@@ -156,7 +205,7 @@ export function createAnswerService({
  function prepareForHost(visitRef,input){
   return runtime.prepareHandoff(visitRef,input);
  }
- function recordHostDelivery(operationId,result){return runtime.recordHandoffResult(operationId,result);}
+ function recordHostDelivery(operationId,result){const o=runtime.recordHandoffResult(operationId,result);if(metrics&&['recorded','unknown'].includes(o.status))try{const v=runtime.read(o.visitRef);metric(o.status==='recorded'?'handoff_recorded':'handoff_unknown',v);}catch{}return o;}
  function hostRetry(visitRef,input){return runtime.retryHandoff(visitRef,input);}
  return Object.freeze({dispatch,prepareForHost,recordHostDelivery,hostRetry,sweep:runtime.sweep});
 }
