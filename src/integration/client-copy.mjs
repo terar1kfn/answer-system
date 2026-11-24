@@ -1,6 +1,8 @@
 // Plain localized interface copy. Never generate a procedure or an account
 // diagnosis from a reason code. The host renders native policy referrals.
 const labels={
+ GUIDE_APPLICABILITY_UNCONFIRMED:['There is more guidance whose applicability cannot yet be confirmed. IT can help review the required context.','توجد إرشادات أخرى لم يتأكد انطباقها بعد. يمكن للدعم التقني مراجعة السياق المطلوب.'],
+ GUIDE_CANDIDATE_LIMIT:['Too many overlapping reviewed guides require staff review.','توجد إرشادات متداخلة كثيرة تحتاج إلى مراجعة الدعم التقني.'],
  GUIDE_REQUIRED_CONTEXT_UNAVAILABLE:["The required app, device or option was unavailable. Ask IT to verify whether the guide applies.","التطبيق أو الجهاز أو الخيار المطلوب غير متاح. اطلب من الدعم التقني التحقق من انطباق الدليل."],
  GUIDE_INSTRUCTION_HELP:["IT can help explain the specific instruction without treating it as completed.","يمكن للدعم التقني توضيح التعليمات المحددة دون اعتبارها مكتملة."],
  GUIDE_SAFETY_REVIEW:["Stop this procedure and ask authorized support to review the warning or concern.","أوقف هذا الإجراء واطلب من الدعم المخول مراجعة التحذير أو القلق."],

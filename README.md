@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.25 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.36 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -133,3 +133,5 @@ Version 0.30 separates changed-phone verification transfer from the original sig
 [Service operation stages (0.34)](docs/service-stage-diagnosis.md) separates meeting product/access and media scope, academic submission/request state, and attendance context before choosing a reviewed guide or referral.
 
 [Failed guide investigation (0.35)](docs/attempt-recovery.md) adds attempt-specific recovery interviews and exact host-bound navigation metadata without treating guide viewing as execution.
+
+[Conditional solution planning (0.36)](docs/conditional-solution-plans.md) uses logical applicability containment, explicit unresolved prerequisites, and bounded original-task transitions. Plans are conditional and never execute native procedures.

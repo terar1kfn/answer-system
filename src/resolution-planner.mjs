@@ -18,7 +18,7 @@ export function recordGuideOutcome(s,previous,optionId){
  const purpose=s.lastGuidePurpose;
  const navigation=navigationForAttempt(s,previous);
  const record={guideId:previous.guideId,serviceId:previous.serviceId,purpose,outcome:optionId,reportedAtTurn:s.turn,followUp:{},
-  catalogRevision:s.catalogRevision,focus:{services:[...s.services],...(s.evidence.portal_system?.value?{portal:s.evidence.portal_system.value}:{}),...(s.evidence.meeting_product?.value?{meetingProduct:s.evidence.meeting_product.value}:{})},
+  catalogRevision:s.catalogRevision,...(previous.nativeGuideFingerprint?{nativeGuideFingerprint:previous.nativeGuideFingerprint}:{}),focus:{services:[...s.services],...(s.evidence.portal_system?.value?{portal:s.evidence.portal_system.value}:{}),...(s.evidence.meeting_product?.value?{meetingProduct:s.evidence.meeting_product.value}:{})},
   ...(navigation?{navigation}: {})};
  delete s.nativeGuideNavigation;
  s.guideAttempts=[...(s.guideAttempts||[]),record].slice(-12);

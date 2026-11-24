@@ -7,7 +7,8 @@ export function reportedAnswer(state,next){
  const d=state?.decision,q=d?.kind==='ask'?d.question:d?.followUp?.question,questionId=d?.kind==='ask'?d.questionId:d?.followUp?.questionId;
  if(!q||!questionId||next?.turn<=state.turn)return null;
  const confirmed=questionId==='confirm_current_error'&&next.lastErrorConfirmation?.turn===next.turn?next.lastErrorConfirmation.choice:questionId==='confirm_context_update'&&next.lastContextConfirmation?.turn===next.turn?next.lastContextConfirmation.choice:undefined;
- const answer=choice(q,confirmed??next.evidence?.[questionId]?.value);
+ const last=next.lastAnswer?.turn===next.turn&&next.lastAnswer.questionId===questionId?next.lastAnswer.optionId:undefined;
+ const answer=choice(q,confirmed??last??next.evidence?.[questionId]?.value);
  if(!answer)return null;
  return {questionId,optionId:answer.id,question:{...q.text},answer:{...answer.label}};
 }

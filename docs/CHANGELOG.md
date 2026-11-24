@@ -1,5 +1,12 @@
 # Change log
 
+## 0.36.0 — conditional solution planning (validation deferred)
+
+- Compare guide applicability by strict logical containment; clarify unresolved or incomparable eligible procedures without assuming unknown evidence.
+- Track a bounded conditional resolution plan and exact selected guide pin; continue original sign-in diagnosis after explicitly restored connectivity or newly blocked portal entry.
+- Preserve the actual fixed selected answer through stage resets for native journey handoff.
+- No project tests, builds, deployments or private host modifications.
+
 ## 0.35.0 — failed-guide recovery interview (validation deferred)
 
 - Record attempt-specific scope, completion, blocker and reported failure point; distinguish verified native navigation from reported step execution.

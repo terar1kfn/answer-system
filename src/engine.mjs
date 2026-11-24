@@ -2,7 +2,8 @@ import {QUESTIONS} from './questions.mjs';
 import {classify,normalize} from './classify.mjs';
 import {eligible,resolveReviewedFact,createKnowledgeRetriever} from './knowledge.mjs';
 import {reconcileInitialContext} from './initial-context.mjs';
-import {chooseGuidePrerequisite} from './question-priority.mjs';
+import {planApplicableGuides} from './guide-selection.mjs';
+import {applyResolutionTransition,buildResolutionPlan} from './solution-plan.mjs';
 import {decideNetwork} from './network-flow.mjs';
 import {collectOperationContext,reportedAcademicSystems,applyPostSignInAnswer} from './operation-context.mjs';
 import {proposeContextUpdate,contextUpdateQuestion,stageContextUpdate,completeContextUpdate} from './context-update.mjs';
@@ -23,7 +24,7 @@ import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {initializeSharedProgress,applySharedProgressAnswer,sharedProgressDecision,applySharedProgressDecision,sharedProgressQuestion} from './shared-progress.mjs';
 import {bindGuideNavigation,failedStepQuestion} from './attempt-review.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.35.0';
+export const RULE_VERSION='0.36.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -58,30 +59,23 @@ function guide(s,c,service,purpose){
  const purposeGuides=c.guides.filter(g=>g.serviceId===service&&g.purpose===purpose);
  const gap=(reason,kind)=>({...support(reason),knowledgeGap:{serviceId:service,purpose,kind}});
  const eligibleGuides=purposeGuides.filter(g=>eligible(g,{catalog:c}));
- const matches=eligibleGuides.filter(g=>Object.entries(g.requires||{}).every(([k,values])=>values.includes(value(s,k)))).sort((a,b)=>Object.keys(b.requires||{}).length-Object.keys(a.requires||{}).length);
- // Only safe platform/context fields may be requested as missing prerequisites.
- // Do not ask a sensitive question merely because a guide references it.
- const viable=eligibleGuides.filter(g=>Object.entries(g.requires||{}).every(([k,values])=>!known(s,k)||values.includes(value(s,k))));
- const specificity=Object.keys(matches[0]?.requires||{}).length;
- // A mapped prerequisite may distinguish a password-change environment;
- // it is never a grant of access or authority to change credentials.
- const nextKey=chooseGuidePrerequisite(viable,s,{minimumSpecificity:specificity});
- if(nextKey)return ask(nextKey);
- if(!matches.length){
-  const needed=chooseGuidePrerequisite(viable,s);
-  return needed?ask(needed):gap('NO_APPROVED_GUIDE',c.serviceAvailability?.[service]===false?'SERVICE_UNAVAILABLE':!purposeGuides.length?'NO_MAPPED_GUIDE':!eligibleGuides.length?'NO_ELIGIBLE_GUIDE':'PREREQUISITE_MISMATCH');
- }
- const tied=matches.filter(g=>Object.keys(g.requires||{}).length===specificity);
- let g=matches[0],patternRef=null;
+ const plan=planApplicableGuides({guides:eligibleGuides,state:s,serviceId:service,purpose});
+ const annotated=d=>({...d,guideSelection:plan.audit});
+ if(plan.kind==='limit')return annotated(gap('GUIDE_CANDIDATE_LIMIT','AMBIGUOUS_MAPPING'));
+ if(plan.kind==='ask')return annotated(ask(plan.questionId));
+ if(plan.kind==='unconfirmed')return annotated(gap('GUIDE_APPLICABILITY_UNCONFIRMED','PREREQUISITE_MISMATCH'));
+ if(plan.kind!=='matched')return annotated(gap('NO_APPROVED_GUIDE',c.serviceAvailability?.[service]===false?'SERVICE_UNAVAILABLE':!purposeGuides.length?'NO_MAPPED_GUIDE':!eligibleGuides.length?'NO_ELIGIBLE_GUIDE':'PREREQUISITE_MISMATCH'));
+ const tied=plan.guides;
+ let g=tied[0],patternRef=null;
  if(tied.length>1){
   const choice=disambiguateReviewedContext({catalog:c,state:s,tiedGuides:tied});
-  if(choice.kind==='ask')return {...ask(choice.questionId),reasonCode:'DISTINGUISH_APPROVED_GUIDES'};
-  if(choice.kind==='conflict')return gap('REVIEWED_CONTEXT_CONFLICT','REVIEWED_CONTEXT_CONFLICT');
-  if(choice.kind!=='guide')return gap('MULTIPLE_APPROVED_GUIDES','AMBIGUOUS_MAPPING');
+  if(choice.kind==='ask')return annotated({...ask(choice.questionId),reasonCode:'DISTINGUISH_APPROVED_GUIDES'});
+  if(choice.kind==='conflict')return annotated(gap('REVIEWED_CONTEXT_CONFLICT','REVIEWED_CONTEXT_CONFLICT'));
+  if(choice.kind!=='guide')return annotated(gap('MULTIPLE_APPROVED_GUIDES','AMBIGUOUS_MAPPING'));
   g=tied.find(x=>x.id===choice.guideId);if(!g)return support('MULTIPLE_APPROVED_GUIDES');patternRef=choice.patternRef;
  }
- if(s.offeredGuideIds.includes(g.id))return support('GUIDE_ALREADY_OFFERED');
- return {kind:'open_guide',guideId:g.id,serviceId:service,catalogRevision:c.revision,title:g.title,reasonCode:patternRef?'REVIEWED_CONTEXT_GUIDE':'REVIEWED_GUIDE',...(patternRef?{diagnosticPatternRef:patternRef}:{})};
+ if(s.offeredGuideIds.includes(g.id))return annotated(support('GUIDE_ALREADY_OFFERED'));
+ return annotated({kind:'open_guide',guideId:g.id,serviceId:service,catalogRevision:c.revision,title:g.title,reasonCode:patternRef?'REVIEWED_CONTEXT_GUIDE':'REVIEWED_GUIDE',...(g.nativeGuideFingerprint?{nativeGuideFingerprint:g.nativeGuideFingerprint}:{}),...(patternRef?{diagnosticPatternRef:patternRef}:{})});
 }
 function confirmedIncident(s,records,now){
  if(s.services.length!==1)return null;
@@ -197,6 +191,7 @@ function finish(s,c,records,now){
  if(s.conflictingObservations?.length)s.diagnosticUncertainty={...s.diagnosticUncertainty,level:'conflicting_observations',leadingCause:null,unresolvedObservations:[...s.conflictingObservations]};
  const hint=getErrorSignature(value(s,'error_signature'));if(hint)s.errorHint=hint;else delete s.errorHint;
  s.decision=d;s.status=d.kind==='ask'?'diagnosing':['open_guide','answer'].includes(d.kind)?'guidance':d.kind==='resolved_reported'?'resolved_reported':'handoff_offered';
+ s.resolutionPlan=buildResolutionPlan(s,c);
  return copy(s);
 }
 // Pure library: host must keep authoritative state, authorize visits and actions,
@@ -244,9 +239,11 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   if(questionId==='confirm_current_error')return finish(completeCurrentError(state,optionId),c,records,now());
   if(questionId==='confirm_context_update')return finish(completeContextUpdate(state,optionId),c,records,now());
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
+  s.lastAnswer={questionId,optionId,turn:s.turn};
   s.conflictingObservations=(s.conflictingObservations||[]).filter(k=>k!==questionId);
   if(questionId==='outcome')recordGuideOutcome(s,d,optionId);
   else recordResolutionAnswer(s,questionId,optionId);
+  if(applyResolutionTransition(s,questionId,optionId))return finish(s,c,records,now());
   applyIdentityAnswer(s,questionId,optionId);
   applySharedAnswer(s,questionId,optionId);
   applyPostSignInAnswer(s,questionId,optionId);
