@@ -1,6 +1,9 @@
 import {QUESTIONS} from './questions.mjs';
-import {classify} from './classify.mjs';
-export const RULE_VERSION='0.1.0';
+import {classify,normalize} from './classify.mjs';
+import {eligible,exactReviewedFact,searchKnowledge} from './knowledge.mjs';
+import {interpretFollowup} from './followup.mjs';
+import {summarizeEvidence} from './evidence.mjs';
+export const RULE_VERSION='0.2.0';
 export const MAX_TURNS=7;
 const SVC=new Set(['mail','portal','attendance','identity','network','exam','other']);
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -17,10 +20,16 @@ function checkedCatalog(input){
   if(!g||typeof g.id!=='string'||!g.id||ids.has(g.id)||!SVC.has(g.serviceId)||typeof g.purpose!=='string'||typeof g.reviewed!=='boolean'||typeof g.enabled!=='boolean'||!['student','staff'].includes(g.audience)||typeof g.title?.en!=='string'||typeof g.title?.ar!=='string')throw new TypeError('Invalid guide');
   ids.add(g.id);
  }
+ if(input.facts!==undefined&&!Array.isArray(input.facts))throw new TypeError('Invalid facts');
+ for(const f of input.facts||[]){
+  if(!f||typeof f.id!=='string'||!f.id||ids.has(f.id)||!SVC.has(f.serviceId)||typeof f.reviewed!=='boolean'||typeof f.enabled!=='boolean'||!['student','staff'].includes(f.audience)||typeof f.title?.en!=='string'||typeof f.title?.ar!=='string'||typeof f.answer?.en!=='string'||typeof f.answer?.ar!=='string'||!f.answer.en.trim()||!f.answer.ar.trim()||f.answer.en.length>800||f.answer.ar.length>800||typeof f.sourceRef!=='string'||!f.sourceRef||!Array.isArray(f.aliases)||!f.aliases.length||f.aliases.some(x=>typeof x!=='string'||!x.trim()||x.length>500))throw new TypeError('Invalid fact');
+  ids.add(f.id);
+ }
+ if(input.serviceAvailability!==undefined&&(!input.serviceAvailability||typeof input.serviceAvailability!=='object'||Array.isArray(input.serviceAvailability)||Object.entries(input.serviceAvailability).some(([id,flag])=>!SVC.has(id)||typeof flag!=='boolean')))throw new TypeError('Invalid service availability');
  return copy(input);
 }
 function guide(s,c,service,purpose){
- const g=c.guides.find(g=>g.serviceId===service&&g.purpose===purpose&&g.enabled&&g.reviewed&&g.audience==='student');
+ const g=c.guides.find(g=>g.serviceId===service&&g.purpose===purpose&&eligible(g,{catalog:c}));
  if(!g)return support('NO_APPROVED_GUIDE');
  if(s.offeredGuideIds.includes(g.id))return support('GUIDE_ALREADY_OFFERED');
  return {kind:'open_guide',guideId:g.id,serviceId:service,catalogRevision:c.revision,title:g.title,reasonCode:'REVIEWED_GUIDE'};
@@ -32,7 +41,7 @@ function confirmedIncident(s,records,now){
 }
 function decide(s,c,records,now){
  const v=k=>value(s,k),k=x=>known(s,x),g=(service,purpose)=>guide(s,c,service,purpose);
- if(s.domain==='safety')return safety('SENSITIVE_OR_DANGEROUS');
+ if(s.domain==='safety')return safety(s.safetyPolicy||'SENSITIVE_OR_DANGEROUS');
  if(s.domain==='exam'){
   if(v('exam_started')==='yes'||v('exam_started')==='unknown')return safety('EXAM_PROFESSOR_FIRST');
   if(!k('exam_started'))return ask('exam_started');
@@ -44,6 +53,10 @@ function decide(s,c,records,now){
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
  if(k('outcome'))return support(v('outcome')==='no'?'GUIDE_DID_NOT_WORK':'OUTCOME_UNCONFIRMED');
  if(s.domain==='unknown')return !k('service')?ask('service'):support('SERVICE_UNCLEAR');
+ if(s.reviewedFactId&&!k('outcome')){
+  const f=(c.facts||[]).find(f=>f.id===s.reviewedFactId&&eligible(f,{catalog:c}));
+  if(f)return {kind:'answer',factId:f.id,sourceRef:f.sourceRef,catalogRevision:c.revision,title:f.title,answer:f.answer,reasonCode:'EXACT_REVIEWED_FACT'};
+ }
  const incident=confirmedIncident(s,records,now);
  if(incident&&['network','identity','task'].includes(s.domain)&&!k('mfa_access')&&!k('recovery_context'))return incident;
  if(s.domain==='task')return !k('task')?ask('task'):support(v('task')==='app'?'SERVICE_SPECIFIC_FEATURE':'TASK_UNCLEAR');
@@ -67,13 +80,15 @@ function decide(s,c,records,now){
   return v('connection')==='no'?g('network','individual_connectivity'):support('NETWORK_EVIDENCE_INCOMPLETE');
  }
  if(s.domain==='identity'){
+  if(v('mfa_prompt')==='unexpected')return safety('UNEXPECTED_VERIFICATION_REQUEST');
+  if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
   if(v('recovery_context')==='phone_change'||v('mfa_prompt')==='blocked'){
    if(!k('mfa_access'))return ask('mfa_access');
    if(v('mfa_access')==='no')return {kind:'offer_mfa_recovery',reasonCode:'REGISTERED_METHOD_UNAVAILABLE'};
    if(v('mfa_access')==='unknown')return support('MFA_ACCESS_UNCONFIRMED');
    return v('recovery_context')==='phone_change'?g('identity','manage_existing_method'):support('MFA_VERIFICATION_FAILED');
   }
-  if(v('setup_requested')==='yes'||v('mfa_setup')==='no'){
+  if(v('setup_requested')==='yes'||v('mfa_setup')==='no'||v('mfa_prompt')==='setup_required'){
    if(!k('phone'))return ask('phone');
    return v('phone')==='unknown'?support('PHONE_PLATFORM_UNCLEAR'):g('identity','setup_'+v('phone'));
   }
@@ -95,9 +110,16 @@ function decide(s,c,records,now){
 function finish(s,c,records,now){
  let d=decide(s,c,records,now);
  if(d.kind==='ask'&&(s.askedQuestionIds.length>=MAX_TURNS||s.askedQuestionIds.includes(d.questionId)))d=support('QUESTION_BUDGET_OR_REPEAT');
- if(d.kind==='ask'){s.askedQuestionIds.push(d.questionId);d={...d,question:QUESTIONS[d.questionId]};}
- if(d.kind==='open_guide'){s.offeredGuideIds.push(d.guideId);d={...d,followUp:{questionId:'outcome',question:QUESTIONS.outcome}};}
- s.decision=d;s.status=d.kind==='ask'?'diagnosing':d.kind==='open_guide'?'guidance':d.kind==='resolved_reported'?'resolved_reported':'handoff_offered';
+ if(d.kind==='ask'){
+  s.askedQuestionIds.push(d.questionId);
+  let question=QUESTIONS[d.questionId];
+  if(d.questionId==='task'&&!s.services.includes('mail'))question={...question,options:question.options.filter(o=>!['send','receive'].includes(o.id))};
+  d={...d,question};
+ }
+ if(d.kind==='open_guide')s.offeredGuideIds.push(d.guideId);
+ if(d.kind==='open_guide'||d.kind==='answer')d={...d,followUp:{questionId:'outcome',question:QUESTIONS.outcome}};
+ s.candidates=summarizeEvidence(s);
+ s.decision=d;s.status=d.kind==='ask'?'diagnosing':['open_guide','answer'].includes(d.kind)?'guidance':d.kind==='resolved_reported'?'resolved_reported':'handoff_offered';
  return copy(s);
 }
 // Pure library: host must keep authoritative state, authorize visits and actions,
@@ -109,16 +131,21 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
  function begin({text,language='en'}={}){
   if(!['en','ar'].includes(language))throw new TypeError('Invalid language');
   const r=classify(text);
+  const isHowTo=/^(?:how (?:do|can|to)|what is|where (?:is|can)|كيف|ما هو|ما هي|اين)\b/i.test(normalize(text))||/^(?:كيف|ما هو|ما هي|اين)(?: |$)/.test(normalize(text));
+  const factMatch=!['safety','exam'].includes(r.domain)&&isHowTo?exactReviewedFact(c,text,r.services):null;
   const s={ruleVersion:RULE_VERSION,catalogRevision:c.revision,turn:0,language,domain:r.domain,services:r.services,evidence:{},askedQuestionIds:[],offeredGuideIds:[],status:'new'};
   for(const [key,v] of Object.entries(r.facts))fact(s,key,v,'student_text_signal');
+  s.requestKind=['safety','exam'].includes(r.domain)?'protected':isHowTo?'how_to':r.domain==='unknown'?'unclear':'fault';
+  if(factMatch){s.reviewedFactId=factMatch.id;s.domain='task';s.services=[factMatch.serviceId];}
   return finish(s,c,records,now());
  }
  function advance(state,{expectedTurn,questionId,optionId}={}){
   if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||!Number.isSafeInteger(state.turn)||expectedTurn!==state.turn)throw Error('STALE_STATE');
   const d=state.decision;
-  const expected=d?.kind==='ask'?d.questionId:d?.kind==='open_guide'?'outcome':null;
+  const expected=d?.kind==='ask'?d.questionId:['open_guide','answer'].includes(d?.kind)?'outcome':null;
   if(!expected)throw Error('TERMINAL_STATE');
-  if(expected!==questionId||!QUESTIONS[expected]?.options.some(o=>o.id===optionId))throw Error('INVALID_ANSWER');
+  const options=d.kind==='ask'?d.question.options:d.followUp.question.options;
+  if(expected!==questionId||!options.some(o=>o.id===optionId))throw Error('INVALID_ANSWER');
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
   if(questionId==='service'){
    s.services=[optionId];
@@ -130,5 +157,19 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   }
   return finish(s,c,records,now());
  }
- return Object.freeze({begin,advance,ruleVersion:RULE_VERSION,catalogRevision:c.revision});
+ function respond(state,{expectedTurn,text}={}){
+  if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||expectedTurn!==state.turn)throw Error('STALE_STATE');
+  const d=state.decision,q=d.kind==='ask'?d.question:d.followUp?.question,id=d.kind==='ask'?d.questionId:d.followUp?.questionId;
+  if(!q)throw Error('TERMINAL_STATE');
+  const result=interpretFollowup(id,text,q.options);
+  if(result.kind==='invalid')throw Error('INVALID_ANSWER');
+  if(result.kind==='safety'){
+   const s=copy(state);s.turn++;s.domain='safety';s.safetyPolicy=result.policy;
+   return {kind:'advanced',state:finish(s,c,records,now())};
+  }
+  if(result.kind==='clarify')return {kind:'clarify',reasonCode:result.reasonCode,state:copy(state)};
+  return {kind:'advanced',state:advance(state,{expectedTurn,questionId:id,optionId:result.optionId})};
+ }
+ function search({text,services=[],limit=5}={}){return searchKnowledge(c,{text,services,limit});}
+ return Object.freeze({begin,advance,respond,search,ruleVersion:RULE_VERSION,catalogRevision:c.revision});
 }

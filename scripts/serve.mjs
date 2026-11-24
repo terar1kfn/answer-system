@@ -1,7 +1,7 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 const port=5387,root=new URL('../',import.meta.url);
-const routes=new Map([['/',['demo/index.html','text/html']],['/demo/styles.css',['demo/styles.css','text/css']],['/demo/app.mjs',['demo/app.mjs','text/javascript']],...['engine','classify','questions','demo-knowledge'].map(x=>['/src/'+x+'.mjs',['src/'+x+'.mjs','text/javascript']])]);
+const routes=new Map([['/',['demo/index.html','text/html']],['/demo/styles.css',['demo/styles.css','text/css']],['/demo/app.mjs',['demo/app.mjs','text/javascript']],...['engine','classify','questions','demo-knowledge','knowledge','followup','evidence'].map(x=>['/src/'+x+'.mjs',['src/'+x+'.mjs','text/javascript']])]);
 const server=createServer(async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");

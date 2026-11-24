@@ -12,7 +12,7 @@ export const QUESTIONS={
  mfa_access:q('Can you access a previously registered verification method on your own device?','هل تستطيع استخدام طريقة تحقق مسجلة مسبقاً على جهازك؟',[
  ['yes','Yes, I have access','نعم، أستطيع استخدامها'],['no','No, the old phone or method is unavailable','لا، الهاتف القديم أو طريقة التحقق غير متاحة'],unknown]),
  mfa_prompt:q('What happens at the verification step of a sign-in you initiated?','ماذا يحدث في خطوة التحقق من تسجيل دخول بدأته بنفسك؟',[
- ['approved','I approved my own sign-in successfully','وافقت على تسجيل دخولي بنجاح'],['blocked','I cannot complete verification','لا أستطيع إكمال التحقق'],['missing','No approval request appears','لا يظهر طلب الموافقة'],unknown]),
+ ['approved','I approved my own sign-in successfully','وافقت على تسجيل دخولي بنجاح'],['blocked','I cannot complete verification','لا أستطيع إكمال التحقق'],['missing','No approval request appears','لا يظهر طلب الموافقة'],['setup_required','It asks me to set up a verification method','يطلب إعداد طريقة تحقق'],['unexpected','I did not initiate this sign-in request','لم أبدأ طلب تسجيل الدخول هذا'],unknown]),
  credentials:q('What does the sign-in screen say? Do not enter your password here.','ماذا تعرض شاشة الدخول؟ لا تكتب كلمة مرورك هنا.',[
  ['rejected','Identifier or password rejected','تم رفض اسم المستخدم أو كلمة المرور'],['locked','Account locked or blocked','الحساب مقفل أو محظور'],['accepted','Credentials accepted; failure happens later','تُقبل بيانات الدخول ثم تحدث المشكلة'],unknown]),
  connection:q('Can you open other websites on the affected device?','هل تستطيع فتح مواقع أخرى على الجهاز المتأثر؟',[yes,no,unknown]),

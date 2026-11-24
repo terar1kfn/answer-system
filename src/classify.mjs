@@ -29,17 +29,30 @@ export function classify(raw){
  if((mfa||oldPhone||login)&&!services.length)add('identity');
  if(mail&&send&&!receive&&!login)facts.task='send';
  if(mail&&receive&&!send&&!login)facts.task='receive';
+ // The failed operation outranks a successfully completed operation.
+ const failedSend=/\b(?:cannot|can t|cant|unable to|could not|not able to) (?:send|reply)\b|لا استطيع الارسال|ما اقدر ارسل/.test(t);
+ const failedReceive=/\b(?:cannot|can t|cant|unable to|could not|not able to) receive\b|لا استطيع استقبال|ما توصلني/.test(t);
+ if(mail&&failedSend!==failedReceive)facts.task=failedSend?'send':'receive';
+ if(failedSend&&failedReceive)facts.task='unknown';
  if(login&&!send&&!receive)facts.task='login';
  if(/\b(?:550\s+5\.1\.8|5\.1\.8|sender restricted)\b|المرسل مقيد/.test(t)&&!receive){add('mail');facts.task='send';facts.send_error='restricted';}
  if(/\b(?:too many recipients|recipient limit)\b|عدد المستلمين|حد المستلمين/.test(t)&&!receive){add('mail');facts.task='send';facts.send_error='recipients';}
  if(/\brecipient (?:address )?not found\b|عنوان المستلم غير موجود/.test(t)&&!receive){add('mail');facts.task='send';facts.send_error='address';}
  if(oldPhone){facts.recovery_context='phone_change';facts.task||='login';}
  if(mfa&&!facts.task)facts.task='login';
+ if(/\b(?:account (?:is )?(?:locked|blocked)|locked account)\b|حسابي مقفل|الحساب مقفل/.test(t)&&facts.task!=='send'&&facts.task!=='receive'){
+  if(!services.length)add('identity');facts.task='login';facts.credentials='locked';
+ }
+ if(mfa&&/\b(?:cannot|can t|cant|unable to) (?:approve|complete verification|enter the code)\b|لا استطيع الموافقه/.test(t))facts.mfa_prompt='blocked';
+ if(mfa&&/\b(?:unexpected (?:sign in |approval )?request|did not initiate|didn t initiate)\b|لم ابدا تسجيل الدخول/.test(t)){
+  if(!services.length)add('identity');facts.task='login';facts.mfa_prompt='unexpected';
+ }
  if(mfa&&!oldPhone&&/\b(?:set up|setup|install|configure)\b|اعداد|تثبيت/.test(t))facts.setup_requested='yes';
  if(/\b(?:outlook|email) (?:says|shows) sign in\b/.test(t))facts.task='login';
  if(network&&!mail&&!portal&&!attendance&&!mfa&&!oldPhone&&!login)return out('network');
  if(!services.length)return out('unknown');
- if(network&&(facts.task==='send'||facts.task==='receive'))return {domain:'unknown',services,facts:{}};
+ if((network||services.some(s=>s!=='mail'&&s!=='identity'))&&(facts.task==='send'||facts.task==='receive'))return {domain:'unknown',services,facts:{}};
+ if(facts.task==='unknown')return out('task');
  if(facts.task==='send'||facts.task==='receive')return out('mail');
  if(mfa||oldPhone||facts.task==='login')return out('identity');
  return out('task');

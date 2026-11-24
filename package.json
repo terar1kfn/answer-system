@@ -1,6 +1,6 @@
 {
   "name": "answer-system",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "exports": "./src/engine.mjs",
@@ -8,7 +8,7 @@
     "test": "node --test tests/engine.test.mjs",
     "demo": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
-    "check": "node --check src/engine.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs"
+    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.1 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.2 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Run the diagnostic lab
 
@@ -32,7 +32,7 @@ Test English/Arabic descriptions, adaptive questions, MFA recovery recommendatio
 - tests/: repeatable scenario suite.
 - docs/contract.md: integration boundaries and roadmap.
 
-Implemented: identity/MFA, email delivery, connectivity, basic exam/safety priority, fresh scoped incident notices, eligibility checks, explicit resolution feedback, bounded issue state.
+Implemented: conservative free-text follow-ups, reviewed exact fact answers, lexical retrieval, evidence-linked candidate causes, identity/MFA, email delivery, connectivity, basic exam/safety priority, fresh scoped incident notices, eligibility checks, explicit resolution feedback, bounded issue state.
 
 Not implemented: private application adapter, authenticated visit persistence, real tickets or recovery, incident ingestion, semantic retrieval or AI, staff controls, persistent-session policies and deployment. Do not use the browser lab as a production API.
 

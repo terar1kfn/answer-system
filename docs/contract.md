@@ -44,3 +44,10 @@ Lexical rules only; limited English/Arabic patterns and bounded choice follow-up
 8. Test, review and roll out incrementally. Maintain a rollback switch and preserve operational records.
 
 No live integration, port changes, credential sharing or publication of private materials is authorized by this repository.
+
+
+## v0.2 extension
+
+The engine exposes respond(state, {expectedTurn, text}) for conservative, bilingual free-text replies to the pending question. Unrecognized or contradictory replies return a clarification without advancing; a recognized protected safety signal interrupts the normal path. New unrelated issues require an explicit begin. Do not reinterpret arbitrary free text as a valid option.
+
+Search returns ranked, eligible metadata only. Exact reviewed fact aliases can yield a source-bound answer; ambiguous, unreviewed, inaccessible or fuzzy-only matches cannot produce an answer. Catalog facts include id, serviceId, title, aliases, answer in both languages, sourceRef, audience, reviewed and enabled flags. Service availability can be injected as a trusted map of service IDs to booleans. This is a simple lexical index, not a semantic vector model. Candidate causes carry candidate/supported labels with supporting evidence keys. Student answers never become staff-confirmed root causes.
