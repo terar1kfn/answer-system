@@ -94,6 +94,11 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
  if(!k('mfa_setup')&&!k('mfa_prompt')&&!k('verification_context'))return ask('mfa_setup');
  if(!k('mfa_prompt'))return ask('mfa_prompt');
  if(v('mfa_prompt')==='not_tried')return support('SIGN_IN_NOT_ATTEMPTED');
+ if(v('mfa_prompt')==='signed_in_no_prompt'){
+  if(s.sharedProgress?.phase==='initial')return afterSuccessfulVerification(s,{ask,support});
+  if(s.services.length===1&&s.services[0]!=='identity')return decidePostSignIn(s,{ask,support});
+  return support('SIGN_IN_CAUSE_UNCONFIRMED');
+ }
  if(v('mfa_prompt')==='credential_screen'&&v('credentials')==='accepted')return support('SIGN_IN_STAGE_UNCLEAR');
  if(!k('credentials'))return ask('credentials');
  if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
@@ -106,10 +111,11 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
  }
  if(v('mfa_prompt')==='missing')return v('credentials')==='accepted'&&v('connection')==='yes'?guide('identity','mfa_notification_check'):support('MFA_PROMPT_MISSING');
  if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&(s.services.length>1||s.reportedAcademicSystems?.length>1&&!k('portal_system')))return afterSuccessfulVerification(s,{ask,support});
- if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length===1&&s.services[0]!=='identity'){
+ if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length===1&&s.services[0]!=='identity')return decidePostSignIn(s,{ask,support});
+ if(v('mfa_prompt')==='blocked_no_prompt'&&v('credentials')==='accepted'&&v('connection')==='yes'){
+  if(s.sharedProgress?.phase==='initial')return ask('shared_task_recheck');
   if(!k('service_access'))return ask('service_access');
-  if(v('service_access')==='one_service')return decidePostSignIn(s,{ask,support});
-  if(v('service_access')==='multiple')return support('CROSS_SERVICE_ACCESS_REVIEW');
+  return support(v('service_access')==='multiple'?'CROSS_SERVICE_ACCESS_REVIEW':'SERVICE_SIGNIN_STILL_BLOCKED');
  }
  return support('SIGN_IN_CAUSE_UNCONFIRMED');
 }

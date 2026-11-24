@@ -1,0 +1,9 @@
+# Bounded multi-service task diagnosis (0.33; validation deferred)
+
+An original report involving several supported service categories or several named academic systems gets a transient fixed-ID scope. Distinguish shared sign-in, shared connectivity, separate tasks, and a clarification that only one named service was actually affected. Do not infer that all mentioned services fail. A current successful verification or guide outcome does not establish that the original set of tasks works.
+
+Before resolving a multi-service issue require an explicit original-task aggregate recheck. Ask which tasks work now, then isolate a remaining service/system when only some tasks work or separate failures remain. A current common failure is a referral, not a confirmed outage. In focused diagnosis, preserve the original scope and past attempts but discard stale client/device/account/error facts; a later local success leads back to the aggregate recheck. No more than two focus selections and three aggregate reports; the engine's absolute turn limit still applies. No native service admission or exact owner permission is widened.
+
+Allow a student to report entering a service without a verification prompt, or being blocked with no visible verification prompt. No MFA recovery is inferred from the absence of a prompt. For a successful service entry/verification, ask about the original operation before requesting unrelated service comparisons. If still blocked, distinguish the current service from a broader reported access problem without claiming a root cause. Confirmed new errors interrupt aggregate checking, retaining the original scope.
+
+This implementation stores only fixed transient question choices, service taxonomy IDs and academic-system IDs; never student credentials or raw free text. It does not publish or activate any private guide. No project tests, builds, deployments, provider calls or native host changes were performed.

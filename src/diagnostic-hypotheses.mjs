@@ -6,7 +6,7 @@ const e=(key,values,weight)=>({key,values:Array.isArray(values)?values:[values],
 const rules=[
  row('mfa_setup_required',['identity'],[e('mfa_prompt','setup_required',5),e('setup_requested','yes',2)],[e('mfa_prompt','approved',4),e('setup_completed','yes',3)]),
  row('verification_method_unavailable',['identity'],[e('mfa_access','no',5),e('recovery_context','phone_change',1)],[e('mfa_access','yes',5)]),
- row('verification_failure',['identity'],[e('mfa_prompt',['blocked','missing'],4),e('setup_blocker','verification',4),e('verification_context','challenge',1)],[e('mfa_prompt','approved',4)]),
+ row('verification_failure',['identity'],[e('mfa_prompt',['blocked','missing'],4),e('setup_blocker','verification',4),e('verification_context','challenge',1)],[e('mfa_prompt',['approved','signed_in_no_prompt'],4)]),
  row('credential_rejection',['identity'],[e('credentials','rejected',5)],[e('credentials','accepted',5)]),
  row('account_restriction',['identity'],[e('credentials','locked',6)],[e('credentials','accepted',2)]),
  row('connectivity',['identity','network','shared','specific'],[e('connection','no',4),e('network_issue',['ssid_missing','auth','no_internet'],2),e('shared_operation','network',2)],[e('connection','yes',3)]),

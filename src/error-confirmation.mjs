@@ -2,6 +2,7 @@ import {getErrorSignature,recognizeErrors} from './error-intelligence.mjs';
 import {sanitizeText} from './privacy.mjs';
 import {classify,normalize} from './classify.mjs';
 import {matchServices} from './service-taxonomy.mjs';
+import {restartSharedProgressDiagnosis} from './shared-progress.mjs';
 const clone=x=>JSON.parse(JSON.stringify(x));
 const SIGN_IN_SERVICES=new Set(['identity','mail','portal','attendance','collaboration','storage']);
 const MAX_CONFIRMATIONS=3;
@@ -68,5 +69,5 @@ export function completeCurrentError(state,optionId){
  }
  s.askedQuestionIds=[];s.conflictingObservations=[];
  delete s.activeAlternative;delete s.lastGuidePurpose;delete s.reviewedFactId;delete s.reviewedFactIds;delete s.reviewedFactConflict;delete s.compositeAnswerGap;delete s.knowledgeChoices;
- s.requestKind='fault';return s;
+ restartSharedProgressDiagnosis(s);s.requestKind='fault';return s;
 }

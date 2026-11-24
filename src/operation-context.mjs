@@ -33,7 +33,11 @@ export function decidePostSignIn(state,{ask,support}){
  if(!v(state,'post_signin_stage'))return ask('post_signin_stage');
  const stage=v(state,'post_signin_stage');
  if(stage==='original_works')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
- if(stage==='still_blocked')return support('SERVICE_SIGNIN_STILL_BLOCKED');
+ if(stage==='still_blocked'){
+  if(v(state,'mfa_prompt')==='signed_in_no_prompt')return support('SIGN_IN_STAGE_UNCLEAR');
+  if(!v(state,'service_access'))return ask('service_access');
+  return support(v(state,'service_access')==='multiple'?'CROSS_SERVICE_ACCESS_REVIEW':'SERVICE_SIGNIN_STILL_BLOCKED');
+ }
  if(stage!=='feature_fails')return support('POST_SIGNIN_STAGE_UNCLEAR');
  return null;
 }

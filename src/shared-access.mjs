@@ -31,6 +31,7 @@ export function applySharedAnswer(s,questionId,optionId){
  }
 }
 export function afterSuccessfulVerification(s,{ask,support}){
+ if(s.sharedProgress&&s.sharedProgress.phase==='initial')return ask('shared_task_recheck');
  if(!has(s,'shared_access_pattern'))return ask('shared_access_pattern');
  switch(get(s,'shared_access_pattern')){
   case 'same':return support('CROSS_SERVICE_COMMON_ACCESS_REVIEW');

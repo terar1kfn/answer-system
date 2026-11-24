@@ -1,5 +1,12 @@
 # Change log
 
+## 0.33.0 — multi-stage original-task confirmation (validation deferred)
+
+- Track fixed original service/system scope and bounded focused troubleshooting. Explicitly reconfirm all original affected tasks before reporting resolution; preserve earlier attempts and clear stale current observations when narrowing focus.
+- Distinguish sign-in without an MFA prompt from blocked entry without a prompt; check original task state before unrelated service comparisons.
+- Preserve scope when a confirmed current error interrupts a shared diagnosis. Add localized question and referral copy.
+- No project tests, builds, deployments, or private host changes.
+
 ## 0.32.0 — route-aware outcome attribution (validation deferred)
 
 - Verify historical native forward traces against exact reviewed route graphs; distinguish single-guide outcomes, branched routes, escalation, and unverified paths.

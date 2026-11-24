@@ -26,6 +26,7 @@ const safeOrigin=e=>!e||['student_report','student_text_signal','student_confirm
 export function proposeContextUpdate(state,text){
  const allowed=contextKeys[state?.domain],d=state?.decision;
  if(!allowed||d?.kind!=='ask'||state.pendingError||state.pendingContext||
+ (state.sharedProgress&&!['initial','focused'].includes(state.sharedProgress.phase))||
  state.reviewedFactId||state.reviewedFactIds?.length||state.knowledgeChoices?.length||
  state.evidence?.error_signature||state.evidence?.error_conflict||
  state.evidence?.outcome||state.activeAlternative||state.guideAttempts?.length||

@@ -127,3 +127,5 @@ Version 0.30 separates changed-phone verification transfer from the original sig
 [Native route dependency review (0.31)](docs/native-route-dependency-review.md) adds branch-aware review to the release boundary. Every reachable dependency must be independently confirmed against the exact catalog; legacy release formats fail closed until renewed review. Original native navigation remains authoritative.
 
 [Route-aware outcomes (0.32)](docs/route-aware-outcomes.md) extends private verified outcome attribution with exact historical route and source pins. Branched and unverified paths cannot count as root-guide-only evidence. No automatic guide ranking changes.
+
+[Multi-service original-task diagnosis (0.33)](docs/shared-task-diagnosis.md) adds bounded focus selection and aggregate original-task confirmation. An individual guide result cannot alone resolve a multi-service report.

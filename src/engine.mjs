@@ -19,8 +19,9 @@ import {sanitizeText} from './privacy.mjs';
 import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from './answer-planner.mjs';
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
+import {initializeSharedProgress,applySharedProgressAnswer,sharedProgressDecision,applySharedProgressDecision,sharedProgressQuestion} from './shared-progress.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.30.0';
+export const RULE_VERSION='0.33.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -101,6 +102,9 @@ function decide(s,c,records,now){
  if(c.diagnosticServices&&s.services.some(id=>!c.diagnosticServices.includes(id)))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
  if(s.pendingError)return s.turn>=24?support('QUESTION_BUDGET_OR_REPEAT'):{kind:'ask',questionId:'confirm_current_error',reasonCode:'CONFIRM_CURRENT_ERROR'};
  if(s.pendingContext)return s.turn>=24?support('QUESTION_BUDGET_OR_REPEAT'):{kind:'ask',questionId:'confirm_context_update',reasonCode:'CONFIRM_CONTEXT_UPDATE'};
+ if(s.sharedProgress&&!k('error_signature')&&v('credentials')!=='locked'&&v('mfa_prompt')!=='unexpected'){
+  const progress=sharedProgressDecision(s,{ask,support});if(progress)return progress;
+ }
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:s.requestKind==='information'?'STUDENT_CONFIRMED_ANSWER_HELPFUL':'STUDENT_CONFIRMED_ORIGINAL_TASK'};
  if(v('outcome')==='unknown')return support('OUTCOME_UNCONFIRMED');
  if(v('outcome')==='no'&&(s.reviewedFactId||s.reviewedFactIds?.length))return support('REVIEWED_ANSWER_INCOMPLETE');
@@ -170,14 +174,15 @@ function decide(s,c,records,now){
  return support('NO_MATCH');
 }
 function finish(s,c,records,now){
- let d=decide(s,c,records,now);
+ let d=applySharedProgressDecision(s,decide(s,c,records,now),{ask,support});
  if(d.kind==='ask'&&!['confirm_current_error','confirm_context_update'].includes(d.questionId)&&(s.askedQuestionIds.length>=MAX_TURNS||s.turn>=24||s.askedQuestionIds.includes(d.questionId)))d=support('QUESTION_BUDGET_OR_REPEAT');
  if(d.kind==='ask'){
   if(!['confirm_current_error','confirm_context_update'].includes(d.questionId))s.askedQuestionIds.push(d.questionId);
   let question=d.questionId==='confirm_current_error'?currentErrorQuestion(s.pendingError.signatureId):d.questionId==='confirm_context_update'?contextUpdateQuestion(s.pendingContext):d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):QUESTIONS[d.questionId];
+  question=sharedProgressQuestion(s,d.questionId,question);
   if(d.questionId==='task'&&!s.services.includes('mail'))question={...question,options:question.options.filter(o=>!['send','receive'].includes(o.id))};
-  if(d.questionId==='portal_system'&&s.reportedAcademicSystems?.length)question={...question,options:question.options.filter(o=>s.reportedAcademicSystems.includes(o.id)||o.id==='unknown')};
-  if(d.questionId==='service'&&s.services.length>1)question={...question,options:question.options.filter(o=>s.services.includes(o.id)||o.id==='other')};
+  if(d.questionId==='portal_system'&&s.reportedAcademicSystems?.length&&s.sharedProgress?.phase!=='select_portal')question={...question,options:question.options.filter(o=>s.reportedAcademicSystems.includes(o.id)||o.id==='unknown')};
+  if(d.questionId==='service'&&s.services.length>1&&s.sharedProgress?.phase!=='select_service')question={...question,options:question.options.filter(o=>s.services.includes(o.id)||o.id==='other')};
   if(d.questionId==='service'&&c.diagnosticServices)question={...question,options:question.options.filter(o=>c.diagnosticServices.includes(o.id))};
   if(!question.options.length)d=support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');else d={...d,question};
  }
@@ -222,6 +227,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   else if(composite.status==='none'&&factResolution.status==='none'&&factEligible&&isInformationalQuery(text)){
    const choices=reviewedTopicChoices(c,{text,services:r.services});if(choices.length)s.knowledgeChoices=choices;
   }
+  if(!s.reviewedFactId&&!s.reviewedFactIds?.length&&!s.knowledgeChoices?.length&&!s.reviewedFactConflict&&!s.compositeAnswerGap)initializeSharedProgress(s,academic);
   return finish(s,c,records,now());
  }
  function advance(state,{expectedTurn,questionId,optionId}={}){
@@ -252,6 +258,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
    for(const key of Object.keys(s.evidence))if(key!=='service')delete s.evidence[key];
    s.domain=['network','identity','exam'].includes(optionId)?optionId:optionId==='other'?'unknown':['mail','portal','attendance'].includes(optionId)?'task':hasServicePlaybook(optionId)?'specific':'task';
   }
+  applySharedProgressAnswer(s,questionId,optionId);
   if(questionId==='task'){
    if(optionId==='login')s.domain='identity';
    if(['send','receive'].includes(optionId)&&s.services.includes('mail'))s.domain='mail';
