@@ -1,5 +1,11 @@
 # Change log
 
+## 0.26.0 — current context and network alternatives (validation deferred)
+
+- Add explicit confirmation and dependent-evidence invalidation for exact ordinary context updates during pre-guide diagnosis.
+- Extend distinct reviewed network alternatives after failed guidance, using current symptom and renewed peer-scope evidence. Preserve multiple named academic systems in shared access reasoning.
+- No tests, builds, live data imports or native application edits.
+
 ## 0.25.0 — reviewed knowledge mapping release (validation deferred)
 
 - Added exact published-guide mapping additions from independently reviewed private source proposals, per-row release approval preparation and a host-verified active mapping provider.

@@ -109,3 +109,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Private reviewed knowledge release](docs/mapping-release.md) connects reviewed proposals to actually published native guide mappings, independently reviewed release candidates and a host-verified active mapping provider. Draft, stale, revoked and ineligible mappings do not become authorized guidance.
+
+
+[Current context updates](docs/current-context-update.md) adds bounded confirmation of changed ordinary observations and a more specific network alternative path with renewed peer-scope evidence.

@@ -82,7 +82,7 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
   return v('peers')==='no'?decideNetwork(s,{ask,guide,support,fromIdentity:true}):support('NETWORK_SCOPE_UNCLEAR');
  }
  if(v('mfa_prompt')==='missing')return v('credentials')==='accepted'&&v('connection')==='yes'?guide('identity','mfa_notification_check'):support('MFA_PROMPT_MISSING');
- if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length>1)return afterSuccessfulVerification(s,{ask,support});
+ if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&(s.services.length>1||s.reportedAcademicSystems?.length>1&&!k('portal_system')))return afterSuccessfulVerification(s,{ask,support});
  if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length===1&&s.services[0]!=='identity'){
   if(!k('service_access'))return ask('service_access');
   if(v('service_access')==='one_service')return decidePostSignIn(s,{ask,support});

@@ -7,7 +7,7 @@ const SIGN_IN_SERVICES=new Set(['identity','mail','portal','attendance','collabo
 const MAX_CONFIRMATIONS=3;
 /** Pasted codes are proposals, not verified root causes. No raw text retained. */
 export function proposeCurrentError(state,text){
- if(!state||['safety','exam'].includes(state.domain)||state.pendingError||state.reviewedFactId||
+ if(!state||['safety','exam'].includes(state.domain)||state.pendingError||state.pendingContext||state.reviewedFactId||state.reviewedFactIds?.length||
   !['ask','open_guide'].includes(state.decision?.kind))return {kind:'none'};
  let clean;try{clean=sanitizeText(text);}catch{return {kind:'none'};}
  if(clean.categories.length||!clean.text)return {kind:'none'};

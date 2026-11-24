@@ -5,6 +5,7 @@ import {reconcileInitialContext} from './initial-context.mjs';
 import {chooseGuidePrerequisite} from './question-priority.mjs';
 import {decideNetwork} from './network-flow.mjs';
 import {collectOperationContext,reportedAcademicSystems,applyPostSignInAnswer} from './operation-context.mjs';
+import {proposeContextUpdate,contextUpdateQuestion,stageContextUpdate,completeContextUpdate} from './context-update.mjs';
 import {planCompositeFacts,buildReviewedAnswer,verifyReviewedAnswer,answerOutcomeQuestion} from './reviewed-answer.mjs';
 import {proposeCurrentError,currentErrorQuestion,stageCurrentError,completeCurrentError} from './error-confirmation.mjs';
 import {validateReviewedContexts,disambiguateReviewedContext} from './reviewed-context.mjs';
@@ -19,7 +20,7 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.23.0';
+export const RULE_VERSION='0.26.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -95,6 +96,7 @@ function decide(s,c,records,now){
  }
  if(c.diagnosticServices&&s.services.some(id=>!c.diagnosticServices.includes(id)))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
  if(s.pendingError)return s.turn>=24?support('QUESTION_BUDGET_OR_REPEAT'):{kind:'ask',questionId:'confirm_current_error',reasonCode:'CONFIRM_CURRENT_ERROR'};
+ if(s.pendingContext)return s.turn>=24?support('QUESTION_BUDGET_OR_REPEAT'):{kind:'ask',questionId:'confirm_context_update',reasonCode:'CONFIRM_CONTEXT_UPDATE'};
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:s.requestKind==='information'?'STUDENT_CONFIRMED_ANSWER_HELPFUL':'STUDENT_CONFIRMED_ORIGINAL_TASK'};
  if(v('outcome')==='unknown')return support('OUTCOME_UNCONFIRMED');
  if(v('outcome')==='no'&&(s.reviewedFactId||s.reviewedFactIds?.length))return support('REVIEWED_ANSWER_INCOMPLETE');
@@ -165,10 +167,10 @@ function decide(s,c,records,now){
 }
 function finish(s,c,records,now){
  let d=decide(s,c,records,now);
- if(d.kind==='ask'&&d.questionId!=='confirm_current_error'&&(s.askedQuestionIds.length>=MAX_TURNS||s.turn>=24||s.askedQuestionIds.includes(d.questionId)))d=support('QUESTION_BUDGET_OR_REPEAT');
+ if(d.kind==='ask'&&!['confirm_current_error','confirm_context_update'].includes(d.questionId)&&(s.askedQuestionIds.length>=MAX_TURNS||s.turn>=24||s.askedQuestionIds.includes(d.questionId)))d=support('QUESTION_BUDGET_OR_REPEAT');
  if(d.kind==='ask'){
-  if(d.questionId!=='confirm_current_error')s.askedQuestionIds.push(d.questionId);
-  let question=d.questionId==='confirm_current_error'?currentErrorQuestion(s.pendingError.signatureId):d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):QUESTIONS[d.questionId];
+  if(!['confirm_current_error','confirm_context_update'].includes(d.questionId))s.askedQuestionIds.push(d.questionId);
+  let question=d.questionId==='confirm_current_error'?currentErrorQuestion(s.pendingError.signatureId):d.questionId==='confirm_context_update'?contextUpdateQuestion(s.pendingContext):d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):QUESTIONS[d.questionId];
   if(d.questionId==='task'&&!s.services.includes('mail'))question={...question,options:question.options.filter(o=>!['send','receive'].includes(o.id))};
   if(d.questionId==='portal_system'&&s.reportedAcademicSystems?.length)question={...question,options:question.options.filter(o=>s.reportedAcademicSystems.includes(o.id)||o.id==='unknown')};
   if(d.questionId==='service'&&s.services.length>1)question={...question,options:question.options.filter(o=>s.services.includes(o.id)||o.id==='other')};
@@ -224,6 +226,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const options=d.kind==='ask'?d.question.options:d.followUp.question.options;
   if(expected!==questionId||!options.some(o=>o.id===optionId))throw Error('INVALID_ANSWER');
   if(questionId==='confirm_current_error')return finish(completeCurrentError(state,optionId),c,records,now());
+  if(questionId==='confirm_context_update')return finish(completeContextUpdate(state,optionId),c,records,now());
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
   s.conflictingObservations=(s.conflictingObservations||[]).filter(k=>k!==questionId);
   if(questionId==='outcome')recordGuideOutcome(s,d,optionId);
@@ -257,13 +260,20 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const result=interpretFollowup(id,text,q.options,state);
   if(result.kind==='invalid')throw Error('INVALID_ANSWER');
   if(result.kind==='safety'){
-   const s=copy(state);s.turn++;s.domain='safety';s.safetyPolicy=result.policy;delete s.pendingError;
+   const s=copy(state);s.turn++;s.domain='safety';s.safetyPolicy=result.policy;delete s.pendingError;delete s.pendingContext;
    return {kind:'advanced',state:finish(s,c,records,now())};
   }
   const reportedError=proposeCurrentError(state,text);
   if(reportedError.kind==='propose')return {kind:'advanced',state:finish(stageCurrentError(state,reportedError.signatureId),c,records,now())};
   if(reportedError.kind==='clarify')return {kind:'clarify',reasonCode:reportedError.reasonCode,state:copy(state)};
-  if(result.kind==='clarify')return {kind:'clarify',reasonCode:result.reasonCode,state:copy(state)};
+  if(result.kind==='clarify'){
+   if(result.reasonCode==='FREE_TEXT_NOT_UNAMBIGUOUS'){
+    const update=proposeContextUpdate(state,text);
+    if(update.kind==='propose')return {kind:'advanced',state:finish(stageContextUpdate(state,update),c,records,now())};
+    if(update.kind==='clarify')return {kind:'clarify',reasonCode:update.reasonCode,state:copy(state)};
+   }
+   return {kind:'clarify',reasonCode:result.reasonCode,state:copy(state)};
+  }
   // Supplementary observations are accepted only from the private interpreter,
   // not from public command fields. A selected answer always remains explicit.
   const next=copy(state);

@@ -1,0 +1,9 @@
+# Current context updates and network continuation — 0.26 (validation deferred)
+
+A recognized standalone context observation supplied instead of the current answer can now initiate a bounded explicit confirmation. The engine shows the canonical fixed question and proposed option, not the student's raw reply. A positive confirmation records that observation as current student-reported evidence, removes stale dependent client/connection details and re-evaluates the normal rules. A negative or uncertain response restores the unanswered diagnostic path. Two context confirmations per issue are permitted, within the total turn budget.
+
+The allowlist is restricted to ordinary contextual observations and exact recognized clauses. The engine does not infer a changed password, MFA registration, recovery state, account restriction, service identity or successful outcome. This correction flow is intentionally limited to pre-guide ordinary diagnosis; it must not erase actual attempts, recovery provenance, protected context or recognized error evidence. The existing current-error workflow remains separate. Native handoff history records fixed confirmation labels.
+
+Failed network guidance now distinguishes the remaining symptom across setup, authentication, SSID, performance and connected-without-internet guides, checks whether the same remaining problem affects other people, and considers a distinct reviewed alternative only with applicable current evidence. Previously attempted/selected guides are still blocked by the existing alternative policy. A shared report is not a confirmed incident. Multiple named academic systems sharing the same generic service category are treated as shared access context when verification succeeds unless the affected system has already been narrowed explicitly.
+
+No tests, syntax checks, builds, provider execution or changes to the native host were performed. The changed rules and browser demo are unvalidated.

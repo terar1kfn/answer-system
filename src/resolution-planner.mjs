@@ -6,7 +6,7 @@
 const val=(s,key)=>s.evidence[key]?.value;
 const has=(s,key)=>Object.hasOwn(s.evidence,key);
 const copy=x=>JSON.parse(JSON.stringify(x));
-const QUESTIONS=new Set(['guide_result','retry_mail_scope','retry_mail_detail','retry_network_scope','retry_attendance_detail','retry_meeting_scope','retry_software_detail','retry_storage_detail','retry_printer_detail','retry_portal_scope']);
+const QUESTIONS=new Set(['guide_result','retry_mail_scope','retry_mail_detail','retry_network_scope','retry_attendance_detail','retry_meeting_scope','retry_software_detail','retry_storage_detail','retry_printer_detail','retry_portal_scope','retry_network_peers']);
 const MAX_FAILED_ATTEMPTS=3;
 const SETUP=new Set(['setup_ios','setup_android']);
 export function recordGuideOutcome(s,previous,optionId){
@@ -65,11 +65,22 @@ export function decideAfterFailedGuide(s,c,{ask,guide,support}){
    return support('MAIL_DELIVERY_REVIEW');
   }
  }
- if(service==='network'&&['individual_connectivity','network_connected_no_internet'].includes(purpose)){
+ if(service==='network'&&['individual_connectivity','network_setup','network_auth','network_ssid','network_slow','network_connected_no_internet'].includes(purpose)){
   if(!has(s,'retry_network_scope'))return ask('retry_network_scope');
   const detail=val(s,'retry_network_scope');
-  const target={ssid_missing:'network_ssid',auth:'network_auth',slow:'network_slow'}[detail];
-  return target?alt('network',target,'retry_network_scope'):support('NETWORK_FAILURE_PERSISTS');
+  const target={ssid_missing:'network_ssid',auth:'network_auth',slow:'network_slow',no_internet:'network_connected_no_internet'}[detail];
+  if(!target)return support('NETWORK_FAILURE_PERSISTS');
+  if(!has(s,'retry_network_peers'))return ask('retry_network_peers');
+  if(val(s,'retry_network_peers')==='yes')return support('POSSIBLE_SHARED_NETWORK_INCIDENT');
+  if(val(s,'retry_network_peers')!=='no')return support('NETWORK_SCOPE_UNCLEAR');
+  // Keep the prior attempt as history; this is a fresh, explicit observation
+  // of the same device and intended network, not proof of a root cause.
+  s.evidence.network_issue={value:detail,origin:'student_report'};
+  s.evidence.peers={value:'no',origin:'student_report'};
+  if(detail==='no_internet')s.evidence.connection={value:'no',origin:'student_report'};
+  else if(detail==='slow')s.evidence.connection={value:'yes',origin:'student_report'};
+  else delete s.evidence.connection;
+  return alt('network',target,'retry_network_scope');
  }
  if(service==='attendance'&&['attendance_scan','attendance_app'].includes(purpose)){
   if(!has(s,'retry_attendance_detail'))return ask('retry_attendance_detail');
