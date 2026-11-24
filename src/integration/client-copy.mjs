@@ -2,6 +2,9 @@
 // diagnosis from a reason code. The host renders native policy referrals.
 const labels={
  FREE_TEXT_NOT_UNAMBIGUOUS:['I need a little more detail. Choose the option that best matches what you see.','أحتاج إلى مزيد من التفاصيل. اختر الخيار الأقرب إلى ما تراه.'],
+ CONFLICTING_OBSERVATIONS:['Some reported observations point in different directions. Please confirm what is happening now on the affected device.','تشير بعض المعلومات إلى احتمالات مختلفة. يرجى تأكيد ما يحدث الآن على الجهاز المتأثر.'],
+ REVIEWED_FACT_CONFLICT:['More than one approved answer matches this question. IT needs to confirm which applies.','توجد أكثر من إجابة معتمدة تطابق السؤال. يجب أن يؤكد الدعم التقني أيها ينطبق.'],
+ NETWORK_OBSERVATIONS_CONFLICT:['The reported connection details conflict. IT can review the current network state.','تتعارض معلومات الاتصال المبلغ عنها. يمكن للدعم التقني مراجعة حالة الشبكة الحالية.'],
  CONFLICTING_REPLY:['Your reply could mean more than one answer. Which option matches?','قد تعني إجابتك أكثر من خيار. أي خيار يطابق المشكلة؟'],
  POSSIBLE_NEW_ISSUE:['Is this a different problem? Start a new search or answer the current question.','هل هذه مشكلة مختلفة؟ ابدأ بحثاً جديداً أو أجب عن السؤال الحالي.'],
  NEW_ISSUE_REQUIRED:['This may need a separate diagnosis. Start a new search if it is a different issue.','قد تتطلب هذه المشكلة تشخيصاً منفصلاً. ابدأ بحثاً جديداً إذا كانت مختلفة.'],

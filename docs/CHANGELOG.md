@@ -1,5 +1,13 @@
 # Change log
 
+## 0.15.0 — retrieval and contextual diagnosis (validation deferred)
+
+- Added reviewed metadata retrieval with bilingual concept terms, field weights, rare-term relevance, phrase evidence, exact error-code association, and bounded non-numeric typo matching.
+- Added exact factual-answer conflict handling and separate fact-topic retrieval; protected/private or conflicting input cannot use generic student search to bypass routing.
+- Added conservative initial-observation reconciliation, explicit conflict clarification and safe prerequisite-question ranking by guide discrimination.
+- Strengthened reviewed case matching with allowlisted unique signals, service ownership, contradictory/missing evidence, guide prerequisites, previous unsuccessful attempts and outcome provenance. Human review remains mandatory.
+- No real case import, tests, builds, browser execution, model calls, deployment or private application changes. CI remains manual-only.
+
 ## 0.14.0 — evidence ranking and alternative diagnosis (validation deferred)
 
 - Added evidence-linked support, contradiction and conflict ranking with an explicit uncertainty summary (not probabilities).

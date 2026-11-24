@@ -1,6 +1,8 @@
 import {QUESTIONS} from './questions.mjs';
 import {classify,normalize} from './classify.mjs';
-import {eligible,exactReviewedFact,searchKnowledge} from './knowledge.mjs';
+import {eligible,resolveReviewedFact,createKnowledgeRetriever} from './knowledge.mjs';
+import {reconcileInitialContext} from './initial-context.mjs';
+import {chooseGuidePrerequisite} from './question-priority.mjs';
 import {interpretFollowup} from './followup.mjs';
 import {summarizeEvidence} from './evidence.mjs';
 import {summarizeDiagnosticUncertainty} from './diagnostic-hypotheses.mjs';
@@ -12,7 +14,7 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.14.0';
+export const RULE_VERSION='0.15.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -49,10 +51,10 @@ function guide(s,c,service,purpose){
  // Do not ask a sensitive question merely because a guide references it.
  const viable=eligibleGuides.filter(g=>Object.entries(g.requires||{}).every(([k,values])=>!known(s,k)||values.includes(value(s,k))));
  const specificity=Object.keys(matches[0]?.requires||{}).length;
- const nextKey=['device_os','phone','browser_scope'].find(key=>!known(s,key)&&viable.some(g=>Object.keys(g.requires||{}).length>specificity&&Object.hasOwn(g.requires||{},key)));
+ const nextKey=chooseGuidePrerequisite(viable,s,{minimumSpecificity:specificity});
  if(nextKey)return ask(nextKey);
  if(!matches.length){
-  const needed=['device_os','phone','browser_scope'].find(key=>!known(s,key)&&viable.some(g=>Object.hasOwn(g.requires||{},key)));
+  const needed=chooseGuidePrerequisite(viable,s);
   return needed?ask(needed):support('NO_APPROVED_GUIDE');
  }
  if(matches.length>1&&Object.keys(matches[0].requires||{}).length===Object.keys(matches[1].requires||{}).length)return support('MULTIPLE_APPROVED_GUIDES');
@@ -81,6 +83,7 @@ function decide(s,c,records,now){
  if(c.diagnosticServices&&s.services.some(id=>!c.diagnosticServices.includes(id)))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
  if(v('outcome')==='unknown')return support('OUTCOME_UNCONFIRMED');
+ if(s.reviewedFactConflict)return support('REVIEWED_FACT_CONFLICT');
  if(s.knowledgeChoices?.length&&!k('reviewed_topic'))return ask('reviewed_topic');
  if(s.domain==='unknown')return !k('service')?ask('service'):support('SERVICE_UNCLEAR');
  if(s.reviewedFactId&&!k('outcome')){
@@ -94,6 +97,8 @@ function decide(s,c,records,now){
  if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
  if(errorHint?.stage==='recipient_rate_limit'||errorHint?.stage==='quota_or_rate_review')return support('MAIL_QUOTA_REVIEW');
  if(s.domain==='mail'&&v('send_error')==='restricted')return support('MAIL_SENDER_RESTRICTED');
+ const conflict=(s.conflictingObservations||[]).find(q=>Object.hasOwn(QUESTIONS,q)&&!k(q));
+ if(conflict)return {...ask(conflict),reasonCode:'CONFLICTING_OBSERVATIONS'};
  if(v('outcome')==='no'&&!isFailedSetup(s))return decideAfterFailedGuide(s,c,{ask,guide:g,support});
  if(s.activeAlternative)return repeatAlternative(s,{guide:g});
  const incident=confirmedIncident(s,records,now);
@@ -143,6 +148,7 @@ function decide(s,c,records,now){
   if(v('peers')==='unknown')return support('NETWORK_SCOPE_UNCLEAR');
   if(v('connection')!=='no')return support('NETWORK_EVIDENCE_INCOMPLETE');
   if(!k('network_issue'))return ask('network_issue');
+  if(v('network_issue')==='only_service')return support('NETWORK_OBSERVATIONS_CONFLICT');
   const purpose={ssid_missing:'network_ssid',auth:'network_auth',slow:'network_slow'}[v('network_issue')];
   return g('network',purpose||'individual_connectivity');
  }
@@ -168,6 +174,7 @@ function finish(s,c,records,now){
  if(d.kind==='open_guide'||d.kind==='answer')d={...d,followUp:{questionId:'outcome',question:QUESTIONS.outcome}};
  s.candidates=summarizeEvidence(s);
  s.diagnosticUncertainty=summarizeDiagnosticUncertainty(s,s.candidates);
+ if(s.conflictingObservations?.length)s.diagnosticUncertainty={...s.diagnosticUncertainty,level:'conflicting_observations',leadingCause:null,unresolvedObservations:[...s.conflictingObservations]};
  const hint=getErrorSignature(value(s,'error_signature'));if(hint)s.errorHint=hint;else delete s.errorHint;
  s.decision=d;s.status=d.kind==='ask'?'diagnosing':['open_guide','answer'].includes(d.kind)?'guidance':d.kind==='resolved_reported'?'resolved_reported':'handoff_offered';
  return copy(s);
@@ -177,19 +184,23 @@ function finish(s,c,records,now){
 export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
  const c=checkedCatalog(catalog);
  if(!Array.isArray(incidents)||typeof now!=='function')throw new TypeError('Invalid engine configuration');
- const records=copy(incidents);
+ const records=copy(incidents),retriever=createKnowledgeRetriever(c);
  function begin({text,language='en'}={}){
   if(!['en','ar'].includes(language))throw new TypeError('Invalid language');
   const clean=sanitizeText(text);
-  const r=classify(clean.text||'redacted');
+  const classified=classify(clean.text||'redacted');
+  const r=reconcileInitialContext({text:clean.text,classification:classified,classify});
   text=clean.text;
   const isHowTo=/^(?:how (?:do|can|to)|what is|where (?:is|can)|كيف|ما هو|ما هي|اين)\b/i.test(normalize(text))||/^(?:كيف|ما هو|ما هي|اين)(?: |$)/.test(normalize(text));
-  const factMatch=!clean.categories.length&&!['safety','exam'].includes(r.domain)&&isHowTo?exactReviewedFact(c,text,r.services):null;
+  const factResolution=!clean.categories.length&&!['safety','exam'].includes(r.domain)&&isHowTo?resolveReviewedFact(c,text,r.services):{status:'none'};
+  const factMatch=factResolution.status==='exact'?factResolution.fact:null;
   const s={ruleVersion:RULE_VERSION,catalogRevision:c.revision,turn:0,language,domain:r.domain,services:r.services,evidence:{},askedQuestionIds:[],offeredGuideIds:[],status:'new'};
   for(const [key,v] of Object.entries(r.facts))fact(s,key,v,'student_text_signal');
+  s.conflictingObservations=r.conflicts||[];
+  if(factResolution.status==='conflict')s.reviewedFactConflict=true;
   s.requestKind=['safety','exam'].includes(r.domain)?'protected':isHowTo?'how_to':r.domain==='unknown'?'unclear':'fault';
   if(factMatch){s.reviewedFactId=factMatch.id;s.domain='task';s.services=[factMatch.serviceId];}
-  else if(!clean.categories.length&&!['safety','exam'].includes(r.domain)&&r.facts.mfa_prompt!=='unexpected'&&!r.facts.error_signature&&isInformationalQuery(text)){
+  else if(factResolution.status==='none'&&!clean.categories.length&&!['safety','exam'].includes(r.domain)&&r.facts.mfa_prompt!=='unexpected'&&!r.facts.error_signature&&isInformationalQuery(text)){
    const choices=reviewedTopicChoices(c,{text,services:r.services});if(choices.length)s.knowledgeChoices=choices;
   }
   return finish(s,c,records,now());
@@ -202,6 +213,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const options=d.kind==='ask'?d.question.options:d.followUp.question.options;
   if(expected!==questionId||!options.some(o=>o.id===optionId))throw Error('INVALID_ANSWER');
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
+  s.conflictingObservations=(s.conflictingObservations||[]).filter(k=>k!==questionId);
   if(questionId==='outcome')recordGuideOutcome(s,d,optionId);
   else recordResolutionAnswer(s,questionId,optionId);
   applyIdentityAnswer(s,questionId,optionId);
@@ -214,7 +226,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
    s.evidence={reviewed_topic:{value:optionId,origin:'student_report'}};
   }
   if(questionId==='service'){
-   s.services=[optionId];delete s.activeAlternative;delete s.lastGuidePurpose;delete s.knowledgeChoices;delete s.reviewedFactId;
+   s.services=[optionId];delete s.activeAlternative;delete s.lastGuidePurpose;delete s.knowledgeChoices;delete s.reviewedFactId;delete s.reviewedFactConflict;s.conflictingObservations=[];
    for(const key of Object.keys(s.evidence))if(key!=='service')delete s.evidence[key];
    s.domain=['network','identity','exam'].includes(optionId)?optionId:optionId==='other'?'unknown':['mail','portal','attendance'].includes(optionId)?'task':hasServicePlaybook(optionId)?'specific':'task';
   }
@@ -242,10 +254,17 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   for(const observation of result.observations||[]){
    if(observation.key===id||known(next,observation.key)||!QUESTIONS[observation.key]?.options.some(o=>o.id===observation.value))continue;
    fact(next,observation.key,observation.value,'student_text_signal');
+   next.conflictingObservations=(next.conflictingObservations||[]).filter(k=>k!==observation.key);
   }
   return {kind:'advanced',state:advance(next,{expectedTurn,questionId:id,optionId:result.optionId})};
  }
- function search({text,services=[],limit=5}={}){try{return searchKnowledge(c,{text:sanitizeText(text).text,services,limit});}catch{return [];}}
+ function search({text,services=[],limit=5}={}){
+  try{
+   const clean=sanitizeText(text);if(!clean.text||clean.categories.length)return [];
+   const intent=classify(clean.text);if(intent.domain==='safety'||intent.domain==='exam'||intent.facts.mfa_prompt==='unexpected'||intent.facts.error_conflict)return [];
+   return retriever.search({text:clean.text,services,limit});
+  }catch{return [];}
+ }
  // Trusted host only, after independently verifying its recovery workflow.
  function resumeRecovery(state,{expectedTurn}={}){
   if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||state.turn!==expectedTurn)throw Error('STALE_STATE');

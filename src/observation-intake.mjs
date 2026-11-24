@@ -91,3 +91,27 @@ export function readCompoundReply({state,questionId,text,matchCurrent}){
  if(found.get('mfa_prompt')==='blocked'&&found.has('mfa_setup'))return null;
  return {kind:'option',optionId:answer,observations:[...found].map(([key,value])=>({key,value}))};
 }
+
+
+/** The initial symptom may include useful observations as full clauses.
+ * Keep unmatched text for routing; only exact recognized clauses may prefill
+ * evidence. A single sentence containing a conjunction is tried as a whole
+ * before splitting, preserving phrases such as "webmail works but the app does not".
+ */
+export function readInitialObservations(text){
+ if(typeof text!=='string'||!text.trim()||text.length>500)return {observations:[],remaining:''};
+ const observations=[],remaining=[];
+ function read(clause,maySplit){
+  const n=normalize(clause);
+  if(!n)return;
+  const matches=index.get(n)||[];
+  if(matches.length){observations.push(...matches.map(x=>({...x})));return;}
+  const parts=maySplit?clause.split(/\s+(?:and|but|however|ولكن|لكن|وكمان)\s+/i).map(x=>x.trim()).filter(Boolean):[];
+  if(parts.length>1&&parts.length<=5&&parts.some(p=>index.has(normalize(p)))){for(const part of parts)read(part,false);return;}
+  remaining.push(clause.trim());
+ }
+ const clauses=text.split(/[,;!?]+|\.(?!\d)(?=\s|$)/).map(x=>x.trim()).filter(Boolean);
+ if(clauses.length>8)return {observations:[],remaining:text};
+ for(const clause of clauses)read(clause,true);
+ return {observations:observations.slice(0,16),remaining:remaining.join(', ')};
+}

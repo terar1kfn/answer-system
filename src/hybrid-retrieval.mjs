@@ -59,12 +59,16 @@ export function createHybridRetriever({getCatalog,embed,enabled=false,maxEntries
   const c=getCatalog();let clean;
   try{clean=sanitizeText(text);}catch{return {mode:'lexical',results:[]};}
   if(!Array.isArray(services)||!Number.isInteger(limit)||limit<1||limit>10)return {mode:'lexical',results:[]};
+  if(!clean.text||clean.categories.length)return {mode:'lexical',results:[]};
+  const intent=classify(clean.text);
+  if(['safety','exam'].includes(intent.domain)||intent.facts.mfa_prompt==='unexpected'||intent.facts.error_conflict)return {mode:'protected_or_conflicting',results:[]};
   const lexical=searchKnowledge(c,{text:clean.text,services,limit:10});
   const fallback=()=>({mode:'lexical',results:lexical.slice(0,limit)});
   if(!enabled||!index||index.revision!==c.revision||busy||clean.categories.length||!clean.text)return fallback();
-  const intent=classify(clean.text);if(['safety','exam'].includes(intent.domain)||intent.facts.mfa_prompt==='unexpected')return fallback();
+  // Error-code queries may only use explicit reviewed metadata associations.
+  if(intent.facts.error_signature)return fallback();
   // Retain the exact-match ranking ahead of semantic-only suggestions.
-  if(lexical[0]?.exactPhrase)return fallback();
+  if(lexical[0]?.exactPhrase||lexical[0]?.exactError)return fallback();
   const pinned=index;
   try{
    const [vector]=await call([clean.text]);
