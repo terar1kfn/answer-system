@@ -65,7 +65,7 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
   return support('AUTHENTICATOR_SETUP_UNRESOLVED');
  }
  if(v('verification_context')==='conflicting_screen')return ask('mfa_prompt');
- if(v('credentials')==='rejected')return guide('identity','credential_check');
+ if(v('credentials')==='rejected'&&v('password_intent')!=='forgot'&&v('password_intent')!=='change')return guide('identity','credential_check');
  if(v('mfa_prompt')==='blocked')return recovery();
  if(v('recovery_context')==='phone_change'&&!k('mfa_prompt')){
   if(!k('mfa_method_goal'))return ask('mfa_method_goal');
@@ -82,6 +82,7 @@ export function decideIdentity(s,{ask,guide,support,safety,errorHint}){
    return v('password_knowledge')==='yes'?guide('identity','password_change_known'):support('PASSWORD_STATUS_UNCONFIRMED');
   }
  }
+ if(v('credentials')==='rejected')return guide('identity','credential_check');
  if(errorHint?.stage==='credential_validation'&&!k('credentials'))return ask('credentials');
  // A directly requested how-to or verified reset may open the approved setup
  // path. "I haven't set it up" alone is not proof that the current prompt is setup.

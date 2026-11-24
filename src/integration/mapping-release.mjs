@@ -1,6 +1,7 @@
 import {nativeRecordFingerprint,projectNativeCatalog} from './native-catalog.mjs';
 import {inspectSourceKnowledgePack} from './source-knowledge-drafts.mjs';
 import {knownGuidePurpose} from '../guide-purposes.mjs';
+import {inspectNativeGuideRoute,routeReviewMatches} from './native-route-review.mjs';
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const hash=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -93,21 +94,29 @@ export async function prepareMappingRelease({
  if(!pinned(mapping,configuration)||!id(preparerRef)||!id(releaseReviewerRef)||preparerRef===releaseReviewerRef||!id(releaseId)||
  !Array.isArray(approvals)||approvals.length!==mapping.guides.length||!unique(approvals,'guideId')||
  typeof verifyMappingApproval!=='function')fail('INDEPENDENT_MAPPING_RELEASE_REQUIRED');
+ // Work against a stable private snapshot; the active provider rechecks the
+ // authoritative catalog again before the mapping is consumed.
+ configuration=clone(configuration);mapping=clone(mapping);approvals=clone(approvals);
  const approvalById=new Map(approvals.map(a=>[a.guideId,a]));
+ const routeReviews=[];
  for(const g of mapping.guides){
   const a=approvalById.get(g.guideId);
+  const route=inspectNativeGuideRoute({configuration,mappingRow:g,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu});
+  if(route.blockers.length||route.truncated)fail('NATIVE_ROUTE_DEPENDENCY_BLOCKED');
+  if(!a||a.routeFingerprint!==route.routeFingerprint||a.routeDependenciesConfirmed!==true)fail('NATIVE_ROUTE_REVIEW_REQUIRED');
+  routeReviews.push(route);
   if(!a||!id(a.reviewerRef)||a.reviewerRef===preparerRef||!id(a.approvalRef)||
    a.rowFingerprint!==nativeRecordFingerprint(g)||a.guideFingerprint!==g.expectedFingerprint||
    a.sourceCatalogFingerprint!==mapping.sourceCatalogFingerprint||a.sourceConfirmed!==true||
    a.applicabilityConfirmed!==true||a.permissionConfirmed!==true||!currentGuide(configuration,g)||
-   await verifyMappingApproval({approval:clone(a),mappingRow:clone(g),publishedGuide:clone(currentGuide(configuration,g))})!==true)fail('MAPPING_ROW_APPROVAL_REQUIRED');
+   await verifyMappingApproval({approval:clone(a),mappingRow:clone(g),publishedGuide:clone(currentGuide(configuration,g)),routeReview:clone(route)})!==true)fail('MAPPING_ROW_APPROVAL_REQUIRED');
  }
  // Previously learned patterns have a separate outcome and review lifecycle.
  // This release gate only handles the approved original guide mappings.
  if(mapping.reviewedContexts?.length)fail('REVIEWED_CONTEXT_RELEASE_SEPARATE');
  const projection=projectNativeCatalog({configuration,mapping,allowedNativeServiceIds,diagnosticServices,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu});
  if(projection.withheld.length||projection.catalog.guides.length!==mapping.guides.length)fail('MAPPING_RELEASE_CONTAINS_INELIGIBLE_GUIDE');
- const payload={releaseId,preparerRef,releaseReviewerRef,mapping:clone(mapping),approvals:clone(approvals)};
+ const payload={releaseId,preparerRef,releaseReviewerRef,mapping:clone(mapping),approvals:clone(approvals),routeReviews:clone(routeReviews)};
  return {kind:'native_mapping_release_candidate',status:'needs_native_activation',published:false,activated:false,
   payload,releaseFingerprint:nativeRecordFingerprint(payload)};
 }
@@ -128,7 +137,12 @@ export function createApprovedMappingProvider({getConfiguration,getActiveRelease
   const p=release.payload,m=p.mapping;
   if(!id(p.releaseId)||!id(p.preparerRef)||!id(p.releaseReviewerRef)||p.preparerRef===p.releaseReviewerRef||
    !Array.isArray(p.approvals)||p.approvals.length!==m.guides.length||!unique(p.approvals,'guideId')||
-   m.guides.some(g=>!currentGuide(configuration,g)||!p.approvals.some(a=>a.guideId===g.guideId&&a.rowFingerprint===nativeRecordFingerprint(g)&&a.guideFingerprint===g.expectedFingerprint&&a.sourceCatalogFingerprint===m.sourceCatalogFingerprint))||
+   !Array.isArray(p.routeReviews)||p.routeReviews.length!==m.guides.length||!unique(p.routeReviews,'guideId')||
+   m.guides.some(g=>{
+    const route=p.routeReviews.find(r=>r.guideId===g.guideId),a=p.approvals.find(x=>x.guideId===g.guideId);
+    return !currentGuide(configuration,g)||!a||!route||!routeReviewMatches({review:route,configuration,mappingRow:g})||
+     a.routeDependenciesConfirmed!==true||a.routeFingerprint!==route.routeFingerprint||a.rowFingerprint!==nativeRecordFingerprint(g)||a.guideFingerprint!==g.expectedFingerprint||a.sourceCatalogFingerprint!==m.sourceCatalogFingerprint;
+   })||
    await verifyActiveRelease({actor,activationRef:release.activationRef,releaseId:p.releaseId,releaseFingerprint:release.releaseFingerprint})!==true)fail('APPROVED_MAPPING_UNAVAILABLE');
   const current=await getConfiguration(actor);
   if(!pinned(m,current))fail('MAPPING_SOURCE_REVISION_CHANGED');

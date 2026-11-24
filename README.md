@@ -123,3 +123,5 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 [Current native catalog review](docs/native-catalog-current-review.md) distinguishes presentation metadata changes from other service changes, adds a fixed password-change environment prerequisite and tightens typed MFA-access reports. Exact current host eligibility and independent review remain mandatory.
 
 Version 0.30 separates changed-phone verification transfer from the original sign-in task, confirms contradictory screens before using recovery logic, and clears stale observations before a new applicable guide. Reviewed informational answers cannot supersede explicit credential, verification or recovery evidence.
+
+[Native route dependency review (0.31)](docs/native-route-dependency-review.md) adds branch-aware review to the release boundary. Every reachable dependency must be independently confirmed against the exact catalog; legacy release formats fail closed until renewed review. Original native navigation remains authoritative.

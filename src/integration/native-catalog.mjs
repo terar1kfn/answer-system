@@ -1,4 +1,5 @@
-import {createHash} from 'node:crypto';
+import {nativeRecordFingerprint} from './native-fingerprint.mjs';
+export {nativeRecordFingerprint} from './native-fingerprint.mjs';
 import {createEngine} from '../engine.mjs';
 import {SERVICE_IDS,isServiceId} from '../service-taxonomy.mjs';
 import {validateReviewedContexts} from '../reviewed-context.mjs';
@@ -8,8 +9,6 @@ const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const bilingual=x=>x&&typeof x.en==='string'&&x.en.trim()&&x.en.length<=500&&typeof x.ar==='string'&&x.ar.trim()&&x.ar.length<=500;
 const list=x=>Array.isArray(x)&&x.length<=5000;
 const fail=x=>{throw Error(x);};
-const stable=x=>Array.isArray(x)?x.map(stable):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,stable(x[k])])):x;
-export const nativeRecordFingerprint=x=>createHash('sha256').update(JSON.stringify(stable(x))).digest('hex');
 const digest=nativeRecordFingerprint;
 const unique=(xs,get)=>new Set(xs.map(get)).size===xs.length;
 const boundedTerms=x=>Array.isArray(x)?x.filter(v=>typeof v==='string'&&v.trim()&&v.length<=500).slice(0,100):[];

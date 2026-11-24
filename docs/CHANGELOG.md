@@ -1,5 +1,12 @@
 # Change log
 
+## 0.31.0 — native diagnostic route dependency review (validation deferred)
+
+- Inspect reachable question, case, solution and escalation routes with bounded graph traversal, exact guide and owner pins, branch-specific blockers and review notes.
+- Require explicit independent dependency review in mapping releases and recheck pinned review metadata in the approved provider. Existing draft mapping artifacts remain unapproved.
+- Include route reviews in private catalog reconciliation; preserve explicit password-change/reset intent when no conflicting verification stage exists.
+- No tests/builds/deployment or live native host changes.
+
 ## 0.30.0 — current verification stage and recovery context (validation deferred)
 
 - Distinguish a replacement-phone mention from an actual verification problem; distinguish transfer of an existing registered method from completing sign-in.

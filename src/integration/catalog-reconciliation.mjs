@@ -2,6 +2,7 @@ import {nativeRecordFingerprint,projectNativeCatalog} from './native-catalog.mjs
 import {knownGuidePurpose} from '../guide-purposes.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
 import {QUESTIONS} from '../questions.mjs';
+import {inspectNativeGuideRoute} from './native-route-review.mjs';
 const fail=code=>{throw Error(code);};
 const clone=x=>JSON.parse(JSON.stringify(x));
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
@@ -127,6 +128,7 @@ export function reconcileNativeMapping({configuration,baselineConfiguration=null
   retainedReviewCandidates:count,withheldCount:rows.length-count,rows,
   unmappedCurrentGuideIds:configuration.guides.filter(g=>!mappedIds.has(g.id)).map(g=>g.id).sort(),
   unmappedCurrentServiceIds:configuration.services.filter(s=>!oldOwners.has(s.id)).map(s=>s.id).sort(),
+  routeReviews:candidateMapping?candidateMapping.guides.map(mappingRow=>inspectNativeGuideRoute({configuration,mappingRow,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu})):[],
   reviewedContextsRequireRebase:(previousMapping.reviewedContexts||[]).map(x=>x.id),
   projectionRevision,candidateMapping};
 }
