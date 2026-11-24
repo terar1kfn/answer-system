@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {createEngine} from '../engine.mjs';
 import {SERVICE_IDS,isServiceId} from '../service-taxonomy.mjs';
+import {validateReviewedContexts} from '../reviewed-context.mjs';
 const clone=x=>JSON.parse(JSON.stringify(x));
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
 const bilingual=x=>x&&typeof x.en==='string'&&x.en.trim()&&x.en.length<=500&&typeof x.ar==='string'&&x.ar.trim()&&x.ar.length<=500;
@@ -64,12 +65,22 @@ export function projectNativeCatalog({
  }
  const sourceRevision=String(configuration.gatewayRevision??configuration.revision);
  const serviceAvailability=Object.fromEntries(SERVICE_IDS.map(id=>[id,[...available.values()].some(s=>s.serviceId===id)]));
- const body={sourceRevision,mappingRevision:mapping.revision,guides:projected.sort((a,b)=>a.id.localeCompare(b.id)),facts:[],serviceAvailability,diagnosticServices:diagnostic};
+ const contextRows=mapping.reviewedContexts??[];
+ validateReviewedContexts(contextRows);
+ const withheldContexts=[],reviewedContexts=[];
+ for(const p of contextRows){
+  const g=projected.find(g=>g.id===p.guideId&&g.serviceId===p.serviceId&&g.purpose===p.purpose);
+  if(!g||p.sourceRevision!==sourceRevision||p.guideFingerprint!==g.nativeGuideFingerprint){
+   withheldContexts.push({patternRef:p.id,reason:'CONTEXT_GUIDE_OR_REVISION_STALE'});continue;
+  }
+  reviewedContexts.push(clone(p));
+ }
+ const body={sourceRevision,mappingRevision:mapping.revision,guides:projected.sort((a,b)=>a.id.localeCompare(b.id)),facts:[],serviceAvailability,diagnosticServices:diagnostic,reviewedContexts:reviewedContexts.sort((a,b)=>a.id.localeCompare(b.id))};
  // Availability, exact ownership and metadata changes invalidate old choices even
  // if an external publication revision is accidentally reused.
  const catalog={...body,revision:'native-'+digest(body)};
  createEngine({catalog});
- return {catalog,availableNativeServices:[...available.values()].sort((a,b)=>a.nativeId.localeCompare(b.nativeId)),withheld};
+ return {catalog,availableNativeServices:[...available.values()].sort((a,b)=>a.nativeId.localeCompare(b.nativeId)),withheld,withheldContexts};
 }
 export function nativeGuideReference(projection,decision){
  if(!projection||decision?.kind!=='open_guide'||projection.catalog.revision!==decision.catalogRevision)fail('NATIVE_GUIDE_STALE');

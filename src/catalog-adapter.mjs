@@ -7,7 +7,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
  * All guide IDs, approval status and availability must come from the host.
  * It exports metadata and references, not raw guide bodies or private data.
  */
-export function buildCatalogSnapshot({sourceRevision,mappingRevision,guideRows,factRows=[],serviceAvailability={}}={}){
+export function buildCatalogSnapshot({sourceRevision,mappingRevision,guideRows,factRows=[],serviceAvailability={},reviewedContexts=[]}={}){
  if(!id(sourceRevision)||!id(mappingRevision)||!Array.isArray(guideRows)||!Array.isArray(factRows)||guideRows.length>5000||factRows.length>5000)throw Error('INVALID_CATALOG_INPUT');
  const guides=guideRows.map(row=>{
   if(!row||!id(row.id)||!id(row.purpose)||!isServiceId(row.serviceId)||typeof row.published!=='boolean'||typeof row.enabled!=='boolean'||typeof row.reviewed!=='boolean'||!['student','staff'].includes(row.audience))throw Error('INVALID_GUIDE_MAPPING');
@@ -17,7 +17,7 @@ export function buildCatalogSnapshot({sourceRevision,mappingRevision,guideRows,f
   if(!row||!id(row.id)||!isServiceId(row.serviceId)||!id(row.sourceRef)||typeof row.published!=='boolean'||typeof row.reviewed!=='boolean'||typeof row.enabled!=='boolean')throw Error('INVALID_FACT_MAPPING');
   return {id:row.id,serviceId:row.serviceId,title:clone(row.title),answer:clone(row.answer),aliases:clone(row.aliases),sourceRef:row.sourceRef,reviewed:row.published&&row.reviewed,enabled:row.enabled,audience:row.audience};
  });
- const catalog={revision:sourceRevision+'__'+mappingRevision,sourceRevision,mappingRevision,guides,facts,serviceAvailability:clone(serviceAvailability)};
+ const catalog={revision:sourceRevision+'__'+mappingRevision,sourceRevision,mappingRevision,guides,facts,serviceAvailability:clone(serviceAvailability),reviewedContexts:clone(reviewedContexts)};
  // Runtime validation when the host calls this adapter, not a release test.
  createEngine({catalog});
  return catalog;

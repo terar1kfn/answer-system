@@ -3,6 +3,7 @@ import {classify,normalize} from './classify.mjs';
 import {eligible,resolveReviewedFact,createKnowledgeRetriever} from './knowledge.mjs';
 import {reconcileInitialContext} from './initial-context.mjs';
 import {chooseGuidePrerequisite} from './question-priority.mjs';
+import {validateReviewedContexts,disambiguateReviewedContext} from './reviewed-context.mjs';
 import {interpretFollowup} from './followup.mjs';
 import {summarizeEvidence} from './evidence.mjs';
 import {summarizeDiagnosticUncertainty} from './diagnostic-hypotheses.mjs';
@@ -14,7 +15,7 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.15.0';
+export const RULE_VERSION='0.16.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -41,6 +42,7 @@ function checkedCatalog(input){
  }
  if(input.serviceAvailability!==undefined&&(!input.serviceAvailability||typeof input.serviceAvailability!=='object'||Array.isArray(input.serviceAvailability)||Object.entries(input.serviceAvailability).some(([id,flag])=>!SVC.has(id)||typeof flag!=='boolean')))throw new TypeError('Invalid service availability');
  if(input.diagnosticServices!==undefined&&(!Array.isArray(input.diagnosticServices)||!input.diagnosticServices.length||input.diagnosticServices.some(s=>!SVC.has(s))||new Set(input.diagnosticServices).size!==input.diagnosticServices.length))throw new TypeError('Invalid diagnostic scope');
+ validateReviewedContexts(input.reviewedContexts??[]);
  return copy(input);
 }
 function guide(s,c,service,purpose){
@@ -57,10 +59,17 @@ function guide(s,c,service,purpose){
   const needed=chooseGuidePrerequisite(viable,s);
   return needed?ask(needed):support('NO_APPROVED_GUIDE');
  }
- if(matches.length>1&&Object.keys(matches[0].requires||{}).length===Object.keys(matches[1].requires||{}).length)return support('MULTIPLE_APPROVED_GUIDES');
- const g=matches[0];
+ const tied=matches.filter(g=>Object.keys(g.requires||{}).length===specificity);
+ let g=matches[0],patternRef=null;
+ if(tied.length>1){
+  const choice=disambiguateReviewedContext({catalog:c,state:s,tiedGuides:tied});
+  if(choice.kind==='ask')return {...ask(choice.questionId),reasonCode:'DISTINGUISH_APPROVED_GUIDES'};
+  if(choice.kind==='conflict')return support('REVIEWED_CONTEXT_CONFLICT');
+  if(choice.kind!=='guide')return support('MULTIPLE_APPROVED_GUIDES');
+  g=tied.find(x=>x.id===choice.guideId);if(!g)return support('MULTIPLE_APPROVED_GUIDES');patternRef=choice.patternRef;
+ }
  if(s.offeredGuideIds.includes(g.id))return support('GUIDE_ALREADY_OFFERED');
- return {kind:'open_guide',guideId:g.id,serviceId:service,catalogRevision:c.revision,title:g.title,reasonCode:'REVIEWED_GUIDE'};
+ return {kind:'open_guide',guideId:g.id,serviceId:service,catalogRevision:c.revision,title:g.title,reasonCode:patternRef?'REVIEWED_CONTEXT_GUIDE':'REVIEWED_GUIDE',...(patternRef?{diagnosticPatternRef:patternRef}:{})};
 }
 function confirmedIncident(s,records,now){
  if(s.services.length!==1)return null;

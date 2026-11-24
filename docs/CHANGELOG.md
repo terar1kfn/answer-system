@@ -1,5 +1,12 @@
 # Change log
 
+## 0.16.0 — reviewed contextual guide discrimination (validation deferred)
+
+- Added structured, independently reviewed case-derived context patterns to distinguish equally specific eligible guides within the deterministic service/purpose route.
+- Require explicit operation and contextual evidence, current guide/source revision, no contradiction, and a unique supported match; ask safe discriminating questions or abstain on ambiguity.
+- Added private case-to-context draft and independent approval-candidate preparation, with no publication side effects. Native projection withholds stale guide fingerprints or source revisions.
+- No actual case import, tests, builds, browser execution, provider calls, deployment or private application changes. CI remains manual-only.
+
 ## 0.15.0 — retrieval and contextual diagnosis (validation deferred)
 
 - Added reviewed metadata retrieval with bilingual concept terms, field weights, rare-term relevance, phrase evidence, exact error-code association, and bounded non-numeric typo matching.
