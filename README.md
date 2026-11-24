@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.37 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.38 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -137,3 +137,5 @@ Version 0.30 separates changed-phone verification transfer from the original sig
 [Conditional solution planning (0.36)](docs/conditional-solution-plans.md) uses logical applicability containment, explicit unresolved prerequisites, and bounded original-task transitions. Plans are conditional and never execute native procedures.
 
 [Intern diagnostic handoff (0.37)](docs/intern-diagnostic-handoff.md) adds authorized private case snapshots and a staff-only evidence/attempt review adapter. Native case persistence and UI wiring remain outstanding.
+
+[Local diagnostic intake (0.38)](docs/local-diagnostic-intake.md) adds optional structured initial-description interpretation and explicit confirmation of ordinary current choices. Local model configuration, authorization, validation and deployment remain pending.

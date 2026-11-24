@@ -1,5 +1,12 @@
 # Change log
 
+## 0.38.0 — bounded local diagnostic intake advisor (validation deferred)
+
+- Add optional multi-question interpretation of ordinary initial descriptions with an explicit current-question confirmation and bounded later fixed-choice suggestions.
+- Add loopback-only structured Ollama adapter, independent output/quote validation, abstention and state-bound suggestion invalidation.
+- Integrate through opt-in native policy, live rechecks and existing client confirmation flow. No model output automatically becomes evidence or selects a guide.
+- No provider calls, project tests/builds/deployment or private host modifications.
+
 ## 0.37.0 — authorized intern diagnostic handoff (validation deferred)
 
 - Add private structured support-case diagnostic snapshot and staff-only authorized reviewer with current guide version comparison.

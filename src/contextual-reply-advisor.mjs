@@ -5,7 +5,7 @@ import {readInitialObservations} from './observation-intake.mjs';
 import {recognizeErrors} from './error-intelligence.mjs';
 import {isServiceId,matchServices} from './service-taxonomy.mjs';
 const ADVISABLE=new Set([
- 'task','shared_operation','shared_access_pattern','connection','peers','service_access','device_os','phone','browser_scope',
+ 'task','shared_operation','shared_access_pattern','connection','peers','service_access','device_os','phone','browser_scope','portal_system','meeting_product','meeting_client','mail_client',
  'network_issue','portal_issue','attendance_issue','meeting_issue','printing_issue','software_issue','device_issue','storage_issue','mail_feature',
  'send_scope','receive_scope','mail_client_scope','retry_mail_scope','retry_network_scope','retry_attendance_detail','retry_meeting_scope',
  'retry_software_detail','retry_storage_detail','retry_printer_detail'
@@ -20,7 +20,7 @@ const safeId=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 export function prepareReplyAdvice(state,text){
  if(!state||!['en','ar'].includes(state.language)||!Array.isArray(state.services)||!state.services.length||
  !state.services.every(isServiceId)||['safety','exam','unknown'].includes(state.domain)||!state.evidence||
- state.pendingError||state.conflictingObservations?.length||state.evidence.error_conflict||state.evidence.error_signature||
+ state.pendingError||state.pendingContext||state.conflictingObservations?.length||state.evidence.error_conflict||state.evidence.error_signature||
  state.evidence.mfa_prompt?.value==='unexpected'||state.evidence.credentials?.value==='locked'||
  state.evidence.send_error?.value==='restricted')return {status:'protected_or_uncertain'};
  const d=state.decision,qid=d?.questionId;
