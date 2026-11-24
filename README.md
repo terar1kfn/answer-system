@@ -131,3 +131,5 @@ Version 0.30 separates changed-phone verification transfer from the original sig
 [Multi-service original-task diagnosis (0.33)](docs/shared-task-diagnosis.md) adds bounded focus selection and aggregate original-task confirmation. An individual guide result cannot alone resolve a multi-service report.
 
 [Service operation stages (0.34)](docs/service-stage-diagnosis.md) separates meeting product/access and media scope, academic submission/request state, and attendance context before choosing a reviewed guide or referral.
+
+[Failed guide investigation (0.35)](docs/attempt-recovery.md) adds attempt-specific recovery interviews and exact host-bound navigation metadata without treating guide viewing as execution.

@@ -16,8 +16,12 @@ export function acceptNativeGuideReturn(launch,receipt){
  receipt.nativeGuideFingerprint!==launch.reference.nativeGuideFingerprint||
  receipt.catalogRevision!==launch.reference.catalogRevision||
  !integer(receipt.totalSteps,1,200)||!integer(receipt.reachedStep,0,receipt.totalSteps))return null;
- return {launchRef:launch.launchRef,guideId:launch.reference.guideId,
-  status:'returned',reachedStep:receipt.reachedStep,totalSteps:receipt.totalSteps};
+ const ref=launch.reference;
+ // Legacy or branched progress may be displayed as navigation only. An
+ // exact root-procedure number requires explicit native scope and pins.
+ const root=receipt.progressScope==='root_resolution'&&receipt.resolutionGuideId===ref.guideId&&receipt.resolutionGuideFingerprint===ref.nativeGuideFingerprint&&receipt.totalSteps===ref.resolutionStepCount;
+ return {launchRef:launch.launchRef,guideId:ref.guideId,catalogRevision:ref.catalogRevision,sourceRevision:ref.sourceRevision,nativeGuideFingerprint:ref.nativeGuideFingerprint,
+  progressScope:root?'root_resolution':'unconfirmed',status:'returned',reachedStep:receipt.reachedStep,totalSteps:receipt.totalSteps};
 }
 export function mergeGuideReturns(rows,receipt,title){
  if(!receipt||receipt.status!=='returned'||!title||typeof title.en!=='string'||typeof title.ar!=='string')fail('INVALID_GUIDE_RETURN');

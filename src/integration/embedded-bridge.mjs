@@ -196,7 +196,8 @@ export function createEmbeddedAnswerBridge({
     if(reference.nativeGuideFingerprint!==launch.reference.nativeGuideFingerprint)fail('NATIVE_GUIDE_STALE');
     const accepted=acceptNativeGuideReturn(launch,receipt);
     if(!accepted)return {kind:'native_guide_pending',...view(row)};
-    row=save(key,row,{...issue,guideReturns:mergeGuideReturns(issue.guideReturns,accepted,d.title)});
+    const state=latest.engine.observeGuideReturn(issue.state,{expectedTurn:issue.state.turn,observation:accepted});
+    row=save(key,row,{...issue,state,guideReturns:mergeGuideReturns(issue.guideReturns,accepted,d.title)});
     return {kind:'native_guide_returned',...view(row)};
    }
    if(c.action==='prepare_native_draft'){

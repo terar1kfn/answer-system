@@ -1,5 +1,12 @@
 # Change log
 
+## 0.35.0 — failed-guide recovery interview (validation deferred)
+
+- Record attempt-specific scope, completion, blocker and reported failure point; distinguish verified native navigation from reported step execution.
+- Bind optional exact root-procedure numbered-step questions to the host-verified return. Keep legacy/branched progress unconfirmed for exact step attribution.
+- Allow fresh same-task symptom investigation and bounded alternative selection after a clarified attempt; preserve permission/safety referrals.
+- No tests/builds/deployment or native host modifications.
+
 ## 0.34.0 — operation-specific diagnostic gates (validation deferred)
 
 - Add exact meeting product, join stage, device media comparison and host sharing permission gates; require one exact product prerequisite for native collaboration mappings.

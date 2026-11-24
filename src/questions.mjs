@@ -1,4 +1,5 @@
 // Fixed reviewed-question templates. Public generic fixtures, not university policy.
+import {ATTEMPT_QUESTIONS} from './attempt-review.mjs';
 import {SERVICE_CHOICES} from './service-taxonomy.mjs';
 import {EXTRA_QUESTIONS} from './service-playbooks.mjs';
 const q=(en,ar,rows)=>({text:{en,ar},options:rows.map(([id,en,ar])=>({id,label:{en,ar}}))});
@@ -51,6 +52,7 @@ export const QUESTIONS={
  ['all','All','جميع الرسائل'],['some','Some','بعض الرسائل'],unknown]),
  exam_started:q('Has your exam started?','هل بدأ اختبارك؟',[yes,no,unknown]),
  exam_app:q('Which exam app are you using?','ما تطبيق الاختبار؟',[['lockdown','LockDown Browser','LockDown Browser'],['examplify','Examplify','Examplify'],unknown]),
+ ...ATTEMPT_QUESTIONS,
  guide_result:q('What happened when you tried the previous guidance?','ماذا حدث عند اتباع الإرشادات السابقة؟',[
  ['completed_same','I followed the steps, but the same problem remains','اتبعت الخطوات لكن المشكلة نفسها ما زالت قائمة'],['partial','Some parts work now, but the original task still fails','تحسنت بعض الأمور لكن المهمة الأصلية لا تزال لا تعمل'],['blocked','I could not complete one of the steps','لم أتمكن من إكمال إحدى الخطوات'],['not_tried','I have not tried the guidance','لم أجرب الإرشادات'],['different','A different error or problem appeared','ظهر خطأ أو مشكلة مختلفة'],unknown]),
  retry_mail_scope:q('After the previous attempt, is this same mail problem limited to the app?','بعد المحاولة السابقة، هل تقتصر مشكلة البريد نفسها على التطبيق؟',[

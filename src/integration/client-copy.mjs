@@ -1,6 +1,12 @@
 // Plain localized interface copy. Never generate a procedure or an account
 // diagnosis from a reason code. The host renders native policy referrals.
 const labels={
+ GUIDE_REQUIRED_CONTEXT_UNAVAILABLE:["The required app, device or option was unavailable. Ask IT to verify whether the guide applies.","التطبيق أو الجهاز أو الخيار المطلوب غير متاح. اطلب من الدعم التقني التحقق من انطباق الدليل."],
+ GUIDE_INSTRUCTION_HELP:["IT can help explain the specific instruction without treating it as completed.","يمكن للدعم التقني توضيح التعليمات المحددة دون اعتبارها مكتملة."],
+ GUIDE_SAFETY_REVIEW:["Stop this procedure and ask authorized support to review the warning or concern.","أوقف هذا الإجراء واطلب من الدعم المخول مراجعة التحذير أو القلق."],
+ GUIDE_SCREEN_MISMATCH:["The described screen differs from the observed screen. IT can review the exact procedure and reported step.","تختلف الشاشة المذكورة عن الشاشة التي ظهرت. يمكن للدعم التقني مراجعة الإجراء والخطوة المبلغ عنها."],
+ GUIDE_PERMISSION_BLOCKED:["Authorized support must review the missing permission. Do not bypass it.","يجب أن يراجع الدعم المخول الإذن المفقود. لا تتجاوزه."],
+ GUIDE_STEP_ERROR_REVIEW:["A reported step error needs review. You may report the current documented error code, not passwords or verification codes.","يحتاج خطأ الخطوة المبلغ عنه إلى مراجعة. يمكنك وصف رمز الخطأ الموثق الحالي دون كلمات المرور أو رموز التحقق."],
  MEETING_PRODUCT_UNCONFIRMED:["Confirm the exact meeting application before choosing guidance.","أكد تطبيق الاجتماع المحدد قبل اختيار الإرشادات."],
  MEETING_HOST_PERMISSION_REVIEW:["The host or instructor must review meeting access or sharing permissions. Do not bypass restrictions.","يجب أن يراجع المضيف أو المدرس إذن الوصول إلى الاجتماع أو المشاركة. لا تتجاوز القيود."],
  MEETING_JOIN_STAGE_UNCONFIRMED:["IT can review what is preventing entry to this meeting.","يمكن للدعم التقني مراجعة ما يمنع الدخول إلى الاجتماع."],

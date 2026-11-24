@@ -3,10 +3,11 @@
  * purpose tied to an explicit new observation, never a fuzzy search result.
  * A failed/partial attempt is not proof that its hypothesized cause was false.
  */
+import {ATTEMPT_QUESTIONS,navigationForAttempt,reviewFailedAttempt} from './attempt-review.mjs';
 const val=(s,key)=>s.evidence[key]?.value;
 const has=(s,key)=>Object.hasOwn(s.evidence,key);
 const copy=x=>JSON.parse(JSON.stringify(x));
-const QUESTIONS=new Set(['guide_result','retry_mail_scope','retry_mail_detail','retry_network_scope','retry_attendance_detail','retry_meeting_scope','retry_software_detail','retry_storage_detail','retry_printer_detail','retry_portal_scope','retry_network_peers']);
+const QUESTIONS=new Set([...Object.keys(ATTEMPT_QUESTIONS),'guide_failed_step','guide_result','retry_mail_scope','retry_mail_detail','retry_network_scope','retry_attendance_detail','retry_meeting_scope','retry_software_detail','retry_storage_detail','retry_printer_detail','retry_portal_scope','retry_network_peers']);
 const MAX_FAILED_ATTEMPTS=3;
 const SETUP=new Set(['setup_ios','setup_android']);
 export function recordGuideOutcome(s,previous,optionId){
@@ -15,7 +16,11 @@ export function recordGuideOutcome(s,previous,optionId){
  for(const k of QUESTIONS)delete s.evidence[k];
  s.askedQuestionIds=s.askedQuestionIds.filter(k=>!QUESTIONS.has(k));
  const purpose=s.lastGuidePurpose;
- const record={guideId:previous.guideId,serviceId:previous.serviceId,purpose,outcome:optionId,reportedAtTurn:s.turn,followUp:{}};
+ const navigation=navigationForAttempt(s,previous);
+ const record={guideId:previous.guideId,serviceId:previous.serviceId,purpose,outcome:optionId,reportedAtTurn:s.turn,followUp:{},
+  catalogRevision:s.catalogRevision,focus:{services:[...s.services],...(s.evidence.portal_system?.value?{portal:s.evidence.portal_system.value}:{}),...(s.evidence.meeting_product?.value?{meetingProduct:s.evidence.meeting_product.value}:{})},
+  ...(navigation?{navigation}: {})};
+ delete s.nativeGuideNavigation;
  s.guideAttempts=[...(s.guideAttempts||[]),record].slice(-12);
  delete s.activeAlternative;
 }
@@ -42,14 +47,9 @@ function alreadyOffered(s,c,serviceId,purpose){
 export function decideAfterFailedGuide(s,c,{ask,guide,support}){
  const attempt=lastFailure(s);
  if(!attempt)return support('GUIDE_DID_NOT_WORK');
+ const review=reviewFailedAttempt(s,{ask,support});if(review)return review;
  if((s.guideAttempts||[]).filter(x=>x.outcome==='no'&&!SETUP.has(x.purpose)).length>=MAX_FAILED_ATTEMPTS)return support('ALTERNATIVE_BUDGET_EXHAUSTED');
  const service=attempt.serviceId,purpose=attempt.purpose;
- if(!has(s,'guide_result'))return ask('guide_result');
- const result=val(s,'guide_result');
- if(result==='not_tried')return support('GUIDE_NOT_ATTEMPTED');
- if(result==='different')return support('SYMPTOMS_CHANGED_REVIEW');
- if(result==='blocked')return support('GUIDE_STEP_BLOCKED');
- if(!['completed_same','partial'].includes(result))return support('GUIDE_OUTCOME_UNCLEAR');
  const alt=(serviceId,nextPurpose,signalKey)=>{
   if(alreadyOffered(s,c,serviceId,nextPurpose))return support('NO_DISTINCT_APPROVED_ALTERNATIVE');
   const d=guide(serviceId,nextPurpose);

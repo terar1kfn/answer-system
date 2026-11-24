@@ -21,8 +21,9 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {initializeSharedProgress,applySharedProgressAnswer,sharedProgressDecision,applySharedProgressDecision,sharedProgressQuestion} from './shared-progress.mjs';
+import {bindGuideNavigation,failedStepQuestion} from './attempt-review.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.34.0';
+export const RULE_VERSION='0.35.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -180,7 +181,8 @@ function finish(s,c,records,now){
  if(d.kind==='ask'&&!['confirm_current_error','confirm_context_update'].includes(d.questionId)&&(s.askedQuestionIds.length>=MAX_TURNS||s.turn>=24||s.askedQuestionIds.includes(d.questionId)))d=support('QUESTION_BUDGET_OR_REPEAT');
  if(d.kind==='ask'){
   if(!['confirm_current_error','confirm_context_update'].includes(d.questionId))s.askedQuestionIds.push(d.questionId);
-  let question=d.questionId==='confirm_current_error'?currentErrorQuestion(s.pendingError.signatureId):d.questionId==='confirm_context_update'?contextUpdateQuestion(s.pendingContext):d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):QUESTIONS[d.questionId];
+  let question=d.questionId==='confirm_current_error'?currentErrorQuestion(s.pendingError.signatureId):d.questionId==='confirm_context_update'?contextUpdateQuestion(s.pendingContext):d.questionId==='reviewed_topic'?reviewedTopicQuestion(s.knowledgeChoices||[]):d.questionId==='guide_failed_step'?failedStepQuestion(s):QUESTIONS[d.questionId];
+  if(!question)throw Error('DIAGNOSTIC_QUESTION_UNAVAILABLE');
   question=sharedProgressQuestion(s,d.questionId,question);
   if(d.questionId==='task'&&!s.services.includes('mail'))question={...question,options:question.options.filter(o=>!['send','receive'].includes(o.id))};
   if(d.questionId==='portal_system'&&s.reportedAcademicSystems?.length&&s.sharedProgress?.phase!=='select_portal')question={...question,options:question.options.filter(o=>s.reportedAcademicSystems.includes(o.id)||o.id==='unknown')};
@@ -307,6 +309,13 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
    return retriever.search({text:clean.text,services,limit});
   }catch{return [];}
  }
+ // Trusted native host only. This is not a public respond command and does
+ // not advance diagnosis or imply that a viewed procedure was performed.
+ function observeGuideReturn(state,{expectedTurn,observation}={}){
+  if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||state.turn!==expectedTurn)throw Error('STALE_STATE');
+  const g=c.guides.find(x=>x.id===state.decision?.guideId&&eligible(x,{catalog:c}));
+  return copy(bindGuideNavigation(copy(state),g,observation));
+ }
  // Trusted host only, after independently verifying its recovery workflow.
  function resumeRecovery(state,{expectedTurn}={}){
   if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||state.turn!==expectedTurn)throw Error('STALE_STATE');
@@ -324,5 +333,5 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   if(d.kind==='open_guide')s.offeredGuideIds=s.offeredGuideIds.filter(id=>id!==d.guideId);
   s.turn=nextTurn;return finish(s,c,records,now());
  }
- return Object.freeze({begin,advance,respond,search,resumeRecovery,reconsider,ruleVersion:RULE_VERSION,catalogRevision:c.revision});
+ return Object.freeze({begin,advance,respond,search,observeGuideReturn,resumeRecovery,reconsider,ruleVersion:RULE_VERSION,catalogRevision:c.revision});
 }
