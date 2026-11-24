@@ -220,5 +220,14 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   fact(s,'mfa_recovery','completed','staff_verified');fact(s,'setup_requested','yes','staff_verified');
   return finish(s,c,records,now());
  }
- return Object.freeze({begin,advance,respond,search,resumeRecovery,ruleVersion:RULE_VERSION,catalogRevision:c.revision});
+ // Reevaluate a trusted earlier snapshot against current incident information.
+ function reconsider(snapshot,{nextTurn}={}){
+  if(!snapshot||snapshot.ruleVersion!==RULE_VERSION||snapshot.catalogRevision!==c.revision||!Number.isSafeInteger(nextTurn)||nextTurn<=snapshot.turn)throw Error('STALE_STATE');
+  const s=copy(snapshot),d=s.decision;
+  if(!['ask','open_guide','answer'].includes(d?.kind))throw Error('UNDO_NOT_AVAILABLE');
+  if(d.kind==='ask')s.askedQuestionIds=s.askedQuestionIds.filter(q=>q!==d.questionId);
+  if(d.kind==='open_guide')s.offeredGuideIds=s.offeredGuideIds.filter(id=>id!==d.guideId);
+  s.turn=nextTurn;return finish(s,c,records,now());
+ }
+ return Object.freeze({begin,advance,respond,search,resumeRecovery,reconsider,ruleVersion:RULE_VERSION,catalogRevision:c.revision});
 }

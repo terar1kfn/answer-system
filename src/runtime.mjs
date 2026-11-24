@@ -31,7 +31,7 @@ export function createRuntime({getCatalog,getIncidents=()=>[],now=()=>Date.now()
   if(!idOk(visitRef)||!(scope===null||idOk(scope))||typeof persistent!=='boolean')fail('INVALID_VISIT');
   if(visits.has(visitRef)||[...operations.values()].some(o=>o.visitRef===visitRef))fail('VISIT_ALREADY_EXISTS');
   if(visits.size>=maxVisits)fail('VISIT_CAPACITY');
-  const t=now(),v={visitRef,scope,persistent,version:0,issue:null,startedAt:t,touchedAt:t};visits.set(visitRef,v);return snap(v);
+  const t=now(),v={visitRef,scope,persistent,version:0,issue:null,history:[],startedAt:t,touchedAt:t};visits.set(visitRef,v);return snap(v);
  }
  function read(ref){
   const v=active(ref),i=v.issue;
@@ -47,7 +47,7 @@ export function createRuntime({getCatalog,getIncidents=()=>[],now=()=>Date.now()
   const state=e(v,false).begin({text,language}),issueId=id();
   if([...visits.values()].some(x=>x.issue?.issueId===issueId))fail('ISSUE_ID_COLLISION');
   for(const [k,o] of operations)if(o.visitRef===ref&&!['prepared','unknown'].includes(o.status))operations.delete(k);
-  v.issue={issueId,state,status:state.status,handoffRef:null};return update(v);
+  v.history=[];v.issue={issueId,state,status:state.status,handoffRef:null,guideProgress:[]};return update(v);
  }
  function respond(ref,{expectedVersion,issueId,questionId,optionId,text}={}){
   const v=active(ref);version(v,expectedVersion);const i=issue(v,issueId);
@@ -59,7 +59,27 @@ export function createRuntime({getCatalog,getIncidents=()=>[],now=()=>Date.now()
    if(r.kind==='clarify'){v.touchedAt=now();return {kind:'clarify',reasonCode:r.reasonCode,visit:snap(v)};}
    next=r.state;
   }else next=engine.advance(s,{expectedTurn:s.turn,questionId,optionId});
-  i.state=next;i.status=next.status;return {kind:'advanced',visit:update(v)};
+  v.history=[...v.history,copy(s)].slice(-12);i.state=next;i.status=next.status;return {kind:'advanced',visit:update(v)};
+ }
+ function undo(ref,{expectedVersion,issueId}={}){
+  const v=active(ref);version(v,expectedVersion);const i=issue(v,issueId);
+  if(i.handoffRef||i.state.decision.kind==='safety_referral'||!v.history.length)fail('UNDO_NOT_AVAILABLE');
+  const prior=copy(v.history[v.history.length-1]);prior.language=i.state.language;
+  const next=e(v).reconsider(prior,{nextTurn:i.state.turn+1});v.history.pop();i.state=next;i.status=next.status;return update(v);
+ }
+ function cancelIssue(ref,{expectedVersion,issueId}={}){
+  const v=active(ref);version(v,expectedVersion);const i=issue(v,issueId);
+  if(i.handoffRef)fail('HANDOFF_IN_PROGRESS');v.issue=null;v.history=[];return update(v);
+ }
+ function setLanguage(ref,{expectedVersion,issueId,language}={}){
+  const v=active(ref);version(v,expectedVersion);const i=issue(v,issueId);e(v);
+  if(!['en','ar'].includes(language))fail('INVALID_LANGUAGE');i.state={...i.state,language};return update(v);
+ }
+ function recordGuideProgress(ref,{expectedVersion,issueId,guideId,step,total}={}){
+  const v=active(ref);version(v,expectedVersion);const i=issue(v,issueId);e(v);
+  if(i.handoffRef||i.state.decision.kind!=='open_guide'||i.state.decision.guideId!==guideId||!Number.isSafeInteger(step)||!Number.isSafeInteger(total)||total<1||total>200||step<1||step>total)fail('INVALID_GUIDE_PROGRESS');
+  const prior=i.guideProgress.find(g=>g.guideId===guideId);const row={guideId,totalSteps:total,lastViewedStep:step,furthestStep:Math.min(total,Math.max(prior?.furthestStep||0,step))};
+  i.guideProgress=[...i.guideProgress.filter(g=>g.guideId!==guideId),row].slice(-30);return update(v);
  }
  function keepAlive(ref){const v=active(ref);v.touchedAt=now();return {version:v.version};}
  function finishVisit(ref){const v=active(ref);if(v.persistent)fail('STAFF_TERMINATION_REQUIRED');erase(v);return {closed:true};}
@@ -76,7 +96,7 @@ export function createRuntime({getCatalog,getIncidents=()=>[],now=()=>Date.now()
   if(!['offer_support','offer_mfa_recovery'].includes(kind))fail('HANDOFF_NOT_OFFERED');
   if(operations.size>=maxRecords)fail('HANDOFF_CAPACITY');
   const operationId=id();if(operations.has(operationId))fail('OPERATION_ID_COLLISION');
-  const payload=copy({issueId,kind,services:s.services,domain:s.domain,reasonCode:s.decision.reasonCode,evidence:s.evidence,candidates:s.candidates,offeredGuideIds:s.offeredGuideIds,askedQuestionIds:s.askedQuestionIds,catalogRevision:s.catalogRevision,ruleVersion:s.ruleVersion});
+  const payload=copy({issueId,kind,services:s.services,domain:s.domain,reasonCode:s.decision.reasonCode,evidence:s.evidence,candidates:s.candidates,offeredGuideIds:s.offeredGuideIds,guideProgress:i.guideProgress,askedQuestionIds:s.askedQuestionIds,catalogRevision:s.catalogRevision,ruleVersion:s.ruleVersion});
   const o={operationId,visitRef:ref,issueId,requestKey,kind,status:'prepared',payload,visitClosed:false,createdAt:now(),attempt:1};
   operations.set(operationId,o);i.handoffRef=operationId;i.status='handoff_prepared';
   return copy({operation:o,visit:update(v)});
@@ -107,14 +127,14 @@ export function createRuntime({getCatalog,getIncidents=()=>[],now=()=>Date.now()
   const v=active(ref);version(v,expectedVersion);const i=issue(v,issueId),o=operations.get(i.handoffRef);
   if(!o||o.status!=='recorded'||o.kind!=='offer_mfa_recovery'||o.hostRef!==hostRef)fail('RECOVERY_NOT_CONFIRMED');
   const next=e(v).resumeRecovery(i.state,{expectedTurn:i.state.turn});
-  operations.delete(o.operationId);i.handoffRef=null;i.state=next;i.status=next.status;return update(v);
+  operations.delete(o.operationId);i.handoffRef=null;i.state=next;i.status=next.status;v.history=[];return update(v);
  }
  function listActive(){
   sweep();return [...visits.values()].map(v=>({
    visitRef:v.visitRef,scope:v.scope,persistent:v.persistent,version:v.version,startedAt:v.startedAt,touchedAt:v.touchedAt,
-   issueId:v.issue?.issueId??null,status:v.issue?.status??'ready',services:v.issue?.state.services||[],decision:v.issue?.state.decision.kind??null,
+   issueId:v.issue?.issueId??null,status:v.issue?.status??'ready',services:v.issue?.state.services||[],decision:v.issue?.state.decision.kind??null,canUndo:Boolean(v.history.length&&!v.issue?.handoffRef&&v.issue?.state.decision.kind!=='safety_referral'),
    handoff:v.issue?.handoffRef?(()=>{const o=operations.get(v.issue.handoffRef);return o?{operationId:o.operationId,status:o.status,kind:o.kind,hostRef:o.hostRef??null,attempt:o.attempt}:null;})():null
   })).map(copy);
  }
- return Object.freeze({openVisit,read,begin,respond,keepAlive,finishVisit,terminateVisit,prepareHandoff,recordHandoffResult,retryHandoff,resumeRecovery,sweep,listActive});
+ return Object.freeze({openVisit,read,begin,respond,undo,cancelIssue,setLanguage,recordGuideProgress,keepAlive,finishVisit,terminateVisit,prepareHandoff,recordHandoffResult,retryHandoff,resumeRecovery,sweep,listActive});
 }

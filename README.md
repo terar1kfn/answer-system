@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.6 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.7 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Run the diagnostic lab
 
@@ -48,3 +48,6 @@ Expanded service taxonomy, eleven service-specific support areas plus identity/e
 
 
 Additional operational modules: optional local Ollama providers, revision-pinned hybrid retrieval, atomic single-writer persistence, reviewed catalog workspace, durable handoff metadata/dispatcher, aggregate analytics, monitoring signals, reviewed-case similarity and host-facing staff/guide/advisor commands. See [docs/operational-architecture.md](docs/operational-architecture.md). These are unvalidated build-phase modules; no live integration or provider connection has been enabled.
+
+
+The new unified [development workbench](docs/workbench.md) connects fictional student, intern and manager workflows through the reference host service. It includes diagnostic correction and guide-progress tracking, scoped incidents, simulated delivery/reconciliation, knowledge review and optional synthetic metadata persistence. It is not a release or a hosted application. Validation remains deferred.

@@ -1,5 +1,12 @@
 # Change log
 
+## 0.7.0 — feature-building phase (validation deferred)
+
+- Added trusted previous-answer correction, issue cancellation, language continuity and guide-progress tracking.
+- Added an isolated server-backed fictional workbench connecting student, intern and manager flows, simulated handoffs and recovery, incident signals, case suggestions, reviewed catalog drafts and metrics.
+- Added optional synthetic-only durable metadata and local request protections. Real authentication, production callbacks, provider configuration and live integration remain separate.
+- No tests, syntax checks, browser runs, deployment or external provider calls. CI remains manual-only.
+
 ## 0.6.0 — feature-building phase (validation deferred)
 
 - Added optional bounded local-model and embedding adapters, hybrid retrieval, and host-gated advisory/guide commands.

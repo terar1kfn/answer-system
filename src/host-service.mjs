@@ -9,7 +9,7 @@ const obj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x)&&[Object.prototype
 const roles=new Set(['student','intern','manager']);
 const staff=a=>a.role==='intern'||a.role==='manager';
 const commandFields={
- open:[],read:[],begin:['expectedVersion','text','language'],respond:['expectedVersion','issueId','questionId','optionId','text'],
+ open:[],read:[],begin:['expectedVersion','text','language'],respond:['expectedVersion','issueId','questionId','optionId','text'],undo:['expectedVersion','issueId'],cancel_issue:['expectedVersion','issueId'],set_language:['expectedVersion','issueId','language'],guide_progress:['expectedVersion','issueId','guideId','step'],
  search:['text','services','limit'],suggest_reply:['expectedVersion','issueId','text'],load_guide:['expectedVersion','issueId','guideId'],finish:[],keep_alive:[],
  prepare_handoff:['expectedVersion','issueId','requestKey','confirmed'],
  retry_handoff:['expectedVersion','issueId','requestKey'],
@@ -21,7 +21,7 @@ const commandFields={
  review:['proposalId','expectedRevision','decision','currentCatalogRevision'],review_list:[],
  publication_candidate:['proposalId','currentCatalogRevision']
 };
-const STUDENT=new Set(['open','read','begin','respond','search','finish','keep_alive','prepare_handoff','retry_handoff','report_incident','suggest_reply','load_guide']);
+const STUDENT=new Set(['open','read','begin','respond','search','finish','keep_alive','prepare_handoff','retry_handoff','report_incident','suggest_reply','load_guide','undo','cancel_issue','set_language','guide_progress']);
 const STAFF=new Set(['terminate','recover','propose','review','review_list','publication_candidate','active_visits','read_visit','case_matches']);
 const MANAGER=new Set(['incident_candidates','incident_list','incident_create','incident_transition','monitoring','analytics']);
 const optional=(o,k)=>Object.hasOwn(o,k)?o[k]:undefined;
@@ -98,6 +98,17 @@ export function createAnswerService({
     const x=runtime.respond(ref,c);
     if(x.kind==='advanced')decisionMetric(x.visit);else metric('clarification',x.visit);
     return {...x,visit:studentView(x.visit)};
+   }
+   if(action==='undo'){const next=runtime.undo(ref,c);decisionMetric(next);return studentView(next);}
+   if(action==='cancel_issue')return studentView(runtime.cancelIssue(ref,c));
+   if(action==='set_language')return studentView(runtime.setLanguage(ref,c));
+   if(action==='guide_progress'){
+    const current=sameIssue(ref,c.expectedVersion,c.issueId),d=current.issue.state.decision;
+    if(!resolveGuide||d.kind!=='open_guide'||d.guideId!==c.guideId)error('GUIDE_UNAVAILABLE');
+    const content=await resolveGuide({guideId:d.guideId,catalogRevision:d.catalogRevision,audience:'student'});
+    sameIssue(ref,c.expectedVersion,c.issueId);const steps=Array.isArray(content?.steps)?content.steps:content?.steps?.[current.issue.state.language];
+    if(!Array.isArray(steps)||!steps.length||steps.length>200)error('GUIDE_UNAVAILABLE');
+    return studentView(runtime.recordGuideProgress(ref,{...c,total:steps.length}));
    }
    if(action==='search'){
     if(!hybridRetriever)return createEngine({catalog:getCatalog(),now}).search(c);
