@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+.data/
+private/
+local/
+*.sqlite*
+*.db
+*.pem
+*.key
+*.log
+coverage/
+dist/
