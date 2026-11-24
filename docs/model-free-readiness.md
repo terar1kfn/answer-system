@@ -27,3 +27,12 @@ Validation commit 6832236b6bbd9f92d85987240675f14bb55e911d: https://github.com/t
 6. Review staging measurements and privacy before independent approval for a limited deployment. Model-free deployment has no model prerequisite. Enable an optional model only after separate measured benefit, resource, privacy and accuracy validation; keep its absence/failure nonblocking.
 
 The repository does not implement or claim private application activation, actual current source reconciliation, real native identity/database verification or deployment. Preserve the native host's existing workflow whenever the supplemental feature is off or unavailable.
+
+## Corrected run — verified
+
+Tested source commit: 18e149a279534d6752c5ed673b1017b9f19fe7e9. Run: https://github.com/terar1kfn/answer-system/actions/runs/45378819174 — completed, success (regression and browser jobs).
+
+- Node 22: 268/268 passed, 0 failures, 0 cancelled, 0 skipped, 0 todo. Syntax 98/98 passed.
+- Synthetic concurrency: all 1,536 operations succeeded; elapsed 1,111 ms, per-operation p95 60.44 ms for this isolated run. This is not a production performance claim.
+- Chromium: all four scenarios passed: diagnostic lab desktop guide/outcome, diagnostic lab mobile Arabic questions, workbench desktop guide/staff, workbench mobile Arabic/session isolation. The earlier two missing-module failures are corrected. The same browser scenarios remain registered.
+- No AI inference, private student data, live AU Assist connection or deployment. The browser test driver is a CI/development-only dependency; the core still runs without a model. The validated source and this documentation-only record are eligible for fast-forward promotion to main.
