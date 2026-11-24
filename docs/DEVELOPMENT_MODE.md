@@ -1,3 +1,5 @@
 # Isolated validation phase
 
 The project owner has authorized regression testing following the development-only phase. Syntax and synthetic Node regression checks may run in this separate Answer System repository. CI runs on main and validation branches and may be manually dispatched. No deployment workflow is enabled. Use fictional data, mocked providers, and no real student records, real screenshots, production integrations or actual local-model inference. A green run verifies only the exact tested revision and scenarios; it does not establish production readiness. Native host authorization, publication, lifecycle and live integration require separate private validation and explicit activation.
+
+Synthetic load and Chromium preview testing are also authorized within the isolated repository. The browser driver is development-only. AI-free operation is the recommended initial integration profile: leave optional inference/embedding/vision providers disabled. Do not skip current private catalog approval, native authentication and request-transaction validation. No real data, model or deployment is required for these synthetic checks.

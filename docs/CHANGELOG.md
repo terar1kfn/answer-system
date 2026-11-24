@@ -1,5 +1,11 @@
 # Change log
 
+## 0.47.0 — model-free readiness and browser validation
+
+- Add six isolated regression scenarios: no-model full diagnosis, MFA handoff, disabled provider non-invocation, provider failure/timeout fallback and concurrent workload testing. The initial run passed 268/268 Node tests, 98/98 syntax checks and 1,536 synthetic operations across 32 concurrent visits.
+- Add actual headless Chromium preview checks for desktop/mobile, Arabic questions, guide outcome, staff view and session isolation. The first run reproduced two diagnostic-lab failures caused by an omitted diagnostic-evidence module in the explicit HTTP allowlist; both workbench scenarios passed.
+- Fix the module allowlist without exposing arbitrary server files, and correct misleading development-preview labels. Keep model integration optional and off, no new runtime dependencies, no live host changes. Verify corrected browser and regression runs before promotion.
+
 ## 0.46.0 — adversarial boundary hardening
 
 - Expanded validation by 41 scenarios (262 total), including 1,245 bounded English/Arabic diagnostic transitions. The first isolated run reproduced 28 boundary failures while the original 221 passed; 97/97 syntax checks passed.

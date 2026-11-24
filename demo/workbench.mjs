@@ -241,7 +241,7 @@ function render(){
  const a=active();$('page-title').textContent=a.role==='student'?'Student support':a.role==='intern'?'Intern workspace':'Manager workspace';
  $('page-description').textContent=a.role==='student'?'Search, investigate, follow reviewed guidance, and report the outcome.':'Inspect scoped fictional visits, recovery workflows, knowledge and operational signals.';
  if(a.role==='student')studentView();else staffView();
- $('footer').textContent='Synthetic '+meta.persistence.replaceAll('_',' ')+' • Local model disabled • Build phase: validation deferred • No real IT actions';
+ $('footer').textContent='Synthetic '+meta.persistence.replaceAll('_',' ')+' • Local model disabled • Synthetic validation preview • No real IT actions';
 }
 async function refresh(){
  if(active().role==='student'){

@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.46 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.47 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -163,3 +163,6 @@ Consolidated validation is described in [docs/validation-plan.md](docs/validatio
 
 
 Extended boundary validation and hardening are documented in [docs/extended-validation.md](docs/extended-validation.md). Browser lifecycle, exact native publication and request pins, and mock local-provider cancellation are tested separately from real AU Assist integration.
+
+
+Model-free operation, concurrent synthetic workloads, and actual desktop/mobile Chromium preview validation are described in [docs/model-free-readiness.md](docs/model-free-readiness.md). The core system needs no AI model, local inference service, GPU or paid AI API. Optional text/image advisors remain disabled unless independently authorized. Browser testing uses a pinned development-only driver; there are no new runtime dependencies.
