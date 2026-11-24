@@ -115,3 +115,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Knowledge improvement backlog](docs/knowledge-improvement-backlog.md) links exact deterministic guide-purpose gaps to optional aggregate metrics, verified current-version outcome review signals and private revision-pinned knowledge proposals. No automatic guide selection or publication changes.
+
+
+[Private proposal reconciliation](docs/proposal-reconciliation.md) adds exact baseline-to-current comparison for knowledge drafts, explicit owner and overlapping-purpose review, and separately verified draft rebasing without carrying source approvals forward.

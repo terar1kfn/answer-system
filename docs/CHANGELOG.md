@@ -1,5 +1,11 @@
 # Change log
 
+## 0.28.0 — revision-aware private proposal reconciliation (validation deferred)
+
+- Compare source proposal references, explicit native owner, availability, current scope and existing purpose overlap against a new source publication.
+- Add authorized read-only reconciliation and separately verified draft rebasing of selected eligible proposals; no automatic source approval or mapping activation.
+- No real imports, tests, builds, deployment or private host changes.
+
 ## 0.27.0 — observed knowledge improvement backlog (validation deferred)
 
 - Record fixed deterministic guide-purpose gaps separately by missing mapping, unavailable service, permissions, applicability or ambiguity.
