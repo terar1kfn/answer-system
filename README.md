@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.12 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.13 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -70,3 +70,6 @@ The [conversation and shared-access layer](docs/conversation-and-shared-access.m
 
 
 The [native assistant client](docs/native-assistant-client.md) adds a guarded lifecycle controller for the existing UI, verified native guide-return receipts, original-task outcome separation, localized clarification copy and recovery-request reference binding. No actual host transport has been connected.
+
+
+The [private catalog mapping and coverage review](docs/catalog-mapping-review.md) inventories required guide purposes, reports mapping gaps and potential prerequisite overlaps, proposes eligible metadata-only review leads, and prepares explicit unapproved mapping drafts. It does not publish knowledge or run against a real catalog by itself.

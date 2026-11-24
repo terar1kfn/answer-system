@@ -1,5 +1,12 @@
 # Change log
 
+## 0.13.0 — private knowledge mapping preparation (validation deferred)
+
+- Added a shared inventory of core and playbook guide purposes, a native-projection-based mapping coverage report and authorized private reviewer wrapper.
+- Distinguish native routes, disabled/out-of-scope services, withheld/unknown mappings, conditional coverage and potentially overlapping prerequisites; suggest only eligible unmapped guide metadata for human review.
+- Added explicit revision-pinned mapping draft preparation with native eligibility checks and no publication side effects.
+- No actual university mapping, private content, audit execution, testing, builds, deployment or provider calls. Automatic CI remains manual-only.
+
 ## 0.12.0 — native assistant and guide continuation (validation deferred)
 
 - Added browser-side native assistant controller, versioned choices, explicit refresh after uncertain mutations, cancellation and stale-result isolation across kiosk visits, and localized non-procedural interface copy.
