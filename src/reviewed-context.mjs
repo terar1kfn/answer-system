@@ -27,9 +27,17 @@ function validateShape(p,{draft=false}={}){
   p.outcomeEvidence!=='staff_verified'||!p.match||typeof p.match!=='object'||Array.isArray(p.match))fail('INVALID_REVIEWED_CONTEXT');
  if(draft){if(p.reviewed!==false||p.reviewerRef!==undefined)fail('INVALID_CONTEXT_DRAFT');}
  else if(p.reviewed!==true||!id(p.reviewerRef)||p.reviewerRef===p.authorRef)fail('INDEPENDENT_CONTEXT_REVIEW_REQUIRED');
- const keys=Object.keys(p.match);
+ validateContextMatch(p.serviceId,p.match);
+ return p;
+}
+/** Share the exact existing protected-operation boundary with staff-only
+ * aggregate learning. Validation is not proof of a real observation. */
+export function validateContextMatch(serviceId,match){
+ const d=Object.hasOwn(definitions,serviceId)?definitions[serviceId]:null;
+ if(!d||!match||typeof match!=='object'||Array.isArray(match))fail('INVALID_CONTEXT_SIGNAL');
+ const keys=Object.keys(match);
  if(keys.length<2||keys.length>6||!keys.some(k=>d.anchors.includes(k))||!keys.some(k=>d.context.includes(k)))fail('CONTEXT_EVIDENCE_TOO_WEAK');
- for(const [key,value] of Object.entries(p.match)){
+ for(const [key,value] of Object.entries(match)){
   if(![...d.anchors,...d.context].includes(key)||!id(value)||UNKNOWN.has(value)||!QUESTIONS[key]?.options.some(o=>o.id===value))fail('INVALID_CONTEXT_SIGNAL');
   // Context records must never encode protected/administrative paths as an
   // ordinary alternative. The deterministic router still takes precedence.
@@ -43,7 +51,7 @@ function validateShape(p,{draft=false}={}){
    (key==='meeting_issue'&&value==='recording')||
    (key==='device_issue'&&value==='hardware'))fail('CONTEXT_OPERATION_NOT_ALLOWED');
  }
- return p;
+ return true;
 }
 export function validateReviewedContexts(rows=[]){
  if(!Array.isArray(rows)||rows.length>1000)fail('INVALID_REVIEWED_CONTEXTS');

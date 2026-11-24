@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.40 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.41 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -145,3 +145,6 @@ Optional local screenshot interpretation is documented in [docs/screenshot-diagn
 
 
 The staff-only deterministic [knowledge-quality review](docs/knowledge-quality-review.md) combines structural route findings, bilingual completeness, duplicate and applicability review, source-review freshness, and the existing verified-outcome/gap backlog. It never edits, activates, publishes or ranks guides. Native authorization and scoped private data are required; validation is deferred.
+
+
+The private [advanced-learning workflow](docs/advanced-learning.md) derives conservative aggregate review proposals from complete host-verified finalized cohorts, exact current route pins, pre-attempt fixed context and staff feedback. Independent staff disposition is advisory only; no autonomous model training, routing changes or publication. Validation and real native integration remain deferred.

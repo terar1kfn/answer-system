@@ -1,5 +1,12 @@
 # Change log
 
+## 0.41.0 — verified recurring-context learning and review workflow (validation deferred)
+
+- Add a private complete-cohort review report using current guide/source/route/rule pins, distinct single-attempt case filtering, staff-verified isolated outcomes, and fixed pre-attempt context. Do not credit mixed, repeated, stale or unverified cases.
+- Add bounded recurring failure/success context, competing outcome and staff-feedback proposals with minimum group suppression and conservative favorable-context thresholds. Reuse reviewed-context protected-operation validation without changing student routing.
+- Add independent staff prepare/decide workflow with authoritative draft verification, fresh cohort, authorization and exact report pins. Dispositions require existing native review; no automatic guide changes, publication, model training or pattern activation.
+- No real learning records, tests/builds/model calls, deployments or private host changes. Native finalized-cohort adapter, feedback capture, durable review records and staff UI remain pending.
+
 ## 0.40.0 — automated private knowledge-quality review (validation deferred)
 
 - Add a unified read-only quality audit for authorized native guide scope: bilingual content, repeated steps and option labels, reachable route structure, mapping eligibility, duplicate procedure/title leads, overlapping applicability and bounded conditional coverage.
