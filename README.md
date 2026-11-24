@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.4 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.5 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Run the diagnostic lab
 
@@ -42,3 +42,6 @@ The host must keep issue state on the trusted side, authenticate visits, atomica
 
 
 The optional host authorization façade and advisory inference adapter are documented in [docs/host-integration.md](docs/host-integration.md). The advisor is disabled unless a trusted host explicitly injects a provider. Production authentication, durable storage and actual AI integration remain separate.
+
+
+Expanded service taxonomy, eleven service-specific support areas plus identity/exam safeguards, documented error signatures, bilingual concept retrieval, conditional guide selection and an explicit private catalog adapter are described in [docs/diagnostic-coverage.md](docs/diagnostic-coverage.md). Validation is deliberately deferred during the feature-building phase.

@@ -1,5 +1,6 @@
 const copy=x=>JSON.parse(JSON.stringify(x)),ok=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(x),fail=x=>{throw Error(x);};
-const SERVICES=new Set(['mail','portal','attendance','identity','network','exam','other']);
+import {isServiceId} from './service-taxonomy.mjs';
+const SERVICES={has:isServiceId};
 // Host-authorized staff methods, not an authorization boundary. Signals count visits,
 // NOT verified people. Suspected candidates never become confirmed automatically.
 export function createIncidentRegistry({now=()=>Date.now(),newId=()=>globalThis.crypto.randomUUID(),windowMs=600000,maxAgeMs=900000,maxSignals=2048,maxIncidents=256}={}){

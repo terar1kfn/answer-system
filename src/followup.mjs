@@ -1,4 +1,6 @@
 import {normalize,classify} from './classify.mjs';
+import {SERVICES} from './service-taxonomy.mjs';
+import {sanitizeText} from './privacy.mjs';
 // Free-text follow-ups map only to the current question's allowed options.
 // No inferred answer is accepted on an ambiguous or contradictory utterance.
 const aliases={
@@ -24,11 +26,14 @@ const contextual={
 };
 export function interpretFollowup(questionId,text,options){
  if(typeof text!=='string'||!text.trim()||text.length>500)return {kind:'invalid'};
- const signal=classify(text);
+ const clean=sanitizeText(text);
+ const signal=classify(clean.text||'redacted');
  if(signal.domain==='safety'||(signal.domain==='exam'&&signal.facts.exam_started==='yes'))return {kind:'safety',policy:signal.domain==='exam'?'EXAM_PROFESSOR_FIRST':'SENSITIVE_OR_DANGEROUS'};
- const normalized=normalize(text).replace(/\.+$/,'').trim();
+ if(clean.categories.length)return {kind:'clarify',reasonCode:'REMOVE_PRIVATE_INFORMATION'};
+ const normalized=normalize(clean.text).replace(/\.+$/,'').trim();
  const matched=options.filter(o=>{
-  const terms=[o.id,o.label.en,o.label.ar,...(aliases[o.id]||[]),...(contextual[questionId]?.[o.id]||[])];
+  const serviceTerms=questionId==='service'?(SERVICES.find(s=>s.id===o.id)?.aliases||[]):[];
+  const terms=[o.id,o.label.en,o.label.ar,...(aliases[o.id]||[]),...(contextual[questionId]?.[o.id]||[]),...serviceTerms];
   return terms.some(t=>normalize(t).replace(/\.+$/,'').trim()===normalized);
  });
  return matched.length===1?{kind:'option',optionId:matched[0].id}:{kind:'clarify',reasonCode:'FREE_TEXT_NOT_UNAMBIGUOUS'};

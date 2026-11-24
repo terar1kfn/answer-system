@@ -3,9 +3,13 @@ import {classify,normalize} from './classify.mjs';
 import {eligible,exactReviewedFact,searchKnowledge} from './knowledge.mjs';
 import {interpretFollowup} from './followup.mjs';
 import {summarizeEvidence} from './evidence.mjs';
-export const RULE_VERSION='0.3.0';
+import {isServiceId} from './service-taxonomy.mjs';
+import {hasServicePlaybook,nextServiceDecision} from './service-playbooks.mjs';
+import {getErrorSignature} from './error-intelligence.mjs';
+import {sanitizeText} from './privacy.mjs';
+export const RULE_VERSION='0.5.0';
 export const MAX_TURNS=7;
-const SVC=new Set(['mail','portal','attendance','identity','network','exam','other']);
+const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
 const support=(reasonCode,priority='normal')=>({kind:'offer_support',reasonCode,priority});
 const ask=questionId=>({kind:'ask',questionId,reasonCode:'NEED_EVIDENCE'});
@@ -15,9 +19,12 @@ const known=(s,k)=>Object.hasOwn(s.evidence,k);
 function fact(s,key,v,origin='student_report'){s.evidence[key]={value:v,origin};}
 function checkedCatalog(input){
  if(!input||typeof input.revision!=='string'||!input.revision||!Array.isArray(input.guides))throw new TypeError('Invalid catalog');
+ if(input.guides.length>5000||(input.facts||[]).length>5000)throw new TypeError('Catalog too large');
  const ids=new Set();
  for(const g of input.guides){
   if(!g||typeof g.id!=='string'||!g.id||ids.has(g.id)||!SVC.has(g.serviceId)||typeof g.purpose!=='string'||typeof g.reviewed!=='boolean'||typeof g.enabled!=='boolean'||!['student','staff'].includes(g.audience)||typeof g.title?.en!=='string'||typeof g.title?.ar!=='string')throw new TypeError('Invalid guide');
+  if(g.requires!==undefined&&(!g.requires||typeof g.requires!=='object'||Array.isArray(g.requires)||Object.entries(g.requires).some(([key,values])=>!Object.hasOwn(QUESTIONS,key)||!Array.isArray(values)||!values.length||values.some(v=>!QUESTIONS[key].options.some(o=>o.id===v)))))throw new TypeError('Invalid guide prerequisites');
+  for(const key of ['aliases','keywords','errorSignatures'])if(g[key]!==undefined&&(!Array.isArray(g[key])||g[key].length>100||g[key].some(v=>typeof v!=='string'||v.length>500)))throw new TypeError('Invalid guide metadata');
   ids.add(g.id);
  }
  if(input.facts!==undefined&&!Array.isArray(input.facts))throw new TypeError('Invalid facts');
@@ -29,8 +36,10 @@ function checkedCatalog(input){
  return copy(input);
 }
 function guide(s,c,service,purpose){
- const g=c.guides.find(g=>g.serviceId===service&&g.purpose===purpose&&eligible(g,{catalog:c}));
- if(!g)return support('NO_APPROVED_GUIDE');
+ const matches=c.guides.filter(g=>g.serviceId===service&&g.purpose===purpose&&eligible(g,{catalog:c})&&Object.entries(g.requires||{}).every(([k,values])=>values.includes(value(s,k)))).sort((a,b)=>Object.keys(b.requires||{}).length-Object.keys(a.requires||{}).length);
+ if(!matches.length)return support('NO_APPROVED_GUIDE');
+ if(matches.length>1&&Object.keys(matches[0].requires||{}).length===Object.keys(matches[1].requires||{}).length)return support('MULTIPLE_APPROVED_GUIDES');
+ const g=matches[0];
  if(s.offeredGuideIds.includes(g.id))return support('GUIDE_ALREADY_OFFERED');
  return {kind:'open_guide',guideId:g.id,serviceId:service,catalogRevision:c.revision,title:g.title,reasonCode:'REVIEWED_GUIDE'};
 }
@@ -48,7 +57,9 @@ function decide(s,c,records,now){
   if(!k('exam_app'))return ask('exam_app');
   // The active exam safeguard is evaluated before even an outcome.
   if(k('outcome'))return v('outcome')==='yes'?{kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'}:support('GUIDE_DID_NOT_WORK');
-  return v('exam_app')==='unknown'?support('EXAM_APP_UNCLEAR'):g('exam',v('exam_app'));
+  if(v('exam_app')==='unknown')return support('EXAM_APP_UNCLEAR');
+  if(k('exam_issue')&&['install','launch','camera','audio','download'].includes(v('exam_issue')))return g('exam',v('exam_app')+'_'+v('exam_issue'));
+  return g('exam',v('exam_app'));
  }
  if(v('outcome')==='yes')return {kind:'resolved_reported',reasonCode:'STUDENT_CONFIRMED_ORIGINAL_TASK'};
  if(k('outcome'))return support(v('outcome')==='no'?'GUIDE_DID_NOT_WORK':'OUTCOME_UNCONFIRMED');
@@ -57,15 +68,28 @@ function decide(s,c,records,now){
   const f=(c.facts||[]).find(f=>f.id===s.reviewedFactId&&eligible(f,{catalog:c}));
   if(f)return {kind:'answer',factId:f.id,sourceRef:f.sourceRef,catalogRevision:c.revision,title:f.title,answer:f.answer,reasonCode:'EXACT_REVIEWED_FACT'};
  }
+ const errorHint=getErrorSignature(v('error_signature'));
+ if(v('mfa_prompt')==='unexpected')return safety('UNEXPECTED_VERIFICATION_REQUEST');
+ if(errorHint?.stage==='policy_block')return support('ACCESS_POLICY_REVIEW_REQUIRED');
+ if(errorHint?.stage==='sign_in_block')return support('ACCOUNT_BLOCK_REVIEW_REQUIRED');
+ if(v('credentials')==='locked')return support('ACCOUNT_LOCKED');
+ if(errorHint?.stage==='recipient_rate_limit'||errorHint?.stage==='quota_or_rate_review')return support('MAIL_QUOTA_REVIEW');
+ if(s.domain==='mail'&&v('send_error')==='restricted')return support('MAIL_SENDER_RESTRICTED');
  const incident=confirmedIncident(s,records,now);
- if(incident&&['network','identity','task'].includes(s.domain)&&!k('mfa_access')&&!k('recovery_context')&&!k('mfa_recovery')&&!k('setup_requested'))return incident;
- if(s.domain==='task')return !k('task')?ask('task'):support(v('task')==='app'?'SERVICE_SPECIFIC_FEATURE':'TASK_UNCLEAR');
+ if(incident&&['network','identity','task','specific'].includes(s.domain)&&!k('error_signature')&&!k('credentials')&&!k('mfa_access')&&!k('mfa_prompt')&&!k('recovery_context')&&!k('mfa_recovery')&&!k('setup_requested'))return incident;
+ if(s.domain==='specific')return nextServiceDecision(s,{ask,guide:g,support});
+ if(s.domain==='task'){
+  if(!k('task'))return ask('task');
+  if(v('task')==='app'&&s.services.length===1&&hasServicePlaybook(s.services[0]))return nextServiceDecision(s,{ask,guide:g,support});
+  return support(v('task')==='app'?'SERVICE_SPECIFIC_FEATURE':'TASK_UNCLEAR');
+ }
  if(s.domain==='mail'){
   if(!s.services.includes('mail'))return support('MAIL_SERVICE_UNCONFIRMED');
   if(v('task')==='send'){
    if(!k('send_error'))return ask('send_error');
    if(v('send_error')==='recipients')return g('mail','recipient_limit_check');
    if(v('send_error')==='address')return g('mail','recipient_address_check');
+   if(v('send_error')==='size')return g('mail','mail_attachment');
    return support(v('send_error')==='restricted'?'MAIL_SENDER_RESTRICTED':'MAIL_ERROR_UNCLEAR');
   }
   if(v('task')==='receive')return !k('receive_scope')?ask('receive_scope'):v('receive_scope')==='some'?g('mail','missing_messages_check'):support('MAIL_RECEIVE_REQUIRES_REVIEW');
@@ -73,11 +97,13 @@ function decide(s,c,records,now){
  }
  if(s.domain==='network'){
   if(!k('connection'))return ask('connection');
-  if(v('connection')==='yes')return support('SPECIFIC_SERVICE_FAILURE');
+  if(v('connection')==='yes')return v('network_issue')==='slow'?g('network','network_slow'):support('SPECIFIC_SERVICE_FAILURE');
   if(!k('peers'))return ask('peers');
   if(v('peers')==='yes')return support('POSSIBLE_SHARED_NETWORK_INCIDENT');
   if(v('peers')==='unknown')return support('NETWORK_SCOPE_UNCLEAR');
-  return v('connection')==='no'?g('network','individual_connectivity'):support('NETWORK_EVIDENCE_INCOMPLETE');
+  if(v('connection')!=='no')return support('NETWORK_EVIDENCE_INCOMPLETE');
+  const purpose={ssid_missing:'network_ssid',auth:'network_auth',slow:'network_slow'}[v('network_issue')];
+  return g('network',purpose||'individual_connectivity');
  }
  if(s.domain==='identity'){
   if(v('mfa_prompt')==='unexpected')return safety('UNEXPECTED_VERIFICATION_REQUEST');
@@ -92,6 +118,8 @@ function decide(s,c,records,now){
    if(!k('phone'))return ask('phone');
    return v('phone')==='unknown'?support('PHONE_PLATFORM_UNCLEAR'):g('identity','setup_'+v('phone'));
   }
+  if(errorHint?.stage==='credential_validation'&&!k('credentials'))return ask('credentials');
+  if(errorHint?.stage==='credential_validation'&&v('credentials')==='rejected')return g('identity','credential_check');
   if(!k('mfa_setup'))return ask('mfa_setup');
   if(!k('mfa_prompt'))return ask('mfa_prompt');
   if(!k('credentials'))return ask('credentials');
@@ -103,7 +131,12 @@ function decide(s,c,records,now){
    if(v('peers')==='yes')return support('POSSIBLE_SHARED_NETWORK_INCIDENT');
    return v('peers')==='no'?g('network','individual_connectivity'):support('NETWORK_SCOPE_UNCLEAR');
   }
-  return support(v('mfa_prompt')==='missing'?'MFA_PROMPT_MISSING':'SIGN_IN_CAUSE_UNCONFIRMED');
+  if(v('mfa_prompt')==='missing')return support('MFA_PROMPT_MISSING');
+  if(v('mfa_prompt')==='approved'&&v('credentials')==='accepted'&&v('connection')==='yes'&&s.services.length===1&&s.services[0]!=='identity'){
+   if(!k('service_access'))return ask('service_access');
+   if(v('service_access')==='one_service'&&hasServicePlaybook(s.services[0]))return nextServiceDecision(s,{ask,guide:g,support});
+  }
+  return support('SIGN_IN_CAUSE_UNCONFIRMED');
  }
  return support('NO_MATCH');
 }
@@ -114,11 +147,13 @@ function finish(s,c,records,now){
   s.askedQuestionIds.push(d.questionId);
   let question=QUESTIONS[d.questionId];
   if(d.questionId==='task'&&!s.services.includes('mail'))question={...question,options:question.options.filter(o=>!['send','receive'].includes(o.id))};
+  if(d.questionId==='service'&&s.services.length>1)question={...question,options:question.options.filter(o=>s.services.includes(o.id)||o.id==='other')};
   d={...d,question};
  }
  if(d.kind==='open_guide')s.offeredGuideIds.push(d.guideId);
  if(d.kind==='open_guide'||d.kind==='answer')d={...d,followUp:{questionId:'outcome',question:QUESTIONS.outcome}};
  s.candidates=summarizeEvidence(s);
+ const hint=getErrorSignature(value(s,'error_signature'));if(hint)s.errorHint=hint;else delete s.errorHint;
  s.decision=d;s.status=d.kind==='ask'?'diagnosing':['open_guide','answer'].includes(d.kind)?'guidance':d.kind==='resolved_reported'?'resolved_reported':'handoff_offered';
  return copy(s);
 }
@@ -130,7 +165,9 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
  const records=copy(incidents);
  function begin({text,language='en'}={}){
   if(!['en','ar'].includes(language))throw new TypeError('Invalid language');
-  const r=classify(text);
+  const clean=sanitizeText(text);
+  const r=classify(clean.text||'redacted');
+  text=clean.text;
   const isHowTo=/^(?:how (?:do|can|to)|what is|where (?:is|can)|كيف|ما هو|ما هي|اين)\b/i.test(normalize(text))||/^(?:كيف|ما هو|ما هي|اين)(?: |$)/.test(normalize(text));
   const factMatch=!['safety','exam'].includes(r.domain)&&isHowTo?exactReviewedFact(c,text,r.services):null;
   const s={ruleVersion:RULE_VERSION,catalogRevision:c.revision,turn:0,language,domain:r.domain,services:r.services,evidence:{},askedQuestionIds:[],offeredGuideIds:[],status:'new'};
@@ -149,11 +186,13 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   const s=copy(state);s.turn++;fact(s,questionId,optionId);
   if(questionId==='service'){
    s.services=[optionId];
-   s.domain=['network','identity','exam'].includes(optionId)?optionId:optionId==='other'?'unknown':'task';
+   for(const key of Object.keys(s.evidence))if(key!=='service')delete s.evidence[key];
+   s.domain=['network','identity','exam'].includes(optionId)?optionId:optionId==='other'?'unknown':['mail','portal','attendance'].includes(optionId)?'task':hasServicePlaybook(optionId)?'specific':'task';
   }
   if(questionId==='task'){
    if(optionId==='login')s.domain='identity';
    if(['send','receive'].includes(optionId)&&s.services.includes('mail'))s.domain='mail';
+   if(optionId==='app'&&s.services.length===1&&hasServicePlaybook(s.services[0]))s.domain='specific';
   }
   return finish(s,c,records,now());
  }
@@ -170,7 +209,7 @@ export function createEngine({catalog,incidents=[],now=()=>Date.now()}={}){
   if(result.kind==='clarify')return {kind:'clarify',reasonCode:result.reasonCode,state:copy(state)};
   return {kind:'advanced',state:advance(state,{expectedTurn,questionId:id,optionId:result.optionId})};
  }
- function search({text,services=[],limit=5}={}){return searchKnowledge(c,{text,services,limit});}
+ function search({text,services=[],limit=5}={}){try{return searchKnowledge(c,{text:sanitizeText(text).text,services,limit});}catch{return [];}}
  // Trusted host only, after independently verifying its recovery workflow.
  function resumeRecovery(state,{expectedTurn}={}){
   if(!state||state.ruleVersion!==RULE_VERSION||state.catalogRevision!==c.revision||state.turn!==expectedTurn)throw Error('STALE_STATE');

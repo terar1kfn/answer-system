@@ -1,5 +1,12 @@
 # Change log
 
+## 0.5.0 — feature-building phase (validation deferred)
+
+- Expanded generic service taxonomy and bilingual diagnostic playbooks for meetings, directory, printing, software, devices, storage and more detailed existing services.
+- Added documented error-code recognition, privacy minimization, guide prerequisites and ambiguity fallback, cross-service access checks and concept-normalized retrieval.
+- Added explicit private catalog mapping/resolution boundary and synthetic fixture references.
+- No tests, syntax checks, browser checks or benchmark executions performed for this milestone. Automatic CI is manual-only. No private repo or live app changes.
+
 ## 0.4.0 — 2026-11-24
 
 - Added strict host-command authorization façade, server-derived visit/policy/scope and scoped staff permission callbacks.

@@ -4,7 +4,19 @@
  */
 import {normalize} from './classify.mjs';
 const STOP=new Set(['i','my','the','a','an','to','of','is','it','how','do','can','what','please','help','me','and','or','for','on','in','with','this','كيف','ما','هو','هي','هل','انا','من','في','علي','الي','عن','مع','ممكن','اريد']);
-const tokens=t=>[...new Set(normalize(t).split(/\s+/).filter(x=>x.length>1&&!STOP.has(x)))];
+const CONCEPTS=new Map([
+ ...['mfa','authenticator','مصادقه','المصادقه','التحقق'].map(x=>[x,'mfa']),
+ ...['outlook','email','mail','البريد','ايميل','الايميل'].map(x=>[x,'email']),
+ ...['wifi','وايفاي','الوايفاي','النت','انترنت','الانترنت'].map(x=>[x,'network']),
+ ...['printer','printing','الطباعه','طابعه','الطابعه'].map(x=>[x,'printer']),
+ ...['camera','webcam','كاميرا','الكاميرا'].map(x=>[x,'camera']),
+ ...['microphone','mic','ميكروفون','الميكروفون'].map(x=>[x,'microphone']),
+ ...['windows','ويندوز'].map(x=>[x,'windows']),
+ ...['macos','ماك'].map(x=>[x,'macos']),
+ ...['zoom','زوم'].map(x=>[x,'zoom']),
+ ...['moodle','مودل','موديل'].map(x=>[x,'moodle'])
+]);
+const tokens=t=>[...new Set(normalize(t).replace(/\bwi fi\b|الواي فاي|واي فاي/g,'wifi').split(/\s+/).filter(x=>x.length>1&&!STOP.has(x)).map(x=>CONCEPTS.get(x)||x))];
 const bounded=s=>typeof s==='string'&&s.length>0&&s.length<=500;
 const titles=g=>[g.title?.en,g.title?.ar].filter(bounded);
 function phrases(g){
@@ -35,6 +47,7 @@ export function searchKnowledge(catalog,{text,services=[],audience='student',lim
   const ps=phrases(g),index=new Map();
   for(const w of tokens(ps.join(' ')))index.set(w,3);
   for(const w of tokens((g.keywords||[]).filter(bounded).join(' ')))index.set(w,Math.max(2,index.get(w)||0));
+  for(const w of tokens((g.errorSignatures||[]).filter(bounded).join(' ')))index.set(w,6);
   let score=0,matched=0,exact=0;
   for(const w of query){
    if(index.has(w)){score+=index.get(w);matched++;exact++;continue;}

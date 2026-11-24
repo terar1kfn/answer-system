@@ -1,6 +1,6 @@
 {
   "name": "answer-system",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -9,13 +9,16 @@
     "./incidents": "./src/incidents.mjs",
     "./review": "./src/review-queue.mjs",
     "./host": "./src/host-service.mjs",
-    "./advisor": "./src/model-advisor.mjs"
+    "./advisor": "./src/model-advisor.mjs",
+    "./catalog": "./src/catalog-adapter.mjs",
+    "./taxonomy": "./src/service-taxonomy.mjs",
+    "./errors": "./src/error-intelligence.mjs"
   },
   "scripts": {
     "test": "node --test tests/engine.test.mjs",
     "demo": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
-    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs && node --check src/host-service.mjs && node --check src/model-advisor.mjs"
+    "check": "node --check src/engine.mjs && node --check src/classify.mjs && node --check src/knowledge.mjs && node --check src/followup.mjs && node --check src/evidence.mjs && node --check demo/app.mjs && node --check scripts/serve.mjs && node --check src/runtime.mjs && node --check src/incidents.mjs && node --check src/review-queue.mjs && node --check src/host-service.mjs && node --check src/model-advisor.mjs && node --check src/service-taxonomy.mjs && node --check src/service-playbooks.mjs && node --check src/error-intelligence.mjs && node --check src/privacy.mjs && node --check src/catalog-adapter.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -1,9 +1,13 @@
 // Transient lexical classification; no raw query is returned or retained.
+import {EXTRA_SERVICE_IDS,matchServices} from './service-taxonomy.mjs';
+import {hasServicePlaybook,inferServiceIssue} from './service-playbooks.mjs';
+import {recognizeErrors} from './error-intelligence.mjs';
+import {sanitizeText} from './privacy.mjs';
 export function normalize(text){
  return text.normalize('NFKC').toLowerCase().replace(/[\u064b-\u065f\u0670]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/[^a-z0-9\u0600-\u06ff.]+/g,' ').trim();
 }
 const has=(t,words)=>words.some(w=>(' '+t+' ').includes(' '+normalize(w)+' '));
-export function classify(raw){
+function classifyBase(raw){
  if(typeof raw!=='string'||!raw.trim()||raw.length>500)throw new TypeError('Query must contain 1-500 characters');
  const t=normalize(raw.replace(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/gi,' ').replace(/\b20\d{7,8}\b/g,' ').replace(/\b(?:password|passcode|otp|pin|token|secret)\s*(?:is\s*[:=]?|[:=])\s*(?:"[^"]*"|'[^']*'|\S+)/gi,' '));
  const facts={},services=[];const add=s=>{if(!services.includes(s))services.push(s);};
@@ -56,4 +60,52 @@ export function classify(raw){
  if(facts.task==='send'||facts.task==='receive')return out('mail');
  if(mfa||oldPhone||facts.task==='login')return out('identity');
  return out('task');
+}
+
+
+export function classify(raw){
+ const privacy=sanitizeText(raw),t=normalize(privacy.text),base=classifyBase(privacy.text||'redacted');
+ const out=(domain,services,facts)=>({domain,services:[...new Set(services)],facts});
+ // Never allow an ordinary service or error match to override protected topics.
+ if(base.domain==='safety')return base;
+ if(/\b(?:certificate warning|certificate is not trusted|your connection is not private|unexpected approval request|unsolicited sign in request)\b|الاتصال غير خاص|طلب موافقه لم ابدا/.test(t))return out('safety',['other'],{});
+ if(base.domain==='exam'){
+  const specific=inferServiceIssue('exam',t,normalize);
+  if(specific)base.facts[specific.questionId]=specific.optionId;
+  return base;
+ }
+ const hints=recognizeErrors(t);
+ if(hints.length>1)return out('unknown',[...base.services,...hints.map(x=>x.serviceId)],{error_conflict:'yes'});
+ if(hints.length===1){
+  const hint=hints[0],facts={...base.facts,error_signature:hint.id};
+  const others=base.services.filter(s=>s!=='identity'&&s!=='other'&&s!=='network');
+  if(hint.serviceId==='identity'){
+   if(base.domain==='mail'&&['send','receive'].includes(base.facts.task))return out('unknown',['mail','identity'],{error_conflict:'yes'});
+   return out('identity',others.length?others:['identity'],{...facts,task:'login'});
+  }
+  if(others.some(s=>s!=='mail'))return out('unknown',[...others,'mail'],{error_conflict:'yes'});
+  const mailFacts={...facts,task:'send'};
+  if(hint.stage==='recipient_address')mailFacts.send_error='address';
+  if(hint.stage==='sender_restricted')mailFacts.send_error='restricted';
+  if(hint.stage==='message_size')mailFacts.send_error='size';
+  return out('mail',['mail'],mailFacts);
+ }
+ const extras=matchServices(t,normalize,EXTRA_SERVICE_IDS);
+ // A named application outranks a generic "device" or "connection" mention.
+ const named=extras.filter(x=>x!=='device');
+ let services=[...new Set([...base.services,...(named.length?named:extras)])];
+ if(services.length>1&&services.includes('device'))services=services.filter(s=>s!=='device');
+ if(named.length&&services.includes('network')&&!/\b(?:wifi|wi fi|internet)\b|واي فاي|النت|انترنت/.test(t))services=services.filter(s=>s!=='network');
+ if(named.length&&services.includes('identity')&&base.domain==='identity')services=services.filter(s=>s!=='identity');
+ const facts={...base.facts};
+ if(base.domain==='identity'&&facts.task==='login')return out('identity',services.length?services:['identity'],facts);
+ if(base.domain==='mail'&&services.every(s=>s==='mail'||s==='identity'))return out('mail',['mail'],facts);
+ if(services.length>1&&base.domain!=='identity')return out('unknown',services,{});
+ if(services.length===1){
+  const service=services[0],specific=inferServiceIssue(service,t,normalize);
+  if(specific)facts[specific.questionId]=specific.optionId;
+  if(service==='network')return out('network',services,facts);
+  if(hasServicePlaybook(service)&&(named.includes(service)||service==='device'||specific))return out('specific',services,{...facts,task:'app'});
+ }
+ return out(base.domain,services,facts);
 }
