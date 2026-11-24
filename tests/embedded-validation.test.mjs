@@ -76,3 +76,14 @@ test('screenshot advice requires explicit native feature policy and opaque refer
  assert.equal(result.reasonCode,'SCREENSHOT_NOT_AVAILABLE');assert.equal(providerCalls,0);
  assert.equal(result.version,v.version);
 });
+
+test('native draft rechecks existing request before offering duplicate navigation',async()=>{
+ let reads=0;const l=lab({getExistingRequest:async()=>++reads===1?{status:'none'}:{status:'recorded',reference:'synthetic-existing-case'}});
+ const v=await l.begin('a','550 5.1.8');assert.equal(v.issue.decision.kind,'offer_support');
+ const result=await l.mutation('a',v,'prepare_native_draft');assert.equal(result.kind,'existing_native_request');assert.equal(result.reference,'synthetic-existing-case');
+});
+test('native recovery must still refer to the same recorded request after completion check',async()=>{
+ let ref='synthetic-recovery-a';const l=lab({getExistingRequest:async()=>({status:'recorded',reference:ref}),verifyRecoveryCompletion:async({reference})=>{ref='synthetic-recovery-b';return {status:'completed',verified:true,reference};}});
+ let v=await l.begin('a','I changed my phone and use Authenticator');v=await l.choose('a',v,'transfer');v=await l.choose('a',v,'no');assert.equal(v.issue.decision.kind,'offer_mfa_recovery');
+ const result=await l.mutation('a',v,'refresh_recovery');assert.equal(result.kind,'recovery_pending');assert.equal(result.issue.decision.kind,'offer_mfa_recovery');
+});
