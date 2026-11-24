@@ -112,3 +112,6 @@ The [private catalog mapping and coverage review](docs/catalog-mapping-review.md
 
 
 [Current context updates](docs/current-context-update.md) adds bounded confirmation of changed ordinary observations and a more specific network alternative path with renewed peer-scope evidence.
+
+
+[Knowledge improvement backlog](docs/knowledge-improvement-backlog.md) links exact deterministic guide-purpose gaps to optional aggregate metrics, verified current-version outcome review signals and private revision-pinned knowledge proposals. No automatic guide selection or publication changes.

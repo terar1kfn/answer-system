@@ -1,0 +1,11 @@
+# Observed knowledge gaps and learning review agenda — 0.27 (validation deferred)
+
+A deterministic guide request can now preserve a fixed internal service and purpose when no approved guide applies. The gap kind distinguishes an unavailable service, missing mapped procedure, ineligible procedure, prerequisite mismatch, ambiguous mappings and conflicting reviewed contexts. This is not a new student-facing diagnosis, and does not record free text, credentials or a private guide identifier.
+
+The existing aggregate metrics support optional purpose-specific gap counters with bounded, transient issue/purpose/kind deduplication. The native bridge requires explicit host-supplied metrics and allowKnowledgeMetrics policy, disabled by default. The counter represents diagnostic gap events, not unique people, and is not a measure of actual incidents or outage frequency. Restart/eviction can weaken deduplication. Do not publish private counts.
+
+The private knowledge backlog combines current projected guide coverage, aggregate purpose-specific gap counters, current-version independently verified guide outcomes, and optional proposal IDs from an exact revision-pinned source draft. It separates static gaps from observed gaps, and reports repeated verified unresolved outcomes only for the exact current guide fingerprint and rule-version group. Old guides, mixed interventions, student-only reports and unverified outcomes do not drive this review signal. A stale proposal pack is flagged rather than silently associated with current routes. Current native ownership, permissions and service availability remain authoritative.
+
+The authorized review wrapper requires staff permission, scoped data callbacks and a second check of current projection and actor. The output is an agenda for independent review: check owner, service availability, permissions, applicability, overlap, case-pattern conflict, missing procedures or repeated unresolved outcomes. Neither recommendation, data count nor source proposal is a publication approval. The module cannot alter a guide, rank student routes, learn an unverified root cause, start a monitor or act on a student account.
+
+No real outcomes, metrics or catalog imports have been performed. No tests, syntax checks, builds, providers, deployment or original host changes.

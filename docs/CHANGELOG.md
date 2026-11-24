@@ -1,5 +1,11 @@
 # Change log
 
+## 0.27.0 — observed knowledge improvement backlog (validation deferred)
+
+- Record fixed deterministic guide-purpose gaps separately by missing mapping, unavailable service, permissions, applicability or ambiguity.
+- Add optional scoped aggregate gap metrics and an authorized private review agenda combining coverage, observed gaps, verified current-guide outcomes and pinned proposals.
+- No real metrics or outcomes imported, tests/builds executed, deployment or native application edits.
+
 ## 0.26.0 — current context and network alternatives (validation deferred)
 
 - Add explicit confirmation and dependent-evidence invalidation for exact ordinary context updates during pre-guide diagnosis.

@@ -20,7 +20,7 @@ import {isInformationalQuery,reviewedTopicChoices,reviewedTopicQuestion} from '.
 import {decideIdentity,isFailedSetup,applyIdentityAnswer,prepareVerifiedRecovery} from './identity-flow.mjs';
 import {decideSharedAccess,applySharedAnswer} from './shared-access.mjs';
 import {recordGuideOutcome,recordResolutionAnswer,decideAfterFailedGuide,activateAlternative,repeatAlternative} from './resolution-planner.mjs';
-export const RULE_VERSION='0.26.0';
+export const RULE_VERSION='0.27.0';
 export const MAX_TURNS=12;
 const SVC={has:isServiceId};
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -52,7 +52,9 @@ function checkedCatalog(input){
 }
 function guide(s,c,service,purpose){
  if(c.diagnosticServices&&!c.diagnosticServices.includes(service))return support('DIAGNOSTIC_SCOPE_NOT_ALLOWED');
- const eligibleGuides=c.guides.filter(g=>g.serviceId===service&&g.purpose===purpose&&eligible(g,{catalog:c}));
+ const purposeGuides=c.guides.filter(g=>g.serviceId===service&&g.purpose===purpose);
+ const gap=(reason,kind)=>({...support(reason),knowledgeGap:{serviceId:service,purpose,kind}});
+ const eligibleGuides=purposeGuides.filter(g=>eligible(g,{catalog:c}));
  const matches=eligibleGuides.filter(g=>Object.entries(g.requires||{}).every(([k,values])=>values.includes(value(s,k)))).sort((a,b)=>Object.keys(b.requires||{}).length-Object.keys(a.requires||{}).length);
  // Only safe platform/context fields may be requested as missing prerequisites.
  // Do not ask a sensitive question merely because a guide references it.
@@ -62,15 +64,15 @@ function guide(s,c,service,purpose){
  if(nextKey)return ask(nextKey);
  if(!matches.length){
   const needed=chooseGuidePrerequisite(viable,s);
-  return needed?ask(needed):support('NO_APPROVED_GUIDE');
+  return needed?ask(needed):gap('NO_APPROVED_GUIDE',c.serviceAvailability?.[service]===false?'SERVICE_UNAVAILABLE':!purposeGuides.length?'NO_MAPPED_GUIDE':!eligibleGuides.length?'NO_ELIGIBLE_GUIDE':'PREREQUISITE_MISMATCH');
  }
  const tied=matches.filter(g=>Object.keys(g.requires||{}).length===specificity);
  let g=matches[0],patternRef=null;
  if(tied.length>1){
   const choice=disambiguateReviewedContext({catalog:c,state:s,tiedGuides:tied});
   if(choice.kind==='ask')return {...ask(choice.questionId),reasonCode:'DISTINGUISH_APPROVED_GUIDES'};
-  if(choice.kind==='conflict')return support('REVIEWED_CONTEXT_CONFLICT');
-  if(choice.kind!=='guide')return support('MULTIPLE_APPROVED_GUIDES');
+  if(choice.kind==='conflict')return gap('REVIEWED_CONTEXT_CONFLICT','REVIEWED_CONTEXT_CONFLICT');
+  if(choice.kind!=='guide')return gap('MULTIPLE_APPROVED_GUIDES','AMBIGUOUS_MAPPING');
   g=tied.find(x=>x.id===choice.guideId);if(!g)return support('MULTIPLE_APPROVED_GUIDES');patternRef=choice.patternRef;
  }
  if(s.offeredGuideIds.includes(g.id))return support('GUIDE_ALREADY_OFFERED');

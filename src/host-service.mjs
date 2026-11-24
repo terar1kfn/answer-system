@@ -2,7 +2,7 @@ import {createRuntime} from './runtime.mjs';
 import {createIncidentRegistry} from './incidents.mjs';
 import {createReviewQueue} from './review-queue.mjs';
 import {createEngine} from './engine.mjs';
-import {metricForDecision} from './analytics.mjs';
+import {metricForDecision,recordKnowledgeGap} from './analytics.mjs';
 import {inspectErrorText} from './error-intake.mjs';
 const error=code=>{throw Error(code);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
@@ -74,7 +74,7 @@ export function createAnswerService({
   const s=v.issue.state;
   try{metrics.record({event,serviceId:s.services.length===1?s.services[0]:'other',...(reasonCode?{reasonCode}:{}),eventKey:v.issue.issueId+':'+v.version+':'+event});}catch{}
  }
- function decisionMetric(v){const d=v.issue?.state?.decision;metric(metricForDecision(d),v,d?.reasonCode||d?.policyCode);if(d?.reasonCode==='NO_APPROVED_GUIDE')metric('knowledge_gap',v,d.reasonCode);}
+ function decisionMetric(v){const d=v.issue?.state?.decision;metric(metricForDecision(d),v,d?.reasonCode||d?.policyCode);if(d?.knowledgeGap){const g=d.knowledgeGap;recordKnowledgeGap(metrics,v.issue.state,[v.issue.issueId,g.serviceId,g.purpose,g.kind].join(':'));}else if(d?.reasonCode==='NO_APPROVED_GUIDE')metric('knowledge_gap',v,d.reasonCode);}
  function sameIssue(ref,expectedVersion,issueId){
   const v=runtime.read(ref);
   if(v.version!==expectedVersion||v.issue?.issueId!==issueId||!v.issue?.state)error('STALE_ISSUE');

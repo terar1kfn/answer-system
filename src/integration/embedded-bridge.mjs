@@ -5,6 +5,7 @@ import {sanitizeText} from '../privacy.mjs';
 import {prepareReplyAdvice} from '../contextual-reply-advisor.mjs';
 import {projectNativeCatalog,nativeGuideReference} from './native-catalog.mjs';
 import {reportedAnswers,buildNativeJourney} from './native-journey.mjs';
+import {recordKnowledgeGap} from '../analytics.mjs';
 import {newGuideLaunch,acceptNativeGuideReturn,mergeGuideReturns,guideContinuationView} from './guide-continuation.mjs';
 const copy=x=>JSON.parse(JSON.stringify(x));
 const fail=x=>{throw Error(x);};
@@ -52,10 +53,11 @@ function publicDecision(d){
 export function createEmbeddedAnswerBridge({
  authenticate,enabled=()=>false,routeInput,resolvePolicy,getConfiguration,getMapping,
  isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,
- getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,replyAdvisor=null,
+ getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,replyAdvisor=null,knowledgeMetrics=null,
  now=()=>Date.now(),newId=()=>randomUUID(),maxVisits=128
 }={}){
  if(![authenticate,enabled,routeInput,resolvePolicy,getConfiguration,getMapping,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,getIncidents,getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn,now,newId].every(f=>typeof f==='function')||
+ (knowledgeMetrics!==null&&typeof knowledgeMetrics?.record!=='function')||
  (replyAdvisor!==null&&typeof replyAdvisor?.suggest!=='function')||!Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000)fail('NATIVE_HOST_HOOKS_REQUIRED');
  const rows=new Map(),locks=new Map();
  function newIssueId(){const x=newId();if(!opaque(x)||[...rows.values()].some(r=>r.issue?.id===x))fail('ISSUE_ID_COLLISION');return x;}
@@ -81,11 +83,16 @@ export function createEmbeddedAnswerBridge({
   // Never promote aggregate reports to confirmed incidents here.
   const incidents=Array.isArray(raw)?raw.filter(i=>i?.authority==='authorized_staff'&&i.status==='confirmed'&&policy.diagnosticServices.includes(i.serviceId)&&
    opaque(i.id)&&Number.isFinite(i.updatedAt)&&Number.isFinite(i.expiresAt)&&i.updatedAt<=now()&&i.expiresAt>now()&&now()-i.updatedAt<=900000):[];
-  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true]);
+  const pin=JSON.stringify([policy.revision,projection.catalog.revision,policy.allowMfaRecovery,policy.examStatus,policy.allowModelAdvice===true,policy.allowKnowledgeMetrics===true]);
   return {policy,projection,incidents,pin,engine:createEngine({catalog:projection.catalog,incidents,now})};
  }
  function view(row){return {version:row?.version??0,issue:row?.issue?{issueId:row.issue.id,language:row.issue.state.language,
   status:row.issue.state.status,decision:publicDecision(row.issue.state.decision),guideContinuation:guideContinuationView(row.issue),canUndo:row.issue.history.length>0&&row.issue.state.decision.kind!=='safety_referral'}:null};}
+ function measureGap(issue,ctx){
+  const g=issue?.state?.decision?.knowledgeGap;
+  if(knowledgeMetrics&&ctx?.policy.allowKnowledgeMetrics===true&&g&&ctx.policy.diagnosticServices.includes(g.serviceId))
+   recordKnowledgeGap(knowledgeMetrics,issue.state,[issue.id,g.serviceId,g.purpose,g.kind].join(':'));
+ }
  function current(row,c){
   if(!row||row.version!==c.expectedVersion||!Number.isSafeInteger(c.expectedVersion))fail('STALE_VERSION');
   if(!row.issue||row.issue.id!==c.issueId)fail('STALE_ISSUE');
@@ -154,7 +161,7 @@ export function createEmbeddedAnswerBridge({
     const latest=await recheck(route.scopeKey,ctx.pin);
     const issue={id:newIssueId(),scopeKey:route.scopeKey,pin:ctx.pin,state,answers:[],history:[],guideLaunch:null,guideReturns:[],recoveryResumed:false};
     if(!incidentStillCurrent(issue,latest))return clear(key,row,'INCIDENT_REFRESH_REQUIRED');
-    row=save(key,row||{version:0,actorRef:actor.actorRef},issue);return {kind:'state',...view(row)};
+    row=save(key,row||{version:0,actorRef:actor.actorRef},issue);measureGap(row.issue,latest);return {kind:'state',...view(row)};
    }
    if(!row?.issue)fail('ISSUE_NOT_ACTIVE');
    const issue=c.action==='read'?row.issue:current(row,c);
@@ -263,6 +270,7 @@ export function createEmbeddedAnswerBridge({
     const answers=reportedAnswers(issue.state,state);
     row=save(key,row,{...issue,state,guideLaunch:null,answers:[...issue.answers,...answers].slice(-25),
      history:[...issue.history,{state:copy(issue.state),answers:copy(issue.answers)}].slice(-12)});
+    measureGap(row.issue,latest);
     return {kind:'state',...view(row)};
    }
    fail('INVALID_EMBEDDED_COMMAND');
