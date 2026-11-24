@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.11 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.12 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -67,3 +67,6 @@ The refined identity flow distinguishes observed sign-in screens, setup knowledg
 
 
 The [conversation and shared-access layer](docs/conversation-and-shared-access.md) supports conservative compound replies, bilingual input forms, cross-service fault clarification and more detailed email-delivery checks. All behavior remains unvalidated in the current build phase.
+
+
+The [native assistant client](docs/native-assistant-client.md) adds a guarded lifecycle controller for the existing UI, verified native guide-return receipts, original-task outcome separation, localized clarification copy and recovery-request reference binding. No actual host transport has been connected.

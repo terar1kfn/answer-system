@@ -16,9 +16,10 @@ export function createHomeSearchController({submitNative,recordActivity,onChange
  function bindVisit(key,lang='en'){
   if(!(key===null||typeof key==='string'&&key.length>0)||!['en','ar'].includes(lang))throw Error('INVALID_SEARCH_CONTEXT');
   if(key!==visitKey){reset();visitKey=key;}
+  else if(language!==lang){generation++;controller?.abort();controller=null;pending=false;}
   language=lang;emit();
  }
- function input(text){if(typeof text!=='string')throw Error('INVALID_QUERY');value=text.slice(0,500);emit();}
+ function input(text){if(typeof text!=='string')throw Error('INVALID_QUERY');if(pending){generation++;controller?.abort();controller=null;pending=false;}value=text.slice(0,500);emit();}
  function setLanguage(lang){if(!['en','ar'].includes(lang))throw Error('INVALID_LANGUAGE');if(lang!==language){generation++;controller?.abort();controller=null;pending=false;language=lang;emit();}}
  async function submit(){
   if(visitKey===null||pending||!value.trim())return {kind:'ignored'};

@@ -3,7 +3,8 @@ import {createEngine} from '../engine.mjs';
 import {isServiceId} from '../service-taxonomy.mjs';
 import {sanitizeText} from '../privacy.mjs';
 import {projectNativeCatalog,nativeGuideReference} from './native-catalog.mjs';
-import {reportedAnswer,buildNativeJourney} from './native-journey.mjs';
+import {reportedAnswers,buildNativeJourney} from './native-journey.mjs';
+import {newGuideLaunch,acceptNativeGuideReturn,mergeGuideReturns,guideContinuationView} from './guide-continuation.mjs';
 const copy=x=>JSON.parse(JSON.stringify(x));
 const fail=x=>{throw Error(x);};
 const opaque=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,160}$/.test(x);
@@ -14,7 +15,7 @@ const fields={
  read:[],begin:['expectedVersion','text','language'],respond:['expectedVersion','issueId','questionId','optionId','text'],
  undo:['expectedVersion','issueId'],clear:['expectedVersion','issueId'],set_language:['expectedVersion','issueId','language'],
  open_guide:['expectedVersion','issueId','guideId'],prepare_native_draft:['expectedVersion','issueId'],
- refresh_recovery:['expectedVersion','issueId']
+ refresh_recovery:['expectedVersion','issueId'],refresh_native_guide:['expectedVersion','issueId']
 };
 function command(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||!Object.hasOwn(fields,input.action)||
@@ -48,10 +49,10 @@ function publicDecision(d){
 export function createEmbeddedAnswerBridge({
  authenticate,enabled=()=>false,routeInput,resolvePolicy,getConfiguration,getMapping,
  isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,
- getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,
+ getIncidents=()=>[],getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn=async()=>null,
  now=()=>Date.now(),newId=()=>randomUUID(),maxVisits=128
 }={}){
- if(![authenticate,enabled,routeInput,resolvePolicy,getConfiguration,getMapping,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,getIncidents,getExistingRequest,verifyRecoveryCompletion,now,newId].every(f=>typeof f==='function')||
+ if(![authenticate,enabled,routeInput,resolvePolicy,getConfiguration,getMapping,isServiceAvailable,isGuideAvailable,isReviewedGuide,ownsGuide,isEntryMenu,getIncidents,getExistingRequest,verifyRecoveryCompletion,getNativeGuideReturn,now,newId].every(f=>typeof f==='function')||
  !Number.isSafeInteger(maxVisits)||maxVisits<1||maxVisits>10000)fail('NATIVE_HOST_HOOKS_REQUIRED');
  const rows=new Map(),locks=new Map();
  function newIssueId(){const x=newId();if(!opaque(x)||[...rows.values()].some(r=>r.issue?.id===x))fail('ISSUE_ID_COLLISION');return x;}
@@ -81,13 +82,13 @@ export function createEmbeddedAnswerBridge({
   return {policy,projection,incidents,pin,engine:createEngine({catalog:projection.catalog,incidents,now})};
  }
  function view(row){return {version:row?.version??0,issue:row?.issue?{issueId:row.issue.id,language:row.issue.state.language,
-  status:row.issue.state.status,decision:publicDecision(row.issue.state.decision),canUndo:row.issue.history.length>0&&row.issue.state.decision.kind!=='safety_referral'}:null};}
+  status:row.issue.state.status,decision:publicDecision(row.issue.state.decision),guideContinuation:guideContinuationView(row.issue),canUndo:row.issue.history.length>0&&row.issue.state.decision.kind!=='safety_referral'}:null};}
  function current(row,c){
   if(!row||row.version!==c.expectedVersion||!Number.isSafeInteger(c.expectedVersion))fail('STALE_VERSION');
   if(!row.issue||row.issue.id!==c.issueId)fail('STALE_ISSUE');
   return row.issue;
  }
- function save(key,row,issue){const next={version:(row?.version??0)+1,issue};rows.set(key,next);return next;}
+ function save(key,row,issue){const next={version:(row?.version??0)+1,actorRef:row?.actorRef,issue};rows.set(key,next);return next;}
  function clear(key,row,reason){
   // Do not retain abandoned diagnostic evidence, even during rollback.
   const next=row?save(key,row,null):null;
@@ -110,6 +111,7 @@ export function createEmbeddedAnswerBridge({
   if(locks.has(key))fail('VISIT_BUSY');
   const lock={cancelled:false};locks.set(key,lock);
   let row=rows.get(key);
+  if(row&&row.actorRef!==actor.actorRef){locks.delete(key);fail('VISIT_OWNER_MISMATCH');}
   async function live(){
    const fresh=await authenticateStudent(credential);
    if(lock.cancelled||!sameActor(actor,fresh))fail('VISIT_ENDED');
@@ -142,12 +144,14 @@ export function createEmbeddedAnswerBridge({
     if(!ctx)return clear(key,row,'PROTECTED_CONTEXT');
     const clean=sanitizeText(text);
     if(!clean.text)return clear(key,row,'NATIVE_FALLBACK');
-    const state=ctx.engine.begin({text:clean.text,language:c.language});
+    // Pass original transient text through the engine's single minimization
+    // boundary so it can also detect that private input was removed.
+    const state=ctx.engine.begin({text,language:c.language});
     const reason=decisionAllowed(state,ctx);if(reason)return clear(key,row,reason);
     const latest=await recheck(route.scopeKey,ctx.pin);
-    const issue={id:newIssueId(),scopeKey:route.scopeKey,pin:ctx.pin,state,answers:[],history:[],recoveryResumed:false};
+    const issue={id:newIssueId(),scopeKey:route.scopeKey,pin:ctx.pin,state,answers:[],history:[],guideLaunch:null,guideReturns:[],recoveryResumed:false};
     if(!incidentStillCurrent(issue,latest))return clear(key,row,'INCIDENT_REFRESH_REQUIRED');
-    row=save(key,row,issue);return {kind:'state',...view(row)};
+    row=save(key,row||{version:0,actorRef:actor.actorRef},issue);return {kind:'state',...view(row)};
    }
    if(!row?.issue)fail('ISSUE_NOT_ACTIVE');
    const issue=c.action==='read'?row.issue:current(row,c);
@@ -165,7 +169,25 @@ export function createEmbeddedAnswerBridge({
    if(c.action==='open_guide'){
     const d=issue.state.decision;if(d.kind!=='open_guide'||d.guideId!==c.guideId)fail('NATIVE_GUIDE_UNAVAILABLE');
     const latest=await recheck(issue.scopeKey,ctx.pin);
-    return {kind:'open_native_guide',reference:nativeGuideReference(latest.projection,d),...view(row)};
+    const reference=nativeGuideReference(latest.projection,d);
+    const launch=issue.guideLaunch||newGuideLaunch({launchRef:newId(),reference});
+    if(launch.reference.guideId!==reference.guideId||launch.reference.nativeGuideFingerprint!==reference.nativeGuideFingerprint)fail('NATIVE_GUIDE_STALE');
+    if(!issue.guideLaunch)row=save(key,row,{...issue,guideLaunch:launch});
+    return {kind:'open_native_guide',reference,launchRef:launch.launchRef,...view(row)};
+   }
+   if(c.action==='refresh_native_guide'){
+    const d=issue.state.decision,launch=issue.guideLaunch;
+    if(d.kind!=='open_guide'||!launch)fail('NATIVE_GUIDE_NOT_LAUNCHED');
+    const previous=(issue.guideReturns||[]).find(r=>r.launchRef===launch.launchRef);
+    if(previous)return {kind:'native_guide_returned',...view(row)};
+    const receipt=await getNativeGuideReturn({actor,issueId:issue.id,launchRef:launch.launchRef,reference:copy(launch.reference)});
+    const latest=await recheck(issue.scopeKey,ctx.pin);
+    const reference=nativeGuideReference(latest.projection,d);
+    if(reference.nativeGuideFingerprint!==launch.reference.nativeGuideFingerprint)fail('NATIVE_GUIDE_STALE');
+    const accepted=acceptNativeGuideReturn(launch,receipt);
+    if(!accepted)return {kind:'native_guide_pending',...view(row)};
+    row=save(key,row,{...issue,guideReturns:mergeGuideReturns(issue.guideReturns,accepted,d.title)});
+    return {kind:'native_guide_returned',...view(row)};
    }
    if(c.action==='prepare_native_draft'){
     const d=issue.state.decision;if(!['offer_support','offer_mfa_recovery'].includes(d.kind))fail('NATIVE_DRAFT_NOT_OFFERED');
@@ -176,19 +198,23 @@ export function createEmbeddedAnswerBridge({
     const latest=await recheck(issue.scopeKey,ctx.pin);
     if(existing?.status==='recorded'&&opaque(existing.reference))return {kind:'existing_native_request',channel,reference:existing.reference,...view(row)};
     if(existing?.status!=='none')return {kind:'native_request_unconfirmed',channel,...view(row)};
-    const journey=buildNativeJourney({state:issue.state,answers:issue.answers,nativeContext:latest.policy.journeyContext||{examStatus:latest.policy.examStatus}});
+    const journey=buildNativeJourney({state:issue.state,answers:issue.answers,guideReturns:issue.guideReturns,nativeContext:{...latest.policy.journeyContext,examStatus:latest.policy.examStatus}});
     return {kind:'open_native_draft',channel,reasonCode:d.reasonCode,journey,...view(row)};
    }
    if(c.action==='refresh_recovery'){
     if(issue.state.decision.kind!=='offer_mfa_recovery'||!ctx.policy.allowMfaRecovery||issue.recoveryResumed)fail('RECOVERY_NOT_AVAILABLE');
     // Only the native host can establish identity verification and actual
     // recovery completion; a student or an arbitrary "done" checkbox cannot.
-    const completion=await verifyRecoveryCompletion({actor,issueId:issue.id});
+    const existing=await getExistingRequest({actor,channel:'mfa_recovery',issueId:issue.id});
+    if(existing?.status!=='recorded'||!opaque(existing.reference)){
+     await recheck(issue.scopeKey,ctx.pin);return {kind:'recovery_pending',...view(row)};
+    }
+    const completion=await verifyRecoveryCompletion({actor,issueId:issue.id,reference:existing.reference});
     const latest=await recheck(issue.scopeKey,ctx.pin);
-    if(completion?.status!=='completed'||completion.verified!==true||!opaque(completion.reference))return {kind:'recovery_pending',...view(row)};
+    if(completion?.status!=='completed'||completion.verified!==true||completion.reference!==existing.reference)return {kind:'recovery_pending',...view(row)};
     const state=latest.engine.resumeRecovery(issue.state,{expectedTurn:issue.state.turn});
     const reason=decisionAllowed(state,latest);if(reason)return clear(key,row,reason);
-    row=save(key,row,{...issue,state,history:[],recoveryResumed:true});
+    row=save(key,row,{...issue,state,history:[],guideLaunch:null,recoveryResumed:true});
     return {kind:'state',...view(row)};
    }
    if(c.action==='undo'){
@@ -196,7 +222,7 @@ export function createEmbeddedAnswerBridge({
     const latest=await recheck(issue.scopeKey,ctx.pin),previous=issue.history[issue.history.length-1];
     const state=latest.engine.reconsider({...previous.state,language:issue.state.language},{nextTurn:issue.state.turn+1});
     const reason=decisionAllowed(state,latest);if(reason)return clear(key,row,reason);
-    row=save(key,row,{...issue,state,answers:previous.answers,history:issue.history.slice(0,-1)});
+    row=save(key,row,{...issue,state,answers:previous.answers,guideLaunch:null,history:issue.history.slice(0,-1)});
     return {kind:'state',...view(row)};
    }
    if(c.action==='respond'){
@@ -208,7 +234,7 @@ export function createEmbeddedAnswerBridge({
      ...(typed?{text}:{choice:{questionId:c.questionId,optionId:c.optionId}}),state:copy(issue.state)});
     await live();
     if(routed?.kind!=='supplemental')return clear(key,row,routed?.reason);
-    if(routed.scopeKey!==issue.scopeKey)return clear(key,row,'NEW_ISSUE_REQUIRED');
+    if(routed.scopeKey!==issue.scopeKey)return {kind:'clarify',reasonCode:'NEW_ISSUE_REQUIRED',...view(row)};
     const latest=await recheck(issue.scopeKey,ctx.pin);
     let state;
     if(typed){
@@ -217,8 +243,8 @@ export function createEmbeddedAnswerBridge({
      state=r.state;
     }else state=latest.engine.advance(issue.state,{expectedTurn:issue.state.turn,questionId:c.questionId,optionId:c.optionId});
     const reason=decisionAllowed(state,latest);if(reason)return clear(key,row,reason);
-    const answer=reportedAnswer(issue.state,state);
-    row=save(key,row,{...issue,state,answers:answer?[...issue.answers,answer].slice(-25):issue.answers,
+    const answers=reportedAnswers(issue.state,state);
+    row=save(key,row,{...issue,state,guideLaunch:null,answers:[...issue.answers,...answers].slice(-25),
      history:[...issue.history,{state:copy(issue.state),answers:copy(issue.answers)}].slice(-12)});
     return {kind:'state',...view(row)};
    }

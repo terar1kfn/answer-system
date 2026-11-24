@@ -55,7 +55,9 @@ export function projectNativeCatalog({
   if(!bilingual(title)){withheld.push({guideId:m.guideId,reason:'INCOMPLETE_BILINGUAL_METADATA'});continue;}
   projected.push({
    id:g.id,serviceId:owner.serviceId,nativeServiceId:owner.nativeId,purpose:m.purpose,title,
-   reviewed:true,enabled:true,audience:'student',
+   // Hash the private native procedure, not just its title or aliases. The
+   // original guide body remains in the host and is never returned here.
+   nativeGuideFingerprint:digest(g),reviewed:true,enabled:true,audience:'student',
    aliases:boundedTerms(g.aliases),keywords:boundedTerms(g.keywords),
    requires:clone(m.requires||{}),errorSignatures:boundedTerms(m.errorSignatures)
   });
@@ -75,5 +77,5 @@ export function nativeGuideReference(projection,decision){
  if(!g||!projection.availableNativeServices.some(s=>s.nativeId===g.nativeServiceId))fail('NATIVE_GUIDE_UNAVAILABLE');
  // The native application must revalidate and open the complete existing guide.
  // Never reconstruct its actions, warnings, prerequisites, or screenshots here.
- return {guideId:g.id,nativeServiceId:g.nativeServiceId,catalogRevision:projection.catalog.revision,sourceRevision:projection.catalog.sourceRevision};
+ return {guideId:g.id,nativeServiceId:g.nativeServiceId,catalogRevision:projection.catalog.revision,sourceRevision:projection.catalog.sourceRevision,nativeGuideFingerprint:g.nativeGuideFingerprint};
 }

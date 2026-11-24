@@ -1,5 +1,12 @@
 # Change log
 
+## 0.12.0 — native assistant and guide continuation (validation deferred)
+
+- Added browser-side native assistant controller, versioned choices, explicit refresh after uncertain mutations, cancellation and stale-result isolation across kiosk visits, and localized non-procedural interface copy.
+- Added exact original guide fingerprints, launch references, trusted native navigation receipts, verified guide progress in journey deltas, and explicit separation from student-reported resolution.
+- Bound recovery continuation to the recorded native MFA request; retain current issue on scope clarification, bind transient rows to actor and visit, and preserve compound observations in the supplemental ticket journey.
+- No live callbacks, private application edits, tests, syntax checks, builds, browser or model execution. CI remains manual-only.
+
 ## 0.11.0 — conversation and shared-access intelligence (validation deferred)
 
 - Added bounded conversational input normalization, context-specific compound-reply interpretation, conflict and possible-new-issue clarification, and privacy minimization of standalone possible verification codes.
