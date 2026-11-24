@@ -1,12 +1,14 @@
-name: Answer System checks (manual)
+name: Answer System checks
 on:
   workflow_dispatch:
+  push:
+    branches: [main, 'validation/**']
 permissions:
   contents: read
 jobs:
   regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:

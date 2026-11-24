@@ -1,6 +1,6 @@
 # Answer System
 
-A reusable, local-first IT diagnostic decision engine. Version 0.44 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
+A reusable, local-first IT diagnostic decision engine. Version 0.45 is an isolated development milestone, not a production deployment. All bundled knowledge and incidents are synthetic. No private institutional code, student data, credentials, real catalog or live configuration belong in this public repository.
 
 ## Development status
 
@@ -157,3 +157,6 @@ The [reviewed-context release coordinator](docs/context-release.md) adds separat
 
 
 [Session and architecture stabilization](docs/session-architecture.md) adds bounded fresh-projection engine reuse, visit capacity including pending work, native lifecycle cancellation, conservative undo barriers, incident revision pins, and shared AI concurrency leases. The native host still owns actual authentication, expiry, private storage and all external effects.
+
+
+Consolidated validation is described in [docs/validation-plan.md](docs/validation-plan.md). All synthetic suites are registered; CI executes syntax and regression checks without deploying or contacting a model.

@@ -1,5 +1,11 @@
 # Change log
 
+## 0.45.0 — consolidated validation preparation
+
+- Register all synthetic regression suites, including 30 newly authored scenarios for core consistency, session architecture, AI advice boundaries and controlled contextual publication.
+- Discover all module files for syntax checks, including new tests and fixtures. Enable isolated Node.js 22 CI checks on main/validation branches as authorized by the project owner; no deployment or actual inference.
+- Document validation boundaries and remaining native integration gates. Execution results are recorded separately against the tested commit.
+
 ## 0.44.0 — session and architecture optimization (validation deferred)
 
 - Add bounded per-bridge LRU engine reuse only after fresh complete projection, exact catalog/incident content pins and eligibility hooks; no authority or visit-state cache. Minimize authorized incident metadata and invalidate old state on incident-set changes.
